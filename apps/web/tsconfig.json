@@ -30,15 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": [
-    "node_modules",
-    // Cloudflare Workers/vinext deployment adapter code, not part of the
-    // genuine Next.js app. Confirmed unused by any application source
-    // (see docs/FRONTEND_RUNTIME_MIGRATION.md). Left in place pending
-    // removal in a later cleanup commit; excluded here only so they don't
-    // fail typecheck now that their vinext/vite imports are gone.
-    "worker/**/*.ts",
-    "build/**/*.ts",
-    "types/cloudflare.d.ts"
-  ]
+  "exclude": ["node_modules"]
 }

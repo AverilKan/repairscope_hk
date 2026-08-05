@@ -19,8 +19,9 @@ payments, live AI or production file processing.
 - Node.js 22.13 or newer
 - npm workspaces — the lockfile lives at the repository root
   (`../../package-lock.json`), not in this directory
-- Next.js 16, React 19 and TypeScript 5
-- vinext/Vite and Wrangler for the Sites/Cloudflare-compatible build
+- Next.js 16, React 19 and TypeScript 5 (genuine Next.js — `next dev`/
+  `next build`/`next start`; see `../../docs/FRONTEND_RUNTIME_MIGRATION.md`
+  for the earlier vinext-based runtime this replaced)
 
 ```bash
 npm ci        # run from either the repo root or this directory — npm
@@ -41,6 +42,8 @@ npm run test:unit
 npm run test:interaction
 npm test
 npm run build
+npm run test:e2e   # Playwright migration smoke suite — needs a running
+                    # server; set PLAYWRIGHT_BASE_URL to target dev/start
 ```
 
 Interaction coverage uses React Testing Library with jsdom. It exercises the
@@ -86,13 +89,6 @@ Components import the composed `repairScopeServices` container, not individual
 mock implementations. A backend integration should implement
 `RepairScopeServices` and change composition, leaving component contracts
 unchanged.
-
-## Hosting-specific files
-
-`.openai/hosting.json`, `build/sites-vite-plugin.ts`, `vite.config.ts`,
-`.vinext/`, Wrangler configuration and build scripts exist to package and host
-this frontend with Sites. They are deployment tooling, not authentication,
-authorisation, persistence or domain logic.
 
 ## Environment and documentation
 
