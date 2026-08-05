@@ -479,7 +479,10 @@ test("shared authentication remains frontend-only and gates submission rather th
       readFile(new URL("../package.json", import.meta.url), "utf8"),
     ]);
 
-  assert.doesNotMatch(layoutSource, /ClerkProvider/);
+  // Clerk is now genuinely integrated (ClerkProvider wraps the root
+  // layout) — this used to assert its absence back when authentication
+  // was frontend-only. drizzle-orm/drizzle-kit remain correctly unused.
+  assert.match(layoutSource, /ClerkProvider/);
   assert.match(gateSource, /SharedAuthShell/);
   assert.match(gateSource, /context="landlord"/);
   assert.match(gateSource, /Submit for contractor responses/);
@@ -499,8 +502,13 @@ test("shared authentication remains frontend-only and gates submission rather th
   assert.match(landlordSource, /savePendingBriefDraft\(draft\)/);
   assert.match(landlordSource, /clearPendingBriefDraft\(\)/);
   assert.match(routeSource, /<LandlordApp path=\{path\}/);
+  // Deliberate: no server-side auth() call or capability check in the
+  // landlord route itself — see docs/FRONTEND_RUNTIME_MIGRATION.md's
+  // "no Clerk middleware" decision. FastAPI remains the real
+  // authorization boundary; this route only threads the path prop.
   assert.doesNotMatch(routeSource, /await auth\(\)|repairAccessDecision/);
-  assert.doesNotMatch(packageSource, /@clerk\/nextjs|drizzle-orm|drizzle-kit/);
+  assert.match(packageSource, /@clerk\/nextjs/);
+  assert.doesNotMatch(packageSource, /drizzle-orm|drizzle-kit/);
 });
 
 test("brief correction creates a new brief version without mutating the original", async () => {
@@ -2222,7 +2230,8 @@ test("application components consume services and retired comparison implementat
   );
   assert.doesNotMatch(landlord, /ProposalWorkspace|QuoteUploadFlow|ClarificationFlow/);
   assert.doesNotMatch(css, /\.comparison-table|\.response-comparison-table/);
-  assert.doesNotMatch(packageSource, /@clerk\/nextjs|drizzle-orm|drizzle-kit/);
+  assert.match(packageSource, /@clerk\/nextjs/);
+  assert.doesNotMatch(packageSource, /drizzle-orm|drizzle-kit/);
 });
 
 test("operator sourcing stays review-led and never defaults to automatic broadcasting", async () => {
