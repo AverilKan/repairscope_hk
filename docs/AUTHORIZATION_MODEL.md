@@ -74,3 +74,76 @@ charge tenants or authorise deposit deductions.
 4. Require repair or invitation ownership/scope.
 5. Validate task, resource and exact version.
 6. Perform the mutation transactionally and audit it.
+
+## Identity and property authorization model (Phase 2)
+
+Clerk establishes identity only. RepairScope derives authorization from its
+own persisted records — never from client-supplied claims (capability,
+permitted repair IDs, verified-email status, account membership, property
+permission, operator status). A raw user ID, account ID, property ID or
+repair ID never grants access on its own.
+
+```text
+Clerk user
+→ RepairScope user (users, keyed by clerk_user_id)
+→ platform capabilities (user_capabilities: landlord | contractor | operator)
+→ account membership (account_memberships: owner | admin | member)
+→ property access (via account ownership, or an explicit
+  property_access_grants row: viewer | manager)
+→ resource permission
+```
+
+### Why accounts, not direct property ownership
+
+A property is owned by an **account** (`individual_landlord`,
+`landlord_business`, `letting_agent`, `property_manager`), not directly by
+a user. One user does not imply one account: a letting agency has many
+staff (`account_memberships`) against one account, and one person can hold
+memberships in multiple accounts. This is deliberately more structure than
+a single `property.owner_user_id` column would need for the current
+frontend, because the frontend's `AUTHORIZATION_MODEL.md` roles above
+(landlord, letting agent, property manager) already describe
+organisations, not just individuals, and retrofitting multi-user accounts
+onto a single-owner column later would require a breaking migration.
+
+`property_access_grants` supports the narrower case: a user who should see
+only specific properties rather than every property their account owns
+(e.g. a contractor-facing operator restricted to one portfolio, or a junior
+staff member scoped to a subset of properties). It is a permission grant,
+not ownership — the owning account never changes.
+
+### Three independent layers
+
+- **`user_capabilities`** — which product capabilities (`landlord`,
+  `contractor`, `operator`) a user may use at all. A contractor capability
+  alone grants no landlord, account or property access; a later
+  contractor-invitation token and contractor-profile membership control
+  contractor job access separately (see "Opaque contractor task scope"
+  above — unchanged by this section).
+- **`account_memberships`** — participation in a landlord/agent/manager
+  workspace, with a role (`owner`, `admin`, `member`) that governs what
+  that member may do to the account's properties by default.
+- **`property_access_grants`** — narrows or extends access to specific
+  properties independent of blanket account membership.
+
+Ownership and authorization are never inferred from an email address or a
+route parameter.
+
+### Default access rules
+
+| Actor | Can view | Can manage |
+|---|---|---|
+| Account owner/admin | every active property on the account | every active property on the account |
+| Account member | every active property on the account | nothing by default (no implicit destructive admin rights) |
+| Property viewer grant | the granted property only | nothing |
+| Property manager grant | the granted property only | the granted property only |
+| Operator | only what an operator-authorized route/service explicitly checks for | — |
+| Contractor capability alone | nothing landlord-side | — |
+
+Operator authority is never an implicit bypass folded into every query —
+route or service code must request it deliberately
+(`require_operator(user_id)`).
+
+This model is implemented by a central authorization service (not
+scattered per-route checks) — see `apps/api/app/services/authorization.py`
+once Phase 2 lands.

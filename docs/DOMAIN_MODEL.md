@@ -111,3 +111,62 @@ submitted response finalTotal
 
 Repair responsibility is information, not authority. Tenant occupancy or
 responsibility never grants access to quotes or appointment powers.
+
+## Backend persistence design decisions (not yet implemented)
+
+These are agreed shapes for tables that later phases will create. Recording
+them now so the schema doesn't drift between when a decision is made and
+when the table is actually migrated.
+
+### Repair progress (Phase 10, not created in Phase 2)
+
+Two complementary representations, not one:
+
+- `repairs.stage` — the current workflow state, for fast repair-list
+  filtering and routing (`awaiting_contractor_confirmation`,
+  `repair_in_progress`, `work_reported_complete`, `landlord_review`,
+  `completed`, ...).
+- `repair_progress_updates` — an append-only, landlord-visible timeline
+  (`contractor_appointed`, `appointment_confirmed`, `work_started`,
+  `contractor_marked_complete`, `landlord_requested_information`,
+  `repair_closed`, ...). Update `repairs.stage` and append the
+  corresponding progress event in the same transaction; never treat the
+  update log as the sole source of current stage.
+
+This is distinct from `audit_events`: progress updates are product-visible
+events a landlord may see in their timeline; audit events are
+security/operational records that generally are not shown to users.
+
+The frontend currently reads progress through
+`RepairProgressService.getProgress()` → `RepairProgress`, a single object,
+not a list — the future `repair_progress_updates` table is additive
+(the timeline), not a replacement for that read shape.
+
+### Clarification messages (Phase 7, not created in Phase 2)
+
+Individual append-only messages, not one JSON document per thread:
+
+```text
+clarification_messages
+- id
+- thread_id
+- parent_message_id, nullable   (connects an answer to its question)
+- sender_type: landlord | contractor | operator | system
+- sender_user_id, nullable
+- message_type: question | answer | system_event
+- body
+- related_response_version, nullable
+- structured_question_key, nullable
+- client_message_id, nullable   (idempotent submission)
+- created_at
+```
+
+### AgreedScope
+
+`AgreedScope` remains a first-class, immutable persisted entity (see
+above), but it is not a standalone frontend read path. The frontend
+consumes it through `RepairProgressService.getProgress().agreedScope` and
+through the response of the selection/confirmation endpoints that create
+it — there is no `AgreedScopeService`. See
+`docs/MOCK_SERVICE_CONTRACTS.md` and
+`docs/BACKEND_INTEGRATION_CHECKLIST.md` for the full rationale.
