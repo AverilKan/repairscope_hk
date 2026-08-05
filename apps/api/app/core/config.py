@@ -29,6 +29,24 @@ class Settings(BaseSettings):
     # Clock-skew tolerance (seconds) applied to exp/nbf checks.
     clerk_clock_skew_seconds: int = 10
 
+    # Comma-separated explicit allowed browser origins for CORS (e.g.
+    # "http://localhost:3000"). No wildcard is ever accepted — see
+    # app/main.py for enforcement. Required in production; see
+    # cors_allowed_origins_list()/main.py for the fail-closed check.
+    cors_allowed_origins: str | None = None
+
+    def cors_allowed_origins_list(self) -> list[str]:
+        if not self.cors_allowed_origins:
+            return []
+        origins = [
+            origin.strip() for origin in self.cors_allowed_origins.split(",") if origin.strip()
+        ]
+        if any(origin == "*" for origin in origins):
+            raise ValueError(
+                "REPAIRSCOPE_CORS_ALLOWED_ORIGINS must not contain a wildcard '*' origin."
+            )
+        return origins
+
 
 @lru_cache
 def get_settings() -> Settings:
