@@ -2266,3 +2266,20 @@ test("backend handoff documentation is present in apps/web and docs/", async () 
   assert.match(documents[7], /do not rewrite the frontend/i);
   assert.match(documents[8], /not a production-ready system/i);
 });
+
+test("repair-list relative-update formatting uses real current time, not a fixed historical anchor", async () => {
+  const { formatUpdatedAt } = await import("../components/LandlordProcurementPages");
+
+  const threeHoursAgo = new Date(Date.now() - 3 * 3_600_000).toISOString();
+  assert.equal(formatUpdatedAt(threeHoursAgo), "3 hours ago");
+
+  const oneHourAgo = new Date(Date.now() - 3_600_000).toISOString();
+  assert.equal(formatUpdatedAt(oneHourAgo), "1 hour ago");
+
+  // Regression guard: this previously anchored against a hardcoded
+  // "2026-08-04T11:00:00.000Z" instead of the real clock, so a value from
+  // one hour ago would have formatted as whatever offset happened to
+  // exist between that fixed date and now — asserting against a value
+  // computed from Date.now() itself is what catches a reintroduced
+  // fixed anchor (it would drift from "1 hour ago" as real time passes).
+});

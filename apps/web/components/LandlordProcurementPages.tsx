@@ -31,16 +31,13 @@ const showPrototypeControls =
   process.env.NODE_ENV === "development" &&
   process.env.NEXT_PUBLIC_REPAIRSCOPE_DEMO_MODE !== "false";
 
-const formatUpdatedAt = (value: string) =>
+// `repairs` (the only state this formats) is populated exclusively via a
+// client-side effect below — it's `undefined` during the initial SSR/
+// hydration render, so this never runs before hydration completes and a
+// real `new Date()` here can't produce a server/client mismatch.
+export const formatUpdatedAt = (value: string) =>
   new Intl.RelativeTimeFormat("en-GB", { numeric: "auto" }).format(
-    -Math.max(
-      1,
-      Math.round(
-        (new Date("2026-08-04T11:00:00.000Z").getTime() -
-          new Date(value).getTime()) /
-          3_600_000,
-      ),
-    ),
+    -Math.max(1, Math.round((Date.now() - new Date(value).getTime()) / 3_600_000)),
     "hour",
   );
 
