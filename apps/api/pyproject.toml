@@ -25,6 +25,13 @@ dev = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# app.core.db creates its async engine/pool once at import time. A
+# function-scoped event loop (pytest-asyncio's default) would bind that
+# pool to the first test's loop and break every later test's asyncpg
+# connections with "attached to a different loop". Session-scoped loop
+# keeps one loop for the whole run, matching the module-level engine.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
 
 [tool.ruff]
