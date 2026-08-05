@@ -20,7 +20,7 @@ that container; production work should implement the same interfaces in
 | `LandlordRepairService` | list/get/create draft | Uses canonical Repair projections and owner-scoped filters. |
 | `RepairProgressService` | `getProgress(repairId)` | Returns retained selected response, exact version and frozen totals. `AgreedScope` (when the repair has one) is a field on the returned `RepairProgress`, not a separate service — there is no standalone `AgreedScopeService`. A dedicated read endpoint may be added later if a real UI requirement appears; do not build one just because it matches this table. |
 | Classification, questionnaire and brief services | classify, load/save, generate/correct | Deterministic mock behaviour; safety answers are never inferred. |
-| `AuthService` | authenticate/verify mock | Visual states only; it creates no real session or capability. |
+| `AuthService` | authenticate/verify mock | Contractor invitation-claiming concept only; visual states, creates no real session or capability. Unrelated to landlord authentication — that's real Clerk (`apps/web/services/identity/`, not part of `RepairScopeServices`), not mocked. |
 | `OperatorSourcingService` | launch plan | Operator-reviewed shortlist; automatic broadcast is disabled. |
 
 ## Composition and state

@@ -59,10 +59,15 @@ is being redesigned as part of it.
 - **Clerk integration does not happen in these commits.** It follows only
   after the runtime migration passes independently (dev, build, and
   production start all verified, with browser-level smoke coverage) —
-  see the commit plan below.
+  see the commit plan below. *(Update: this follow-up work is now done —
+  see `docs/AUTHORIZATION_MODEL.md` and `docs/KNOWN_LIMITATIONS.md` for
+  the activated Clerk sign-in/sign-up, `IdentityTokenProvider`,
+  `CurrentUserService` and `LandlordAccountGate`.)*
 - **CORS is not added during this migration.** It's required later for the
   live Clerk `/api/me` browser flow, tracked separately in
-  `docs/KNOWN_LIMITATIONS.md`.
+  `docs/KNOWN_LIMITATIONS.md`. *(Update: CORS is now configured — see
+  `apps/api/app/main.py`'s `configure_cors` and
+  `REPAIRSCOPE_CORS_ALLOWED_ORIGINS`.)*
 
 ## Sequencing
 
@@ -79,5 +84,9 @@ is being redesigned as part of it.
    (`worker/index.ts`, `types/cloudflare.d.ts`,
    `build/sites-vite-plugin.ts`, `.openai/hosting.json` review).
 7. Record migration evidence and the remaining CORS requirement.
-8. *(Separate, later work, not part of this migration)* Integrate Clerk
-   against the now-genuine Next.js runtime.
+8. *(Separate, later work, not part of this migration — now complete)*
+   Integrate Clerk against the now-genuine Next.js runtime: CORS, Clerk
+   `SignIn`/`SignUp` on `/sign-in`/`/sign-up`, the `IdentityTokenProvider`
+   boundary, a real `CurrentUserService` backed by `GET /api/me`, and the
+   `LandlordAccountGate` UX boundary in front of the landlord account
+   views. See `docs/AUTHORIZATION_MODEL.md`.

@@ -23,16 +23,27 @@ the authentication column describes the future enforcement point.
 | `/contractor/respond/:token` | Opportunity, quote, inspection, question, decline, clarification, revision, reconfirmation or inspection confirmation | resolving, loading, invalid, expired, revoked, closed, draft, save failed, submitted, clarification, proposed change, inspection confirmation | `ContractorTaskService.resolveToken` followed by the returned task service | opaque server-resolved task; account not required for invitation action | opaque token-to-task fixtures |
 | `/respond/:token` | Compatibility entry forwarding to the contractor experience | same as contractor response | same as contractor response | same token scope | same fixture |
 | `/contractor/quotes` | Minimal claimed-quote workspace concept | ready | future account query | verified contractor capability | local mock capability |
-| `/sign-in` | Shared authentication concept | sign in, loading, incorrect password, verification, success | `AuthService.authenticate/verify` | not applicable; this is the concept route | auth outcomes |
-| `/sign-up` | Shared account-creation concept | create, existing account, verification, mismatch, success | `AuthService.authenticate/verify` | not applicable; this is the concept route | auth outcomes |
+| `/sign-in/[[...sign-in]]` | Real Clerk sign-in, wrapped in the RepairScope shell | Clerk-managed (loading, password, verification, error, success) | `@clerk/nextjs`'s `<SignIn>` (`routing="path"`, catch-all segment for Clerk's internal sub-routing) | Clerk-verified session; not applicable to RepairScope's own authorization | live Clerk development instance, not mocked |
+| `/sign-up/[[...sign-up]]` | Real Clerk sign-up, wrapped in the RepairScope shell | Clerk-managed (loading, verification, error, success) | `@clerk/nextjs`'s `<SignUp>` (`routing="path"`, catch-all segment) | Clerk-verified session; not applicable to RepairScope's own authorization | live Clerk development instance, not mocked |
 | `/operator` | Launch operator workflow reference | ready | `OperatorSourcingService.getLaunchPlan` is the typed future boundary | operator capability | launch-plan contract |
+
+Rows marked `verified landlord with repair access` under "Future auth" are
+in front of `LandlordAccountGate` (`components/LandlordAccountGate.tsx`),
+which is now active: it redirects a signed-out visitor to `/sign-in` with a
+validated return path, and shows an access-denied state for a
+suspended/forbidden account. This is a UX boundary only — the repair-domain
+endpoints themselves (`GET /api/repairs/:id`, etc.) are still proposed, not
+implemented (see `docs/BACKEND_INTEGRATION_CHECKLIST.md`), so per-repair
+server-side authorization remains future work; only `GET /api/me` is real
+today.
 
 ## Reachability
 
 The home page reaches landlord intake and the response comparison demo.
 `/landlord/repairs` reaches every landlord stage. The contractor response route
-documents its fixture URLs in `README.md`. The operator and auth concept routes
-are available through direct development navigation.
+documents its fixture URLs in `README.md`. The operator route is available through
+direct development navigation. `/sign-in` and `/sign-up` are real Clerk
+routes, not concepts.
 
 The comparison page is intentionally landlord-private. A raw repair ID is never
 the future authorisation mechanism; it is only a route parameter passed to a

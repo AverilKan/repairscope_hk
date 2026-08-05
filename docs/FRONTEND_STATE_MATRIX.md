@@ -19,7 +19,8 @@
 | Proposed-change review | selected Version 1 retained | landlord compares availability or full revised quote and explicitly accepts or declines | wrong response/version fails closed | accepted terms become selected; decline preserves the original |
 | Reconfirmation | server-resolved task loading | contractor confirms, proposes availability, revises or withdraws | invalid/expired task or failed write | matching confirmed selection creates `AgreedScope` |
 | Repair progress | loading | agreed quote modal, immutable history, progress stages | explicit load failure | in progress advances to completed/closed |
-| Shared authentication | modal or concept route | sign in/create, password validation and terms | incorrect password, account exists, verification required, email mismatch | matching verified identity receives contextual capability |
+| Clerk sign-in / sign-up | `/sign-in`, `/sign-up` — Clerk-managed loading | Clerk's own `<SignIn>`/`<SignUp>` widget (password, OAuth, email verification) | Clerk-managed (incorrect password, verification required, etc.) | `fallbackRedirectUrl`/validated `redirect_url` return path; RepairScope authorization is still server-derived, not granted by sign-in alone |
+| Landlord account gate | checking your account (`LandlordAccountGate`) | — (transparent once resolved) | signed-out → redirect to `/sign-in?redirect_url=...`; suspended/forbidden → access-denied state; network/malformed `/api/me` → error state | gate resolves to `active`; wrapped content renders. No-op under the mock data source. |
 
 ## Required transition rules
 
@@ -35,5 +36,7 @@
 - Reconfirmation does not silently accept a changed price, scope or date.
 - Alternative inspection times remain pending until landlord acceptance.
 - Token text and client-supplied auth claims never determine access or task type.
+- `LandlordAccountGate` is a UX convenience, not an authorization decision —
+  it never grants access itself; FastAPI verifies every request independently.
 - Every retried write uses or anticipates an idempotency key where duplicate
   submission would matter.

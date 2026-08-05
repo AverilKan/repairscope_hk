@@ -19,7 +19,11 @@ production backend.
 ## Suggested implementation order
 
 1. Database schema, migrations, audit and idempotency
-2. Clerk identity integration
+2. ~~Clerk identity integration~~ — done: `apps/api/app/auth/clerk.py`
+   (`ClerkIdentityVerifier`), `GET /api/me`, and the frontend's
+   `apps/web/services/identity/` (`IdentityTokenProvider`,
+   `CurrentUserService`, `LandlordAccountGate`). See
+   `docs/AUTHORIZATION_MODEL.md`.
 3. RepairScope capabilities and repair ownership
 4. Canonical Repair and repair drafts
 5. Brief versions and operator-approved sourcing

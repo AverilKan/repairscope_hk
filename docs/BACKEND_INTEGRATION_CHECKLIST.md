@@ -7,7 +7,10 @@ These endpoints are proposed and not implemented in this frontend.
 - Implement every interface in `RepairScopeServices`; switch the composition
   root, not component props.
 - Derive Clerk identity, email verification, capability and ownership on the
-  server. Never accept auth claims from request bodies.
+  server. Never accept auth claims from request bodies. *(Identity itself is
+  done — `ClerkIdentityVerifier`, `GET /api/me`, `AuthorizationService`. The
+  repair/sourcing/contractor domains below still need their own
+  ownership/capability checks as each is implemented.)*
 - Use stable opaque IDs, server timestamps, optimistic versions, database
   idempotency constraints and append-only audit records.
 - Hash invitation tokens at rest; make them single-purpose, expiring and

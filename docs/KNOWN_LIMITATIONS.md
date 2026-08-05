@@ -4,8 +4,10 @@ This export is a validated frontend prototype, not a production-ready system.
 
 It does not implement:
 
-- backend persistence, database migrations, durable audit or transactions;
-- Clerk authentication, sessions, capabilities or real email verification;
+- most backend persistence beyond identity/authorization (repair, sourcing,
+  contractor and comparison domains have no database schema yet — see
+  `docs/BACKEND_INTEGRATION_CHECKLIST.md`); durable audit or transactions
+  for those domains;
 - secure token generation, hashing, expiry jobs or revocation storage;
 - live email, delivery tracking or notification preferences;
 - live AI classification, brief generation or work suggestions;
@@ -18,8 +20,11 @@ Frontend-specific limits:
 
 - Mock state is in memory and resets when a service container or page session is
   recreated. It is deterministic but not concurrency-safe.
-- Authentication screens are concepts only. They deliberately grant no real
-  role or access.
+- Landlord authentication (`/sign-in`, `/sign-up`) is real Clerk, verified by
+  FastAPI on every request — no longer a concept screen. Contractor
+  account-claiming (see `docs/AUTHORIZATION_MODEL.md`'s "Opaque contractor
+  task scope") remains unimplemented; the contractor invitation flow still
+  uses its own mock `AuthService`, unrelated to Clerk.
 - React Testing Library/jsdom provides interaction, mobile-viewport and keyboard
   modal coverage. A Playwright migration smoke suite
   (`apps/web/tests/e2e/`) additionally proves every route renders, navigates,
@@ -44,19 +49,14 @@ start`) — see `docs/FRONTEND_RUNTIME_MIGRATION.md` for the earlier
 Sites/vinext/Wrangler-based export this replaced. No deployment provider
 (Vercel, OpenNext, Node/Docker) has been chosen or configured.
 
-## FastAPI CORS is not yet configured
+## FastAPI CORS
 
-`apps/api/app/main.py` has no `CORSMiddleware`. This was confirmed during
-the Next.js runtime migration audit and is unrelated to that migration —
-it would have blocked a browser-to-FastAPI call exactly the same way
-under the old vinext-based frontend.
-
-- It is required before the live Clerk `GET /api/me` browser flow can
-  work end-to-end (any browser-based cross-origin call from the frontend
-  to FastAPI needs it).
-- It is **not** required for, and was deliberately not added during, the
-  Next.js runtime migration — that migration doesn't call FastAPI at all.
-- The planned approach is an explicit frontend-origin allow-list
-  (`allow_origins`) plus `Authorization` in `allow_headers`, for
-  bearer-token calls — not shared cross-origin cookies, so
-  `allow_credentials` is not planned to be set.
+`apps/api/app/main.py`'s `configure_cors` now adds an explicit,
+narrowly-scoped `CORSMiddleware`: an origin allow-list read from
+`REPAIRSCOPE_CORS_ALLOWED_ORIGINS` (comma-separated, no wildcard),
+`allow_credentials=False` (bearer tokens only, never shared cookies),
+`allow_methods=["GET", "POST"]`, `allow_headers=["Authorization", "Content-Type"]`.
+If `REPAIRSCOPE_CORS_ALLOWED_ORIGINS` is unset in production, startup fails
+loudly (`RuntimeError`) rather than serving with a permissive or absent
+policy; outside production, an unset value adds no CORS middleware at all
+(the typical local-dev/test case). See `apps/api/tests/test_cors.py`.

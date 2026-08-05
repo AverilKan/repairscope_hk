@@ -1,8 +1,14 @@
 # Authorization model
 
-Authentication is a frontend-only visual concept here. Clerk is not installed.
-The future backend must derive identity, verified email, capability and resource
-permission from the server session on every request.
+Landlord authentication is real: `@clerk/nextjs` is installed and activated on
+`/sign-in`/`/sign-up`, and FastAPI verifies every bearer token itself
+(`apps/api/app/auth/clerk.py`'s `ClerkIdentityVerifier`, RS256/JWKS,
+`azp`-enforced). FastAPI — not the frontend — derives identity, verified
+email, capability and resource permission on every request; the frontend's
+`LandlordAccountGate` (`apps/web/components/LandlordAccountGate.tsx`) is a
+UX-only boundary that redirects a signed-out visitor before they hit a wall
+of failed requests. It grants nothing by itself. Contractor account claiming
+(below) remains a future concept, not yet implemented.
 
 ## Landlord access
 
@@ -147,3 +153,16 @@ route or service code must request it deliberately
 This model is implemented by a central authorization service (not
 scattered per-route checks) — see `apps/api/app/services/authorization.py`
 once Phase 2 lands.
+
+### Frontend consumption boundary
+
+The frontend never constructs capabilities, account memberships or a user
+ID itself. `apps/web/services/identity/CurrentUserService.ts` calls
+`GET /api/me` with a bearer token from `IdentityTokenProvider`
+(`apps/web/services/identity/IdentityTokenProvider.ts` — a Clerk-backed
+implementation wrapping `useAuth().getToken()`, and a `MockIdentityTokenProvider`
+for the mock data source) and returns exactly what the API sent, mapping
+401/403/network/malformed responses to typed errors
+(`CurrentUserUnauthenticatedError`, `CurrentUserForbiddenError`,
+`CurrentUserNetworkError`, `CurrentUserMalformedResponseError`). No token is
+ever persisted by the frontend — every call re-reads Clerk's live session.
