@@ -52,24 +52,48 @@ uv run pytest -q
 ```bash
 uv run alembic revision --autogenerate -m "describe the change"
 uv run alembic upgrade head
+uv run alembic downgrade -1   # or `base` to drop everything
 ```
 
-No migrations exist yet — Alembic is configured but Phase 1 intentionally
-ships no application tables. The first real revision lands once the
-user/auth/property foundation is designed (Phase 2).
+Revision `8ed561c12765` ("add identity and property foundation") is the
+first real migration: `users`, `user_capabilities`, `accounts`,
+`account_memberships`, `properties`, `property_access_grants`. Every enum
+column is `Enum(..., native_enum=False, create_constraint=True)` — a
+`VARCHAR` with a real Postgres `CHECK` constraint, not a native enum type
+(avoids `ALTER TYPE ... ADD VALUE` migration pain later). Verified: empty
+DB → upgrade head → downgrade to base (clean) → upgrade head again.
+
+Known tooling quirk: `uv run alembic check` reports a false-positive
+"removed check constraint" diff for every `Enum`-derived `CHECK`
+constraint, immediately after a migration that matches the models exactly.
+This is a limitation in Alembic's check-constraint reflection comparator
+(it can't structurally parse the constraint body back from Postgres), not
+an actual drift — confirmed by inspecting the live constraints directly
+(`SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE
+contype = 'c' AND conrelid = '<table>'::regclass;`). Don't "fix" this by
+autogenerating a migration that drops and re-adds these constraints.
 
 ## Configuration
 
 Settings are read from environment variables prefixed `REPAIRSCOPE_` (see
-`app/config.py`), with a local `.env` file as a convenience during
+`app/core/config.py`), with a local `.env` file as a convenience during
 development. No secret belongs in this repository.
 
 ## Architecture
 
 - `app/main.py` — FastAPI app, router registration
-- `app/config.py` — `Settings` (pydantic-settings), `get_settings()`
-- `app/db.py` — async SQLAlchemy engine, session factory, `Base` declarative
-  base, `check_database_connection()`
-- `app/routers/` — route modules (`health.py` so far)
+- `app/core/` — `config.py` (`Settings`, `get_settings()`), `db.py` (async
+  SQLAlchemy engine, session factory, `Base`, `check_database_connection()`)
+- `app/api/routes/` — route modules (`health.py` so far)
+- `app/auth/` — identity verification and the `AuthenticatedPrincipal`
+  boundary (Phase 2)
+- `app/models/` — SQLAlchemy ORM models, one module per aggregate
+  (`user.py`, `account.py`, `property.py`), `enums.py` for shared
+  `StrEnum`s, `base.py` for `UUIDPrimaryKeyMixin`/`TimestampMixin`
+- `app/repositories/` — data-access layer over the models (Phase 2)
+- `app/services/` — business/authorization logic, e.g. the central
+  authorization service (Phase 2)
+- `app/schemas/` — Pydantic request/response models, kept separate from
+  the SQLAlchemy persistence models in `app/models/`
 - `migrations/` — Alembic environment and revisions
 - `tests/` — pytest suite
