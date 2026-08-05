@@ -16,6 +16,7 @@ import type {
   RepairIntakeDraft,
 } from "@/domain/types";
 import { repairScopeServices } from "@/services";
+import { LandlordAccountGate } from "./LandlordAccountGate";
 import {
   LandlordSourcingGate,
   type LandlordAccountPrefill,
@@ -1138,6 +1139,7 @@ export function LandlordApp({
   }
 
   let content: React.ReactNode;
+  let requiresAccount = true;
   if (path[0] === "repairs" && path.length === 1) {
     content = <LandlordRepairsPage />;
   }
@@ -1163,6 +1165,7 @@ export function LandlordApp({
     content = <RepairProgressPage completed repairId={path[1] ?? ""} />;
   }
   else {
+    requiresAccount = false;
     const startFresh =
       path[0] === "new" ||
       (path[0] === "repairs" && path[1] === "new");
@@ -1174,5 +1177,9 @@ export function LandlordApp({
     );
   }
 
-  return <SiteShell surface="landlord">{content}</SiteShell>;
+  return (
+    <SiteShell surface="landlord">
+      {requiresAccount ? <LandlordAccountGate>{content}</LandlordAccountGate> : content}
+    </SiteShell>
+  );
 }

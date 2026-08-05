@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import { SignIn } from "@clerk/nextjs";
 import { BackLink, SiteShell } from "@/components/SiteShell";
+import { sanitizeReturnPath } from "@/services/identity/returnPath";
 
 export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to your RepairScope landlord account.",
 };
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ redirect_url?: string }>;
+}) {
+  const { redirect_url: redirectUrl } = await searchParams;
+  const returnPath = sanitizeReturnPath(redirectUrl);
+
   return (
     <SiteShell surface="landlord">
       <main className="centered-stage">
@@ -23,7 +31,7 @@ export default function SignInPage() {
             routing="path"
             path="/sign-in"
             signUpUrl="/sign-up"
-            fallbackRedirectUrl="/landlord/repairs"
+            fallbackRedirectUrl={returnPath}
           />
         </section>
       </main>
