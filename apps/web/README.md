@@ -1,5 +1,9 @@
 # RepairScope Procurement MVP frontend
 
+This is the frontend workspace of the RepairScope monorepo (`apps/web`). See
+the [repository root README](../../README.md) for the monorepo layout and
+the backend (`apps/api`).
+
 RepairScope is a frontend-only procurement prototype for authorised landlords,
 letting agents and property managers. It covers neutral repair intake,
 contractor opportunities, structured quotes and inspections, private
@@ -93,7 +97,8 @@ authorisation, persistence or domain logic.
 `.env.example` contains optional public development settings only. No secret is
 required or belongs in this repository.
 
-Read `DOMAIN_MODEL.md`, `MOCK_SERVICE_CONTRACTS.md`,
-`AUTHORIZATION_MODEL.md`, `BACKEND_INTEGRATION_CHECKLIST.md`,
-`CLAUDE_BACKEND_HANDOFF.md`, `FRONTEND_ROUTE_MAP.md`,
-`FRONTEND_STATE_MATRIX.md` and `KNOWN_LIMITATIONS.md` before backend work.
+Read `../../docs/DOMAIN_MODEL.md`, `../../docs/MOCK_SERVICE_CONTRACTS.md`,
+`../../docs/AUTHORIZATION_MODEL.md`, `../../docs/BACKEND_INTEGRATION_CHECKLIST.md`,
+`../../docs/CLAUDE_BACKEND_HANDOFF.md`, `../../docs/FRONTEND_ROUTE_MAP.md`,
+`../../docs/FRONTEND_STATE_MATRIX.md` and `../../docs/KNOWN_LIMITATIONS.md`
+before backend work.

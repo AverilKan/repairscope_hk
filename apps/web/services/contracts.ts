@@ -33,7 +33,6 @@ import type {
 } from "@/domain/landlordClarification";
 import type { SubmittedContractorResponse } from "@/domain/types";
 import type {
-  AgreedScope,
   AlternativeAttendanceRequest,
   AvailabilityProposal,
   AvailabilityWindow,
@@ -298,10 +297,6 @@ export interface ContractorReconfirmationService {
 
 export interface RepairProgressService {
   getProgress(repairId: string): Promise<RepairProgress>;
-}
-
-export interface AgreedScopeService {
-  getForRepair(repairId: string): Promise<AgreedScope>;
 }
 
 export interface OperatorSourcingService {

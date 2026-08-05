@@ -57,7 +57,6 @@ import type {
   SubmittedRepairQuote,
 } from "@/domain/types";
 import type {
-  AgreedScopeService,
   ClarificationService,
   ContractorReconfirmationService,
   ExternalQuoteImportService,
@@ -922,19 +921,13 @@ class MockContractorReconfirmationService
   }
 }
 
-class MockRepairProgressService
-  implements RepairProgressService, AgreedScopeService
-{
+class MockRepairProgressService implements RepairProgressService {
   async getProgress(repairId: string): Promise<RepairProgress> {
     await wait(160);
     if (repairId !== repairProgressFixture.repair.repairId) {
       throw new Error("Repair progress is not available.");
     }
     return structuredClone(repairProgressFixture);
-  }
-
-  async getForRepair(repairId: string) {
-    return (await this.getProgress(repairId)).agreedScope;
   }
 }
 

@@ -6,6 +6,7 @@ import {
   landlordInspectionService,
   resetInspectionMockState,
 } from "./mocks/inspectionMock";
+import { createApiRepairScopeServices } from "./api";
 
 export type MockServiceConfiguration = {
   authScenario?: MockAuthScenario;
@@ -39,9 +40,30 @@ export function createMockRepairScopeServices(
   };
 }
 
-export const repairScopeServices = createMockRepairScopeServices({
-  authScenario: "authorised_landlord",
-});
+const VALID_DATA_SOURCES = ["mock", "api"] as const;
+type RepairScopeDataSource = (typeof VALID_DATA_SOURCES)[number];
+
+function resolveDataSource(): RepairScopeDataSource {
+  const raw = process.env.NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE ?? "mock";
+  if (!VALID_DATA_SOURCES.includes(raw as RepairScopeDataSource)) {
+    throw new Error(
+      `Invalid NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE "${raw}". ` +
+        `Expected one of: ${VALID_DATA_SOURCES.join(", ")}.`,
+    );
+  }
+  return raw as RepairScopeDataSource;
+}
+
+function createRepairScopeServices(): RepairScopeServices {
+  const dataSource = resolveDataSource();
+  if (dataSource === "mock") {
+    return createMockRepairScopeServices({ authScenario: "authorised_landlord" });
+  }
+  const baseUrl = process.env.NEXT_PUBLIC_REPAIRSCOPE_API_BASE_URL ?? "";
+  return createApiRepairScopeServices({ baseUrl });
+}
+
+export const repairScopeServices = createRepairScopeServices();
 
 export type { RepairScopeServices } from "./contracts";
 export { createApiRepairScopeServices } from "./api";

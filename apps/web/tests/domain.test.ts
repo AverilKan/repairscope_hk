@@ -2247,19 +2247,19 @@ test("operator sourcing stays review-led and never defaults to automatic broadca
   ]);
 });
 
-test("backend handoff documentation is present at repository root", async () => {
+test("backend handoff documentation is present in apps/web and docs/", async () => {
   const documents = await Promise.all(
     [
-      "README.md",
-      "FRONTEND_ROUTE_MAP.md",
-      "FRONTEND_STATE_MATRIX.md",
-      "DOMAIN_MODEL.md",
-      "MOCK_SERVICE_CONTRACTS.md",
-      "AUTHORIZATION_MODEL.md",
-      "BACKEND_INTEGRATION_CHECKLIST.md",
-      "CLAUDE_BACKEND_HANDOFF.md",
-      "KNOWN_LIMITATIONS.md",
-    ].map((name) => readFile(new URL(`../${name}`, import.meta.url), "utf8")),
+      ["../README.md"],
+      ["../../../docs/FRONTEND_ROUTE_MAP.md"],
+      ["../../../docs/FRONTEND_STATE_MATRIX.md"],
+      ["../../../docs/DOMAIN_MODEL.md"],
+      ["../../../docs/MOCK_SERVICE_CONTRACTS.md"],
+      ["../../../docs/AUTHORIZATION_MODEL.md"],
+      ["../../../docs/BACKEND_INTEGRATION_CHECKLIST.md"],
+      ["../../../docs/CLAUDE_BACKEND_HANDOFF.md"],
+      ["../../../docs/KNOWN_LIMITATIONS.md"],
+    ].map(([path]) => readFile(new URL(path, import.meta.url), "utf8")),
   );
   assert.equal(documents.every((content) => content.length > 500), true);
   assert.match(documents[6], /proposed and not implemented/i);
