@@ -7,6 +7,8 @@ from app.auth.principal import AuthenticatedPrincipal
 from app.auth.provisioning import provision_user
 from app.core.config import Settings, get_settings
 from app.core.db import get_session
+from app.core.errors import ForbiddenError
+from app.models.enums import UserStatus
 
 
 def get_identity_verifier(settings: Settings = Depends(get_settings)) -> IdentityVerifier:
@@ -36,6 +38,16 @@ async def get_current_principal(
         raise HTTPException(status_code=401, detail="Invalid or expired credentials.") from None
 
     user = await provision_user(session, identity)
+
+    # Verified Clerk identity is necessary but not sufficient: RepairScope
+    # can still deny a suspended/deactivated account. This is 403, not 401
+    # — the credential itself verified successfully; RepairScope's own
+    # authorization layer is what's declining further use. provision_user
+    # never touches `status` on an existing row (see provisioning.py), so
+    # re-authenticating cannot reactivate a suspended user here.
+    if user.status != UserStatus.active:
+        raise ForbiddenError(f"User status is '{user.status.value}', not active.")
+
     return AuthenticatedPrincipal(
         clerk_user_id=identity.external_user_id,
         repairscope_user_id=user.id,
