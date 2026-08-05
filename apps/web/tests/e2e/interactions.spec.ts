@@ -17,7 +17,12 @@ test("client-side navigation from the main page does not full-reload", async ({ 
 
   await page.getByRole("link", { name: /open landlord workspace/i }).click();
   await expect(page).toHaveURL(/\/landlord/);
-  await expect(page.getByText("LANDLORD WORKSPACE")).toBeVisible();
+  // Exact match on the real (mixed-case) DOM text — the visual all-caps
+  // rendering is CSS text-transform, not the actual text content.
+  // Production `next start` also renders Next's own accessibility
+  // route-announcer (#__next-route-announcer__) with overlapping text on
+  // navigation, which a loose substring match also hits, hence exact here.
+  await expect(page.getByText("Landlord workspace", { exact: true })).toBeVisible();
 
   const markerSurvived = await page.evaluate(
     () => (window as unknown as { __navMarker?: string }).__navMarker === "still-here",
