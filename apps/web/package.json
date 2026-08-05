@@ -13,6 +13,7 @@
     "test": "node --import tsx --test tests/*.test.ts tests/*.test.tsx",
     "test:unit": "node --import tsx --test tests/domain.test.ts tests/workflow-interactions.test.ts",
     "test:interaction": "node --import tsx --test tests/component-interactions.test.tsx",
+    "test:e2e": "playwright test",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "4.2.1",
     "@testing-library/react": "^16.3.0",
     "@types/jsdom": "^21.1.7",
