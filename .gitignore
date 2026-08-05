@@ -1,0 +1,25 @@
+# Monorepo-level ignores. Workspace-specific ignores live in apps/web/.gitignore
+# and apps/api/.gitignore.
+
+# npm workspaces hoist dependencies to the repo root
+/node_modules
+
+# misc
+.DS_Store
+*.pem
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+!**/.env.example
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+*.egg-info/
+
+# editors
+.vscode/
+.idea/

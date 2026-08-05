@@ -81,12 +81,19 @@ acceptance.
 - `POST /api/contractor-tasks/:token/reconfirmation/confirm`
 - `POST /api/contractor-tasks/:token/reconfirmation/availability`
 - `POST /api/contractor-tasks/:token/reconfirmation/withdraw`
-- `GET /api/repairs/:id/agreed-scope`
 
 Accept the exact proposed response ID/version. A declined revision must leave
 the original selection unchanged. Create `AgreedScope` in the same transaction
 as final contractor confirmation only when selected and confirmed versions
 match and all proposed changes are accepted.
+
+`AgreedScope` stays a first-class, immutable persisted entity, but it is not a
+separate frontend read path: the frontend consumes it via
+`GET /api/repairs/:id/progress` (`RepairProgress.agreedScope`) and via the
+response of the confirmation/selection endpoints above that create it. A
+standalone `GET /api/repairs/:id/agreed-scope` endpoint can be added later if
+a real UI requirement needs it directly — do not build a frontend service
+against it speculatively.
 
 ## External quotes
 
