@@ -30,17 +30,19 @@ test("client-side navigation from the main page does not full-reload", async ({ 
   expect(markerSurvived, "expected a client-side transition, not a full page reload").toBe(true);
 });
 
-test("sign-in shell close navigates client-side to the home route", async ({ page }) => {
-  // Regression test for the fix replacing window.location.assign() (full
-  // reload) with useRouter().push() (client-side transition) in
-  // AuthConceptRoute.tsx. Uses the same reload-marker technique as the
-  // main-page navigation test above to prove no full reload occurred.
+test("sign-in shell's back link navigates client-side to the home route", async ({ page }) => {
+  // Regression test for the earlier fix replacing window.location.assign()
+  // (full reload) with proper Next.js navigation. The sign-in page now
+  // uses SiteShell's <BackLink> (a plain next/link), which was always a
+  // client-side transition — this asserts that stays true after the
+  // Clerk activation rewrite. Same reload-marker technique as the
+  // main-page navigation test above.
   await page.goto("/sign-in", { waitUntil: "networkidle" });
   await page.evaluate(() => {
     (window as unknown as { __navMarker: string }).__navMarker = "still-here";
   });
 
-  await page.getByRole("button", { name: "Close authentication" }).click();
+  await page.getByRole("link", { name: "Back to RepairScope" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText("From messy report to defined repair")).toBeVisible();
 

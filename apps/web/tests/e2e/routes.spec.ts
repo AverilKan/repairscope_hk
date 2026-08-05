@@ -10,8 +10,8 @@ import { trackPageErrors } from "./helpers";
 
 const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/", identifyingText: "From messy report to defined repair" },
-  { path: "/sign-in", identifyingText: "RepairScope account access" },
-  { path: "/sign-up", identifyingText: "RepairScope account access" },
+  { path: "/sign-in", identifyingText: "Landlord account access" },
+  { path: "/sign-up", identifyingText: "Landlord account access" },
   { path: "/contractor", identifyingText: "CONTRACTOR RESPONSE PORTAL" },
   { path: "/contractor/quotes", identifyingText: "Account match required" },
   { path: "/contractor/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
