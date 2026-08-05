@@ -17,12 +17,14 @@ payments, live AI or production file processing.
 ## Runtime and package manager
 
 - Node.js 22.13 or newer
-- npm with the committed `package-lock.json`
+- npm workspaces — the lockfile lives at the repository root
+  (`../../package-lock.json`), not in this directory
 - Next.js 16, React 19 and TypeScript 5
 - vinext/Vite and Wrangler for the Sites/Cloudflare-compatible build
 
 ```bash
-npm ci
+npm ci        # run from either the repo root or this directory — npm
+               # resolves to the workspace root lockfile either way
 npm run dev
 ```
 
