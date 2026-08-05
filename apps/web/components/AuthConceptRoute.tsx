@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { SharedAuthShell } from "./SharedAuthShell";
 import { SiteShell } from "./SiteShell";
 import type { AuthShellMode } from "@/domain/contractorAuth";
 
 export function AuthConceptRoute({ mode }: { mode: AuthShellMode }) {
+  const router = useRouter();
   return (
     <SiteShell surface="landlord">
       <main className="centered-stage">
@@ -20,8 +22,8 @@ export function AuthConceptRoute({ mode }: { mode: AuthShellMode }) {
       <SharedAuthShell
         context="landlord"
         initialMode={mode}
-        onAuthenticated={() => window.location.assign("/landlord/repairs")}
-        onClose={() => window.location.assign("/")}
+        onAuthenticated={() => router.push("/landlord/repairs")}
+        onClose={() => router.push("/")}
         open
         prefill={{ email: "", name: "", businessName: "" }}
         workflowReference={`auth-concept-${mode}`}
