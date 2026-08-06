@@ -902,6 +902,34 @@ select:focus {
   box-shadow: var(--shadow);
 }
 
+/* Clerk's <SignIn>/<SignUp> renders its own card (border + shadow) — this
+   wraps only the RepairScope intro copy above it, so the two don't nest
+   into a redundant double box. */
+.auth-page {
+  display: flex;
+  width: min(440px, 100%);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.auth-page__intro {
+  margin-bottom: 28px;
+}
+
+.auth-page__intro h1 {
+  margin: 20px 0 14px;
+  font-size: clamp(2rem, 4vw, 2.6rem);
+}
+
+.auth-page__intro p:not(.eyebrow) {
+  color: var(--ink-soft);
+}
+
+.auth-page .back-link {
+  margin-bottom: 20px;
+}
+
 .processing-card h1 {
   margin: 24px auto 18px;
   font-size: clamp(2.5rem, 5vw, 4.3rem);

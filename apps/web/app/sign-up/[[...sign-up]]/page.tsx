@@ -19,21 +19,23 @@ export default async function SignUpPage({
   return (
     <SiteShell surface="landlord">
       <main className="centered-stage">
-        <section className="processing-card">
+        <div className="auth-page">
           <BackLink href="/" label="Back to RepairScope" />
-          <p className="eyebrow">Landlord account access</p>
-          <h1>Create your RepairScope account</h1>
-          <p>
-            Create an account to submit repair briefs for contractor
-            responses and track work through to completion.
-          </p>
+          <div className="auth-page__intro">
+            <p className="eyebrow">Landlord account access</p>
+            <h1>Create your RepairScope account</h1>
+            <p>
+              Create an account to submit repair briefs for contractor
+              responses and track work through to completion.
+            </p>
+          </div>
           <SignUp
             routing="path"
             path="/sign-up"
             signInUrl="/sign-in"
             fallbackRedirectUrl={returnPath}
           />
-        </section>
+        </div>
       </main>
     </SiteShell>
   );

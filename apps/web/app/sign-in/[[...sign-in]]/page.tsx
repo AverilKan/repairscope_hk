@@ -19,21 +19,23 @@ export default async function SignInPage({
   return (
     <SiteShell surface="landlord">
       <main className="centered-stage">
-        <section className="processing-card">
+        <div className="auth-page">
           <BackLink href="/" label="Back to RepairScope" />
-          <p className="eyebrow">Landlord account access</p>
-          <h1>Sign in to RepairScope</h1>
-          <p>
-            Sign in to review your repair briefs, compare contractor
-            responses and track work through to completion.
-          </p>
+          <div className="auth-page__intro">
+            <p className="eyebrow">Landlord account access</p>
+            <h1>Sign in to RepairScope</h1>
+            <p>
+              Sign in to review your repair briefs, compare contractor
+              responses and track work through to completion.
+            </p>
+          </div>
           <SignIn
             routing="path"
             path="/sign-in"
             signUpUrl="/sign-up"
             fallbackRedirectUrl={returnPath}
           />
-        </section>
+        </div>
       </main>
     </SiteShell>
   );
