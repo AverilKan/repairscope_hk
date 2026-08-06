@@ -14,6 +14,34 @@ app.include_router(me_router)
 app.include_router(repair_submissions_router)
 
 
+def validate_production_auth_config(settings: Settings) -> None:
+    """Fails application startup loudly when running as `production` without
+    the configuration protected operator/landlord routes need — the same
+    fail-closed philosophy as configure_cors's CORS check below, and
+    deliberately separate from it so each missing piece gets its own clear
+    error. Does nothing outside production: local/dev environments must stay
+    able to exercise the public intake path without any Clerk configuration
+    at all (see UnavailableIdentityVerifier in app/auth/dependencies.py)."""
+    if settings.environment != "production":
+        return
+
+    missing = []
+    if not settings.clerk_issuer:
+        missing.append("REPAIRSCOPE_CLERK_ISSUER")
+    if not settings.clerk_authorized_parties:
+        missing.append("REPAIRSCOPE_CLERK_AUTHORIZED_PARTIES")
+    if not settings.cors_allowed_origins_list():
+        missing.append("REPAIRSCOPE_CORS_ALLOWED_ORIGINS")
+    if settings.database_url == Settings.model_fields["database_url"].default:
+        missing.append("REPAIRSCOPE_DATABASE_URL (still the local-development default)")
+
+    if missing:
+        raise RuntimeError(
+            "Production startup requires the following to be explicitly "
+            f"configured: {', '.join(missing)}."
+        )
+
+
 def configure_cors(application: FastAPI, settings: Settings) -> None:
     """Applies the CORS policy to `application`. Takes settings explicitly
     (rather than always reading the process-wide cached get_settings())
@@ -46,6 +74,7 @@ def configure_cors(application: FastAPI, settings: Settings) -> None:
     )
 
 
+validate_production_auth_config(get_settings())
 configure_cors(app, get_settings())
 
 

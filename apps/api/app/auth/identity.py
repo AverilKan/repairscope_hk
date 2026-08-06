@@ -20,5 +20,15 @@ class InvalidBearerTokenError(Exception):
     to 401, without distinguishing the exact reason to the client."""
 
 
+class AuthenticationUnavailableError(Exception):
+    """Raised when a bearer token was presented but identity verification
+    itself is not configured/available (e.g. REPAIRSCOPE_CLERK_ISSUER unset
+    in a local/dev environment). Distinct from InvalidBearerTokenError: the
+    credential was never actually evaluated, so this is not "invalid or
+    expired" (401) but "the service can't check right now" (503). Callers
+    must not construct a real ClerkIdentityVerifier or attempt any network
+    call to reach this state — see UnavailableIdentityVerifier."""
+
+
 class IdentityVerifier(Protocol):
     async def verify_bearer_token(self, token: str) -> VerifiedExternalIdentity: ...
