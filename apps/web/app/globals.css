@@ -1796,6 +1796,109 @@ select:focus {
   font-weight: 700;
 }
 
+.operator-review {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.operator-review__list {
+  display: grid;
+  gap: 10px;
+}
+
+.operator-review__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-strong);
+  background: white;
+  text-align: left;
+  cursor: pointer;
+}
+
+.operator-review__row--active {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 1px var(--teal);
+}
+
+.operator-review__row div:first-child {
+  display: grid;
+  gap: 2px;
+}
+
+.operator-review__row div:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.operator-review__detail {
+  padding: clamp(24px, 4vw, 40px);
+  border: 1px solid var(--line-strong);
+  background: var(--paper-light);
+  box-shadow: var(--shadow-small);
+}
+
+.operator-review__detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.operator-review__facts {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 24px;
+  margin: 20px 0;
+}
+
+.operator-review__facts dt {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.operator-review__brief,
+.operator-review__answers {
+  margin-bottom: 20px;
+}
+
+.operator-review__brief pre,
+.operator-review__answers pre {
+  max-height: 220px;
+  overflow: auto;
+  padding: 14px;
+  background: white;
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+}
+
+.operator-review__notes-label {
+  display: block;
+  margin-bottom: 16px;
+  font-weight: 700;
+}
+
+.operator-review__notes-label textarea,
+.operator-review__notes-label select {
+  margin-top: 8px;
+  font-weight: 400;
+}
+
+.operator-review__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
 .brief-correction__result > span {
   color: var(--ink-soft);
   font-size: 0.75rem;

@@ -17,7 +17,7 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/contractor/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
   { path: "/contractor/respond/not-a-real-token", identifyingText: "INVITATION UNAVAILABLE" },
   { path: "/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
-  { path: "/operator", identifyingText: "FUTURE OPERATOR CONSOLE" },
+  { path: "/operator", identifyingText: "Review submitted repair briefs." },
   { path: "/landlord", identifyingText: "LANDLORD WORKSPACE" },
   { path: "/landlord/repairs/new/roofing", identifyingText: "Roofing questions" },
   { path: "/landlord/repairs/rs-1047/responses", identifyingText: "Contractor responses" },
