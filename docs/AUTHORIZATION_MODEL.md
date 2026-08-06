@@ -76,6 +76,12 @@ this section describes, not a new mechanism. The public creation endpoint
 identity check at all: it accepts a submission from anyone, and the
 founder's manual review is the authorization step, not a client capability.
 
+The operator capability is never granted automatically — signing in with
+Clerk provisions a bare `User` row only (`app/auth/provisioning.py`), never
+a capability. The first (and any subsequent) operator is granted explicitly
+via `uv run python -m app.admin grant-capability --user-id <id> --capability
+operator`, run from the backend environment, not a public endpoint.
+
 Repair responsibility and occupancy are data, not access grants. RepairScope
 does not determine tenant liability, expose commercial quotes to tenants,
 charge tenants or authorise deposit deductions.

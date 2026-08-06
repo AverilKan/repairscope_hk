@@ -191,3 +191,71 @@ comment).
 pilot, per this document's "what this launch deliberately does not
 include" section above — there is no automated matching or delivery to
 build against yet.
+
+## Launch-hardening fixes
+
+A pre-launch audit found the auth dependency chain crashed (500, and not
+even CORS-safe) on any request when Clerk wasn't configured — not merely
+"unverified", genuinely broken in this repo's own default state (no
+`apps/api/.env`). Both are now fixed at the code level, not just by adding
+configuration:
+
+- **Auth failure behaviour**: a missing bearer token returns 401 without
+  ever constructing a real `ClerkIdentityVerifier` or touching the network
+  (`UnavailableIdentityVerifier`, `app/auth/dependencies.py`). A token
+  presented while Clerk is unconfigured returns 503 ("Authentication is
+  temporarily unavailable"), not 401 and not a crash. Production startup
+  (`REPAIRSCOPE_ENVIRONMENT=production`) now fails immediately and by name
+  if the Clerk issuer, authorized parties, CORS origins, or database URL
+  aren't explicitly set — before any traffic is accepted.
+- **CORS-safe generic errors**: any other unexpected exception returns a
+  fixed `{"detail": "An unexpected server error occurred."}` 500 — full
+  traceback server-side only. This is implemented as ordinary middleware
+  (`UnexpectedErrorMiddleware`), not `@app.exception_handler(Exception)` —
+  Starlette promotes `Exception`/`500`-keyed handlers to
+  `ServerErrorMiddleware`, which sits *outside* `CORSMiddleware`, so that
+  approach silently drops CORS headers on every unexpected error and a real
+  browser sees an opaque "blocked by CORS policy" instead of a readable
+  500. Confirmed both ways: reproduced the header-dropping with the
+  `exception_handler` version, confirmed it's fixed with the middleware
+  version, live in a real browser.
+- **Truthful evidence collection**: every file-upload control in the
+  questionnaire and the initial report screen only ever kept the selected
+  file's *name* — the bytes were discarded client-side and never reached
+  this API. All four are now `evidence_notes`-style text fields with
+  honest labels, persisted as their own `RepairSubmission.evidence_notes`
+  column and shown to the operator separately from the generated brief.
+- **Operator provisioning**: `uv run python -m app.admin grant-capability`
+  grants a capability to an already-provisioned user from the backend
+  environment — not a public endpoint, refuses an unknown user, idempotent.
+  This is how the first operator capability gets granted; there was no
+  mechanism for this before.
+
+## Pilot operating decisions
+
+**Rate limiting.** Not implemented in-app (no in-memory limiter — it
+wouldn't survive a redeploy or multiple instances, and would just move the
+problem). `POST /api/repair-submissions` already bounds body size (413
+above 200KB), per-field lengths, and JSON blob size at the application
+layer; volumetric/bot protection is a hosting-edge decision (e.g.
+Cloudflare) to make once a provider is chosen, not a code gap. Monitor for
+spikes and repeated 413/422 responses once hosted.
+
+**Notification.** Not built in this task. For the first pilot: check
+`/operator` at least twice each working day. The public-facing wording
+must not promise a response deadline (see "Landlord-facing wording" in the
+original prompt this document was built from) — no SLA is implied or
+committed. Revisit automated notification once real submission volume is
+observed; a dashboard nobody checks is worse than no dashboard, and a
+notification system built before knowing the real volume is likely to be
+wrong-shaped.
+
+**Duplicate submissions.** Not deduplicated. `RepairSubmissionPanel`
+already disables its submit button while a request is in flight
+(`status === "submitting"`) and a successful submission replaces the form
+with the confirmation screen entirely, so the same screen can't be used to
+accidentally resubmit. A failed request leaves the completed brief and
+form data intact for retry. Deliberately submitting the same brief twice
+(two browser tabs, for example) still creates two separate
+`RepairSubmission` rows with two references — acceptable for a low-volume
+pilot; revisit only if this is actually observed causing confusion.
