@@ -41,7 +41,7 @@ def configure_cors(application: FastAPI, settings: Settings) -> None:
         CORSMiddleware,
         allow_origins=allowed_origins,
         allow_credentials=False,  # bearer tokens only, never shared cookies
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH"],
         allow_headers=["Authorization", "Content-Type"],
     )
 

@@ -1,9 +1,10 @@
 import json
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from app.models.enums import PreferredContactMethod, SubmissionStatus
+from app.models.enums import PreferredContactMethod, SubmissionClosedReason, SubmissionStatus
 
 # Public submissions are unauthenticated, so every free-form field is capped
 # to keep a single malicious/malformed request bounded. These are generous
@@ -90,3 +91,82 @@ class RepairSubmissionCreateResponse(BaseModel):
     public_reference: str
     status: SubmissionStatus
     created_at: datetime
+
+
+class RepairSubmissionSummary(BaseModel):
+    id: uuid.UUID
+    public_reference: str
+    status: SubmissionStatus
+    issue_category: str
+    landlord_name: str
+    property_postcode: str
+    safety_flags: list[str]
+    created_at: datetime
+
+
+class RepairSubmissionDetail(BaseModel):
+    id: uuid.UUID
+    public_reference: str
+    status: SubmissionStatus
+    questionnaire_version: str
+    issue_category: str
+    questionnaire_answers: dict
+    generated_brief: dict
+    safety_flags: list[str]
+
+    landlord_name: str
+    landlord_email: str
+    landlord_phone: str
+    property_postcode: str
+    property_address: str | None
+    preferred_contact_method: PreferredContactMethod
+    access_notes: str | None
+
+    consent_to_contact: bool
+    consent_to_share_with_contractors: bool
+
+    internal_review_notes: str | None
+    closed_reason: SubmissionClosedReason | None
+
+    created_at: datetime
+    updated_at: datetime
+
+
+# Public submissions always start at SubmissionStatus.new (see
+# app/services/repair_submissions.py) — operators may only ever move a
+# submission to one of these; "new" is deliberately excluded so a review
+# action can't reset a submission back to unreviewed.
+_OPERATOR_SETTABLE_STATUSES = (
+    SubmissionStatus.reviewing,
+    SubmissionStatus.pursuing,
+    SubmissionStatus.needs_landlord_information,
+    SubmissionStatus.closed,
+)
+
+
+class RepairSubmissionStatusUpdateRequest(BaseModel):
+    status: SubmissionStatus
+    internal_review_notes: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    closed_reason: SubmissionClosedReason | None = None
+
+    @field_validator("status")
+    @classmethod
+    def _check_status_settable(cls, value: SubmissionStatus) -> SubmissionStatus:
+        if value not in _OPERATOR_SETTABLE_STATUSES:
+            raise ValueError(
+                f"status must be one of {[s.value for s in _OPERATOR_SETTABLE_STATUSES]}."
+            )
+        return value
+
+    @model_validator(mode="after")
+    def _check_closed_reason_present_when_closing(self) -> "RepairSubmissionStatusUpdateRequest":
+        # A plain field_validator on closed_reason would not run at all here,
+        # since Pydantic v2 skips validators for a field left at its default
+        # (None) unless validate_default=True — a model-level validator
+        # always runs regardless, so this is the reliable place to enforce
+        # the closed/closed_reason pairing.
+        if self.status == SubmissionStatus.closed and self.closed_reason is None:
+            raise ValueError("closed_reason is required when status is 'closed'.")
+        if self.status != SubmissionStatus.closed and self.closed_reason is not None:
+            raise ValueError("closed_reason must only be set when status is 'closed'.")
+        return self
