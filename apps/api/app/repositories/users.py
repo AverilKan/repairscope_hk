@@ -12,6 +12,11 @@ async def get_user_by_id(session: AsyncSession, user_id: uuid.UUID) -> User | No
     return await session.get(User, user_id)
 
 
+async def get_user_by_clerk_user_id(session: AsyncSession, clerk_user_id: str) -> User | None:
+    statement = select(User).where(User.clerk_user_id == clerk_user_id)
+    return (await session.execute(statement)).scalar_one_or_none()
+
+
 async def get_active_capabilities(
     session: AsyncSession, user_id: uuid.UUID
 ) -> list[UserCapability]:
