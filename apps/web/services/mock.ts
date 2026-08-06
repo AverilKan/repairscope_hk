@@ -42,6 +42,10 @@ import type {
   OperatorSourcingPlan,
 } from "@/domain/procurement";
 import type {
+  RepairSubmissionInput,
+  RepairSubmissionResult,
+} from "@/domain/submission";
+import type {
   AuthService,
   ContractorBriefService,
   ContractorInvitationService,
@@ -52,6 +56,7 @@ import type {
   ProposalComparisonService,
   QuestionnaireService,
   RepairService,
+  RepairSubmissionService,
 } from "./contracts";
 import {
   createProcurementMockServices,
@@ -511,6 +516,33 @@ class MockOperatorSourcingService implements OperatorSourcingService {
   }
 }
 
+const MOCK_SUBMISSION_REFERENCE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function generateMockSubmissionReference(): string {
+  let suffix = "";
+  for (let i = 0; i < 6; i += 1) {
+    suffix +=
+      MOCK_SUBMISSION_REFERENCE_ALPHABET[
+        Math.floor(Math.random() * MOCK_SUBMISSION_REFERENCE_ALPHABET.length)
+      ];
+  }
+  return `RS-${suffix}`;
+}
+
+class MockRepairSubmissionService implements RepairSubmissionService {
+  async submit(input: RepairSubmissionInput): Promise<RepairSubmissionResult> {
+    await wait(500);
+    if (!input.consent.consentToContact) {
+      throw new Error("consent_to_contact is required.");
+    }
+    return {
+      publicReference: generateMockSubmissionReference(),
+      status: "new",
+      createdAt: new Date().toISOString(),
+    };
+  }
+}
+
 export function createMockCoreServices(options?: {
   authScenario?: MockAuthScenario;
 }) {
@@ -527,6 +559,7 @@ export function createMockCoreServices(options?: {
     options?.authScenario,
   ),
   operatorSourcing: new MockOperatorSourcingService(),
+  repairSubmission: new MockRepairSubmissionService(),
   ...createProcurementMockServices(),
   };
 }

@@ -33,6 +33,7 @@ const REQUIRED_SERVICE_KEYS: (keyof RepairScopeServices)[] = [
   "questionnaire",
   "repairIntake",
   "contractorWorkSuggestions",
+  "submissions",
 ];
 
 test("API adapter exposes every RepairScopeServices member the mock services expose", () => {

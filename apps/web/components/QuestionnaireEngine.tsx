@@ -433,6 +433,10 @@ function SafetyNotice({
       <div className="safety-notice__flag">Safety action required</div>
       <h3>{rule.title}</h3>
       <p>{rule.message}</p>
+      <p className="safety-notice__no-wait">
+        This issue may require urgent attendance. Do not wait for RepairScope to source and
+        compare contractors. Contact an appropriate emergency service or contractor now.
+      </p>
       <label className="safety-acknowledgement">
         <input
           type="checkbox"

@@ -463,12 +463,12 @@ test("repair workspace access fails closed around verified identity and repair c
   );
 });
 
-test("shared authentication remains frontend-only and gates submission rather than review", async () => {
-  const [layoutSource, gateSource, landlordSource, routeSource, packageSource] =
+test("public repair-brief submission requires no account and captures contact/consent", async () => {
+  const [layoutSource, panelSource, landlordSource, routeSource, packageSource] =
     await Promise.all([
       readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
       readFile(
-        new URL("../components/LandlordSourcingGate.tsx", import.meta.url),
+        new URL("../components/RepairSubmissionPanel.tsx", import.meta.url),
         "utf8",
       ),
       readFile(new URL("../components/LandlordApp.tsx", import.meta.url), "utf8"),
@@ -479,16 +479,21 @@ test("shared authentication remains frontend-only and gates submission rather th
       readFile(new URL("../package.json", import.meta.url), "utf8"),
     ]);
 
-  // Clerk is now genuinely integrated (ClerkProvider wraps the root
-  // layout) — this used to assert its absence back when authentication
-  // was frontend-only. drizzle-orm/drizzle-kit remain correctly unused.
+  // Clerk is genuinely integrated for the account features that need it
+  // (ClerkProvider wraps the root layout) — but the public repair-brief
+  // submission path below deliberately never touches it. See
+  // docs/PUBLIC_INGESTION_LAUNCH.md.
   assert.match(layoutSource, /ClerkProvider/);
-  assert.match(gateSource, /SharedAuthShell/);
-  assert.match(gateSource, /context="landlord"/);
-  assert.match(gateSource, /Submit for contractor responses/);
+  assert.doesNotMatch(panelSource, /@clerk|useAuth|ClerkProvider/);
+  assert.match(panelSource, /consentToContact/);
+  assert.match(panelSource, /consentToShareWithContractors/);
   assert.match(
-    gateSource,
-    /RepairScope will review the brief before suitable contractors are/,
+    panelSource,
+    /This issue may require urgent attendance\. Do not wait for RepairScope to source/,
+  );
+  assert.match(
+    panelSource,
+    /Submitting does not guarantee that contractors will be available/,
   );
   assert.match(landlordSource, /Something incorrect or missing\?/);
   assert.match(landlordSource, /Edit questionnaire answers/);
@@ -500,7 +505,7 @@ test("shared authentication remains frontend-only and gates submission rather th
   );
   assert.match(landlordSource, /repairscope-pending-brief-draft-v1/);
   assert.match(landlordSource, /savePendingBriefDraft\(draft\)/);
-  assert.match(landlordSource, /clearPendingBriefDraft\(\)/);
+  assert.match(landlordSource, /clearPendingBriefDraft\}/);
   assert.match(routeSource, /<LandlordApp path=\{path\}/);
   // Deliberate: no server-side auth() call or capability check in the
   // landlord route itself — see docs/FRONTEND_RUNTIME_MIGRATION.md's

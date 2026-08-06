@@ -1,4 +1,8 @@
 import type {
+  RepairSubmissionInput,
+  RepairSubmissionResult,
+} from "@/domain/submission";
+import type {
   ContractorDeclineDraft,
   ContractorInvitation,
   ContractorQuestionDraft,
@@ -303,6 +307,10 @@ export interface OperatorSourcingService {
   getLaunchPlan(): Promise<OperatorSourcingPlan>;
 }
 
+export interface RepairSubmissionService {
+  submit(input: RepairSubmissionInput): Promise<RepairSubmissionResult>;
+}
+
 export interface RepairScopeServices {
   auth: AuthService;
   landlordRepairs: LandlordRepairService;
@@ -323,4 +331,5 @@ export interface RepairScopeServices {
   questionnaire: QuestionnaireService;
   repairIntake: RepairService;
   contractorWorkSuggestions: ContractorWorkSuggestionService;
+  submissions: RepairSubmissionService;
 }

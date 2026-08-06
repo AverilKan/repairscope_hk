@@ -37,6 +37,7 @@ export function createMockRepairScopeServices(
     questionnaire: core.questionnaire,
     repairIntake: core.repair,
     contractorWorkSuggestions: core.contractorWorkSuggestions,
+    submissions: core.repairSubmission,
   };
 }
 

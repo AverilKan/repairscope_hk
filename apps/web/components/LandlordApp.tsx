@@ -5,9 +5,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   categoryCards,
   questionnaireByCategory,
+  QUESTIONNAIRE_VERSION,
 } from "@/data/questionnaires";
 import { correctionMeetsMinimumWords } from "@/domain/rules";
-import { getRepairOwnerStorageKey } from "@/domain/storageKeys";
 import type {
   IssueClassification,
   ProblemBrief,
@@ -18,9 +18,9 @@ import type {
 import { repairScopeServices } from "@/services";
 import { LandlordAccountGate } from "./LandlordAccountGate";
 import {
-  LandlordSourcingGate,
-  type LandlordAccountPrefill,
-} from "./LandlordSourcingGate";
+  RepairSubmissionPanel,
+  type RepairSubmissionPanelPrefill,
+} from "./RepairSubmissionPanel";
 import { QuestionnaireEngine } from "./QuestionnaireEngine";
 import { ResponseComparisonPage } from "./ResponseComparisonPage";
 import { BackLink, PageIntro, SiteShell, StatusPill } from "./SiteShell";
@@ -772,10 +772,7 @@ function BriefReview({
   const [correctionError, setCorrectionError] = useState("");
   const [appliedCorrection, setAppliedCorrection] =
     useState<ProblemBriefCorrectionResult | null>(null);
-  const [submitted, setSubmitted] = useState(false);
-  const [busy, setBusy] = useState(false);
   const correctionRef = useRef(false);
-  const submittingRef = useRef(false);
   const hasPendingCorrection = correction.trim().length > 0;
   const hasValidCorrection = correctionMeetsMinimumWords(correction);
   const submissionBlocked =
@@ -805,7 +802,7 @@ function BriefReview({
     }
   };
 
-  const contactPrefill: LandlordAccountPrefill = {
+  const contactPrefill: RepairSubmissionPanelPrefill = {
     fullName:
       typeof draft?.responses.contactName === "string"
         ? draft.responses.contactName
@@ -818,31 +815,23 @@ function BriefReview({
       typeof draft?.responses.contactPhone === "string"
         ? draft.responses.contactPhone
         : undefined,
-    declaredRole:
-      typeof draft?.responses.role === "string"
-        ? draft.responses.role
+    postcode:
+      typeof draft?.responses.postcode === "string"
+        ? draft.responses.postcode
         : undefined,
   };
 
-  const submitAuthenticatedBrief = (clerkUserId: string) => {
-    if (submissionBlocked || submittingRef.current) return;
-    submittingRef.current = true;
-    setBusy(true);
-    const repairId = brief?.repairId ?? draft?.id ?? "draft-pending";
-    window.setTimeout(() => {
-      window.localStorage.setItem(
-        getRepairOwnerStorageKey(repairId),
-        clerkUserId,
-      );
-      clearPendingBriefDraft();
-      setBusy(false);
-      setSubmitted(true);
-    }, 650);
-  };
-
-  if (submitted) {
-    return <RepairStatus repairId={brief?.repairId ?? draft?.id ?? "draft-pending"} />;
-  }
+  // Strong emergency/immediate-risk signals, surfaced (not decided) for the
+  // founder during manual review — never used here to reject or auto-route
+  // the submission. See docs/PUBLIC_INGESTION_LAUNCH.md.
+  const safetyFlags = [
+    ...(draft?.safetyAcknowledgements
+      .filter((acknowledgement) => acknowledgement.acknowledged)
+      .map((acknowledgement) => acknowledgement.ruleId) ?? []),
+    ...(currentBrief.urgency === "emergency" || currentBrief.urgency === "urgent"
+      ? [`brief_urgency_${currentBrief.urgency}`]
+      : []),
+  ];
 
   return (
     <main className="content-page brief-page">
@@ -1011,10 +1000,13 @@ function BriefReview({
         </div>
       </section>
 
-      <LandlordSourcingGate
-        draftId={draft?.id ?? currentBrief.id}
+      <RepairSubmissionPanel
+        brief={currentBrief}
+        questionnaireVersion={QUESTIONNAIRE_VERSION}
+        issueCategory={draft?.category ?? "general-maintenance"}
+        questionnaireAnswers={draft?.responses ?? {}}
+        safetyFlags={safetyFlags}
         prefill={contactPrefill}
-        busy={busy}
         submissionBlocked={submissionBlocked}
         submissionBlockReason={
           hasPendingCorrection
@@ -1023,7 +1015,7 @@ function BriefReview({
               ? "The brief is being updated. Submission will be available when it is ready."
               : undefined
         }
-        onAuthenticatedSubmit={submitAuthenticatedBrief}
+        onSubmitted={clearPendingBriefDraft}
       />
     </main>
   );

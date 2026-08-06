@@ -7,6 +7,12 @@ import type {
   SafetyRule,
 } from "@/domain/types";
 
+// Bump this whenever a questionnaire's fields, steps or safety rules change
+// in a way that matters for how a submitted answer set should be
+// interpreted — stored on every RepairSubmission so past submissions remain
+// interpretable after the schema evolves.
+export const QUESTIONNAIRE_VERSION = "v1";
+
 const option = (
   value: string,
   label: string,
