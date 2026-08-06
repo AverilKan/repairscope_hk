@@ -49,6 +49,7 @@ class RepairSubmissionCreateRequest(BaseModel):
     property_address: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
     preferred_contact_method: PreferredContactMethod
     access_notes: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    evidence_notes: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
 
     consent_to_contact: bool
     consent_to_share_with_contractors: bool
@@ -121,6 +122,7 @@ class RepairSubmissionDetail(BaseModel):
     property_address: str | None
     preferred_contact_method: PreferredContactMethod
     access_notes: str | None
+    evidence_notes: str | None
 
     consent_to_contact: bool
     consent_to_share_with_contractors: bool

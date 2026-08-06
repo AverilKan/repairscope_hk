@@ -45,6 +45,13 @@ class RepairSubmission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
     )
     access_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Text-only description of any photos/videos/reports/quotations the
+    # landlord has. Deliberately not a file upload — the frontend never
+    # actually stored uploaded bytes (see docs/PUBLIC_INGESTION_LAUNCH.md),
+    # so this replaces that misleading control with an honest text field,
+    # shown to the operator separately from the generated brief and never
+    # folded into it.
+    evidence_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     consent_to_contact: Mapped[bool] = mapped_column(Boolean, nullable=False)
     consent_to_share_with_contractors: Mapped[bool] = mapped_column(Boolean, nullable=False)

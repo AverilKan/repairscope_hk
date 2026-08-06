@@ -44,6 +44,7 @@ async def submit_repair_brief(
         property_address=request.property_address,
         preferred_contact_method=request.preferred_contact_method,
         access_notes=request.access_notes,
+        evidence_notes=request.evidence_notes,
         consent_to_contact=request.consent_to_contact,
         consent_to_share_with_contractors=request.consent_to_share_with_contractors,
     )
