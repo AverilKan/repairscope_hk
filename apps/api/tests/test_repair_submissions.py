@@ -150,6 +150,26 @@ async def test_operator_can_list_and_get_a_submission(client, fake_verifier, db_
     assert detail.json()["landlord_email"] == "jamie@example.com"
 
 
+async def test_evidence_notes_is_persisted_and_shown_to_the_operator(
+    client, fake_verifier, db_session
+):
+    headers = await _authed_headers(fake_verifier, db_session, "clerk_operator_evidence")
+    payload = {**_VALID_PAYLOAD, "evidence_notes": "Two photos of the ceiling stain on my phone."}
+    await client.post("/api/repair-submissions", json=payload)
+
+    listing = (await client.get("/api/repair-submissions", headers=headers)).json()
+    submission_id = listing[0]["id"]
+    detail = await client.get(f"/api/repair-submissions/{submission_id}", headers=headers)
+
+    assert detail.json()["evidence_notes"] == "Two photos of the ceiling stain on my phone."
+
+
+async def test_evidence_notes_is_optional(client):
+    payload = {**_VALID_PAYLOAD, "evidence_notes": None}
+    response = await client.post("/api/repair-submissions", json=payload)
+    assert response.status_code == 201
+
+
 async def test_operator_can_update_status_and_internal_notes(client, fake_verifier, db_session):
     headers = await _authed_headers(fake_verifier, db_session, "clerk_operator_2")
     await client.post("/api/repair-submissions", json=_VALID_PAYLOAD)
