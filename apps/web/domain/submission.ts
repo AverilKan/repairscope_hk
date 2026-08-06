@@ -21,6 +21,10 @@ export interface RepairSubmissionInput {
   questionnaireAnswers: Record<string, unknown>;
   generatedBrief: Record<string, unknown>;
   safetyFlags: string[];
+  /** Text-only description of any photos/videos/reports/quotations the
+   * landlord has — see docs/PUBLIC_INGESTION_LAUNCH.md. Never a file
+   * upload: nothing in this frontend actually stores uploaded bytes. */
+  evidenceNotes?: string;
   contact: RepairSubmissionContactDetails;
   consent: RepairSubmissionConsent;
 }

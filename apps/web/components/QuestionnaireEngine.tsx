@@ -64,9 +64,7 @@ function responseLabel(
   value: QuestionnaireResponseValue | undefined,
 ) {
   if (!valueHasContent(value)) {
-    return field.type === "file" || field.type === "multi_file"
-      ? "No files added"
-      : "Not provided";
+    return "Not provided";
   }
   if (field.type === "single_select" && typeof value === "string") {
     return field.options?.find((option) => option.value === value)?.label ?? value;
@@ -86,7 +84,7 @@ function responseLabel(
       .join(" · ");
   }
   if (Array.isArray(value)) {
-    return `${value.length} file${value.length === 1 ? "" : "s"} added`;
+    return `${value.length} item${value.length === 1 ? "" : "s"} added`;
   }
   if (typeof value === "boolean") return value ? "Confirmed" : "Not confirmed";
   return String(value);
@@ -107,7 +105,6 @@ function contextualActionLabel(
   step: QuestionnaireStep,
   stepIndex: number,
   totalSteps: number,
-  responses: RepairIntakeDraft["responses"],
 ) {
   if (stepIndex === totalSteps - 1) return "Generate repair brief";
   if (step.id === "contact" || step.id === "responsibility") {
@@ -118,16 +115,6 @@ function contextualActionLabel(
   }
   if (step.fields.some((field) => field.type === "postcode")) {
     return "Confirm postcode";
-  }
-  if (
-    step.fields.some(
-      (field) => field.type === "file" || field.type === "multi_file",
-    )
-  ) {
-    const hasEvidence = step.fields.some((field) =>
-      valueHasContent(responses[field.id]),
-    );
-    return hasEvidence ? "Add evidence and continue" : "Continue without photos";
   }
   if (
     step.fields.some(
@@ -266,52 +253,6 @@ function FieldControl({
           <span aria-hidden="true" />
           <strong>{field.label}</strong>
         </label>
-        {error && (
-          <p className="field-error" id={errorId}>
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  if (field.type === "file" || field.type === "multi_file") {
-    const fileNames = Array.isArray(value)
-      ? value
-      : typeof value === "string"
-        ? [value]
-        : [];
-    return (
-      <div className={`upload-field ${error ? "field--error" : ""}`}>
-        <label htmlFor={inputId}>
-          <span className="upload-field__plus" aria-hidden="true">
-            +
-          </span>
-          <strong>{field.label}</strong>
-          <small>{field.help ?? "Choose a file from your device"}</small>
-          <span className="button button--secondary button--small">
-            Choose {field.type === "multi_file" ? "files" : "file"}
-          </span>
-        </label>
-        <input
-          id={inputId}
-          type="file"
-          accept={field.accept}
-          multiple={field.type === "multi_file"}
-          onChange={(event) => {
-            const names = Array.from(event.target.files ?? []).map(
-              (file) => file.name,
-            );
-            onChange(field.type === "multi_file" ? names : (names[0] ?? ""));
-          }}
-        />
-        {fileNames.length > 0 && (
-          <div className="file-list" aria-live="polite">
-            {fileNames.map((name) => (
-              <span key={name}>Attached · {name}</span>
-            ))}
-          </div>
-        )}
         {error && (
           <p className="field-error" id={errorId}>
             {error}
@@ -939,7 +880,6 @@ export function QuestionnaireEngine({
                             step,
                             stepIndex,
                             schema.steps.length,
-                            responses,
                           )}
                     </button>
                   </div>

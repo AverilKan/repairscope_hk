@@ -351,7 +351,7 @@ test("editing a generated brief restores every response at the final step", () =
     extractedSymptoms: ["water present"],
     responses: {
       roofingSymptom: "leak",
-      evidenceFiles: ["roof.jpg"],
+      evidenceNotes: "Photo of the water stain on the ceiling.",
       postcode: "SE15 3DF",
       urgency: "emergency",
       occupancy: "tenant_occupied",
@@ -391,7 +391,7 @@ test("editing an earlier answer clears only downstream questionnaire fields", ()
     electricalIssue: "sockets",
     electricalCount: "two-three",
     electricalOnset: "today",
-    evidenceFiles: ["socket.jpg"],
+    evidenceNotes: "Photo of the socket.",
     postcode: "SE15 4RF",
   };
 
@@ -405,7 +405,7 @@ test("editing an earlier answer clears only downstream questionnaire fields", ()
   assert.equal(retained.electricalIssue, "sockets");
   assert.equal(retained.electricalCount, "two-three");
   assert.equal(retained.electricalOnset, undefined);
-  assert.deepEqual(retained.evidenceFiles, ["socket.jpg"]);
+  assert.equal(retained.evidenceNotes, "Photo of the socket.");
   assert.equal(retained.postcode, "SE15 4RF");
 });
 

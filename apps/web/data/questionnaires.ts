@@ -112,12 +112,10 @@ const photoStep = step(
   "Add anything that helps a contractor understand the problem",
   [
     {
-      id: "evidenceFiles",
-      type: "multi_file",
-      label: "Photos or documents",
-      help: "JPEG, PNG, HEIC or PDF. Up to 6 files, 10MB each.",
-      accept: ".jpg,.jpeg,.png,.heic,.pdf",
-      maxFiles: 6,
+      id: "evidenceNotes",
+      type: "long_text",
+      label: "Photos, videos, reports or previous quotations",
+      help: "Describe any photos, videos, reports or previous quotations you have. RepairScope may ask you to send relevant evidence separately after reviewing the brief.",
       required: false,
     },
   ],
@@ -703,12 +701,12 @@ export const questionnaireSchemas: QuestionnaireSchema[] = [
           option("commercial", "Commercial property"),
         ]),
       ]),
-      step("compliance-existing", "Records", "Add the current certificate if available", [
+      step("compliance-existing", "Records", "Describe the current certificate if available", [
         {
-          id: "existingCertificate",
-          type: "file",
+          id: "existingCertificateNotes",
+          type: "long_text",
           label: "Existing certificate",
-          accept: ".pdf,.jpg,.jpeg,.png",
+          help: "Describe the certificate you have (type, date, issuing engineer). RepairScope may ask you to send it separately after reviewing the brief.",
           required: false,
         },
       ]),
@@ -805,13 +803,13 @@ export const questionnaireSchemas: QuestionnaireSchema[] = [
       step(
         "upload-document",
         "Document",
-        "Add the quote document",
+        "Describe the quote you already have",
         [
           {
-            id: "quoteDocument",
-            type: "file",
-            label: "PDF or image",
-            accept: ".pdf,.jpg,.jpeg,.png",
+            id: "quoteDocumentNotes",
+            type: "long_text",
+            label: "Quote details",
+            help: "Describe the quote: contractor name, price, scope and date. RepairScope may ask you to send the document separately after reviewing the brief.",
             required: true,
           },
           select("quoteSource", "Where did it come from?", [

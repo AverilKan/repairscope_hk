@@ -52,6 +52,7 @@ export function RepairSubmissionPanel({
   issueCategory,
   questionnaireAnswers,
   safetyFlags,
+  evidenceNotes,
   prefill,
   submissionBlocked,
   submissionBlockReason,
@@ -62,6 +63,7 @@ export function RepairSubmissionPanel({
   issueCategory: string;
   questionnaireAnswers: Record<string, unknown>;
   safetyFlags: string[];
+  evidenceNotes?: string;
   prefill: RepairSubmissionPanelPrefill;
   submissionBlocked?: boolean;
   onSubmitted?: () => void;
@@ -95,6 +97,7 @@ export function RepairSubmissionPanel({
         questionnaireAnswers,
         generatedBrief: brief as unknown as Record<string, unknown>,
         safetyFlags,
+        evidenceNotes,
         contact: {
           landlordName: form.landlordName.trim(),
           landlordEmail: form.landlordEmail.trim(),

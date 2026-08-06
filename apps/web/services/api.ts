@@ -67,6 +67,7 @@ class ApiRepairSubmissionService implements RepairSubmissionService {
           property_address: input.contact.propertyAddress ?? null,
           preferred_contact_method: input.contact.preferredContactMethod,
           access_notes: input.contact.accessNotes ?? null,
+          evidence_notes: input.evidenceNotes ?? null,
           consent_to_contact: input.consent.consentToContact,
           consent_to_share_with_contractors: input.consent.consentToShareWithContractors,
         }),

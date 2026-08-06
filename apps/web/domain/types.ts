@@ -20,9 +20,7 @@ export type QuestionnaireFieldType =
   | "long_text"
   | "number"
   | "postcode"
-  | "checkbox"
-  | "file"
-  | "multi_file";
+  | "checkbox";
 
 export interface QuestionnaireOption {
   value: string;
@@ -53,8 +51,6 @@ export interface QuestionnaireField {
   options?: QuestionnaireOption[];
   groups?: QuestionnaireGroup[];
   required: boolean;
-  accept?: string;
-  maxFiles?: number;
   safetyRule?: SafetyRule;
   showWhen?: {
     fieldId: string;

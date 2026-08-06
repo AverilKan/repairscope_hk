@@ -75,7 +75,7 @@ function StartAndClassify({
   const [showCategoryPicker, setShowCategoryPicker] = useState(true);
   const [categoryChangeWarning, setCategoryChangeWarning] = useState(false);
   const [reportChangeWarning, setReportChangeWarning] = useState(false);
-  const [evidenceFiles, setEvidenceFiles] = useState<string[]>([]);
+  const [evidenceNotes, setEvidenceNotes] = useState("");
   const [briefDraft, setBriefDraft] = useState<RepairIntakeDraft | null>(null);
   const [resumeDraft, setResumeDraft] = useState<RepairIntakeDraft | null>(null);
   const [error, setError] = useState("");
@@ -88,14 +88,11 @@ function StartAndClassify({
       const draft = readPendingBriefDraft();
       if (!draft?.category) return;
       const draftPostcode = draft.responses.postcode;
-      const draftEvidence = draft.responses.evidenceFiles;
+      const draftEvidence = draft.responses.evidenceNotes;
       setReport(draft.originalReport);
       if (typeof draftPostcode === "string") setPostcode(draftPostcode);
-      if (
-        Array.isArray(draftEvidence) &&
-        draftEvidence.every((item) => typeof item === "string")
-      ) {
-        setEvidenceFiles(draftEvidence);
+      if (typeof draftEvidence === "string") {
+        setEvidenceNotes(draftEvidence);
       }
       setClassification({
         primaryCategory: draft.category,
@@ -115,9 +112,9 @@ function StartAndClassify({
   const initialResponses = useMemo(
     () => ({
       ...(postcode.trim() ? { postcode } : {}),
-      ...(evidenceFiles.length > 0 ? { evidenceFiles } : {}),
+      ...(evidenceNotes.trim() ? { evidenceNotes } : {}),
     }),
-    [evidenceFiles, postcode],
+    [evidenceNotes, postcode],
   );
 
   const revealCategory = () => {
@@ -328,24 +325,18 @@ function StartAndClassify({
                   placeholder="e.g. SE15"
                 />
               </div>
-              <label className="mini-upload">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.heic"
-                  multiple
-                  onChange={(event) =>
-                    setEvidenceFiles(
-                      Array.from(event.target.files ?? []).map(
-                        (file) => file.name,
-                      ),
-                    )
-                  }
-                />
-                <span aria-hidden="true">+</span>
-                {evidenceFiles.length > 0
-                  ? `${evidenceFiles.length} photo${evidenceFiles.length === 1 ? "" : "s"} added`
-                  : "Add first photos"}
+            </div>
+            <div className="text-field">
+              <label htmlFor="initial-evidence-notes">
+                Photos, videos, reports or previous quotations (optional now)
               </label>
+              <textarea
+                id="initial-evidence-notes"
+                rows={2}
+                value={evidenceNotes}
+                onChange={(event) => setEvidenceNotes(event.target.value)}
+                placeholder="Describe any photos, videos, reports or previous quotations you have."
+              />
             </div>
             <button className="button" type="button" onClick={classify}>
               Analyse problem
@@ -360,9 +351,7 @@ function StartAndClassify({
             <strong>{report}</strong>
             <small>
               {postcode || "Postcode not added"} ·{" "}
-              {evidenceFiles.length > 0
-                ? `${evidenceFiles.length} photo${evidenceFiles.length === 1 ? "" : "s"}`
-                : "No photos yet"}
+              {evidenceNotes.trim() ? "Evidence described" : "No evidence described yet"}
             </small>
           </div>
           <button
@@ -1006,6 +995,11 @@ function BriefReview({
         issueCategory={draft?.category ?? "general-maintenance"}
         questionnaireAnswers={draft?.responses ?? {}}
         safetyFlags={safetyFlags}
+        evidenceNotes={
+          typeof draft?.responses.evidenceNotes === "string"
+            ? draft.responses.evidenceNotes
+            : undefined
+        }
         prefill={contactPrefill}
         submissionBlocked={submissionBlocked}
         submissionBlockReason={
