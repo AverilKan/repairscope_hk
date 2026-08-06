@@ -31,6 +31,36 @@ export interface RepairSubmissionResult {
   createdAt: string;
 }
 
+export interface RepairSubmissionFormFields {
+  landlordName: string;
+  landlordEmail: string;
+  landlordPhone: string;
+  propertyPostcode: string;
+  consentToContact: boolean;
+}
+
+/**
+ * Pure form-readiness check, shared by RepairSubmissionPanel and its tests.
+ * Mirrors (but does not replace) the backend's own validation in
+ * apps/api/app/schemas/repair_submissions.py — this only gates the submit
+ * button so a landlord doesn't send an obviously-incomplete request; the
+ * API remains the authority on what's actually accepted.
+ */
+export function canSubmitRepairSubmissionForm(
+  form: RepairSubmissionFormFields,
+  options: { submissionBlocked?: boolean; submitting?: boolean } = {},
+): boolean {
+  return (
+    !options.submissionBlocked &&
+    !options.submitting &&
+    form.landlordName.trim().length > 0 &&
+    form.landlordEmail.trim().length > 0 &&
+    form.landlordPhone.trim().length > 0 &&
+    form.propertyPostcode.trim().length > 0 &&
+    form.consentToContact
+  );
+}
+
 export abstract class RepairSubmissionError extends Error {}
 
 /** The API rejected the request as malformed (HTTP 422) — e.g. missing consent. */

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { ProblemBrief } from "@/domain/types";
 import {
+  canSubmitRepairSubmissionForm,
   RepairSubmissionNetworkError,
   RepairSubmissionServerError,
   RepairSubmissionValidationError,
@@ -77,14 +78,10 @@ export function RepairSubmissionPanel({
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const canSubmit =
-    !submissionBlocked &&
-    status !== "submitting" &&
-    form.landlordName.trim().length > 0 &&
-    form.landlordEmail.trim().length > 0 &&
-    form.landlordPhone.trim().length > 0 &&
-    form.propertyPostcode.trim().length > 0 &&
-    form.consentToContact;
+  const canSubmit = canSubmitRepairSubmissionForm(form, {
+    submissionBlocked,
+    submitting: status === "submitting",
+  });
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();

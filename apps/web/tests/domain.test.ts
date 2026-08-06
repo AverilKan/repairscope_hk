@@ -516,6 +516,24 @@ test("public repair-brief submission requires no account and captures contact/co
   assert.doesNotMatch(packageSource, /drizzle-orm|drizzle-kit/);
 });
 
+test("questionnaire safety notices carry the required urgent-attendance sentence, not a diagnosis", async () => {
+  const engineSource = await readFile(
+    new URL("../components/QuestionnaireEngine.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    engineSource,
+    /This issue may require urgent attendance\. Do not wait for RepairScope to source and\s*\n?\s*compare contractors\. Contact an appropriate emergency service or contractor now\./,
+  );
+  // The sentence sits alongside each rule's specific practical advice
+  // (rule.message), not in place of it — the five SafetyRule constants in
+  // data/questionnaires.ts are untouched by this addition.
+  assert.match(engineSource, /\{rule\.message\}/);
+  // No diagnosis language — the warning tells the landlord what to do, it
+  // never claims to identify the cause.
+  assert.doesNotMatch(engineSource, /diagnos/i);
+});
+
 test("brief correction creates a new brief version without mutating the original", async () => {
   assert.equal(correctionMeetsMinimumWords("wrong room"), false);
   assert.equal(correctionMeetsMinimumWords("wrong front room"), true);
