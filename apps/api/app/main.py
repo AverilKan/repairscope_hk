@@ -4,12 +4,14 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
+from app.api.routes.repair_submissions import router as repair_submissions_router
 from app.core.config import Settings, get_settings
 from app.core.errors import ForbiddenError, NotFoundError
 
 app = FastAPI(title="RepairScope API")
 app.include_router(health_router)
 app.include_router(me_router)
+app.include_router(repair_submissions_router)
 
 
 def configure_cors(application: FastAPI, settings: Settings) -> None:

@@ -14,6 +14,7 @@ _IDENTITY_TABLES = (
     "properties",
     "accounts",
     "users",
+    "repair_submissions",
 )
 
 

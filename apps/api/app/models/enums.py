@@ -65,3 +65,25 @@ class PropertyPermission(enum.StrEnum):
 class GrantStatus(enum.StrEnum):
     active = "active"
     revoked = "revoked"
+
+
+class SubmissionStatus(enum.StrEnum):
+    new = "new"
+    reviewing = "reviewing"
+    pursuing = "pursuing"
+    needs_landlord_information = "needs_landlord_information"
+    closed = "closed"
+
+
+class SubmissionClosedReason(enum.StrEnum):
+    urgent = "urgent"
+    outside_current_scope = "outside_current_scope"
+    not_currently_viable = "not_currently_viable"
+    outside_service_area = "outside_service_area"
+    duplicate = "duplicate"
+    other = "other"
+
+
+class PreferredContactMethod(enum.StrEnum):
+    email = "email"
+    phone = "phone"
