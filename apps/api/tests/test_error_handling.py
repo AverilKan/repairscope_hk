@@ -117,8 +117,22 @@ async def test_unexpected_exception_response_omits_cors_header_for_unknown_origi
 def test_production_startup_fails_without_full_auth_configuration():
     from app.main import validate_production_auth_config
 
+    # Explicitly None every field this checks, rather than relying on
+    # Settings() picking up nothing — Settings reads env_file=".env", so a
+    # bare Settings(environment="production") is only "unconfigured" when
+    # no local apps/api/.env happens to exist on the machine running the
+    # test. That's exactly the ambient state this project's own .env.local
+    # files are designed to vary (see apps/api/.env.example) — a test must
+    # not depend on it.
     with pytest.raises(RuntimeError, match="REPAIRSCOPE_CLERK_ISSUER"):
-        validate_production_auth_config(Settings(environment="production"))
+        validate_production_auth_config(
+            Settings(
+                environment="production",
+                clerk_issuer=None,
+                clerk_authorized_parties=None,
+                cors_allowed_origins=None,
+            )
+        )
 
 
 def test_production_startup_succeeds_with_full_auth_configuration():

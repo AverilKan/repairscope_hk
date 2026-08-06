@@ -200,6 +200,10 @@ function SubmissionDetailPanel({ id, onUpdated }: { id: string; onUpdated: () =>
           <dd>{detail.accessNotes ?? "None"}</dd>
         </div>
         <div>
+          <dt>Evidence notes</dt>
+          <dd>{detail.evidenceNotes ?? "None described"}</dd>
+        </div>
+        <div>
           <dt>Consent to contact</dt>
           <dd>{detail.consentToContact ? "Yes" : "No"}</dd>
         </div>

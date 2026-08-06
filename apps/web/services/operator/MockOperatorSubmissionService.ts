@@ -23,6 +23,7 @@ const FIXTURE_SUBMISSIONS: OperatorSubmissionDetail[] = [
     propertyAddress: null,
     preferredContactMethod: "email",
     accessNotes: null,
+    evidenceNotes: "Two photos on my phone.",
     consentToContact: true,
     consentToShareWithContractors: true,
     internalReviewNotes: null,

@@ -33,6 +33,7 @@ export interface OperatorSubmissionDetail extends OperatorSubmissionSummary {
   propertyAddress: string | null;
   preferredContactMethod: "email" | "phone";
   accessNotes: string | null;
+  evidenceNotes: string | null;
   consentToContact: boolean;
   consentToShareWithContractors: boolean;
   internalReviewNotes: string | null;

@@ -39,6 +39,7 @@ type DetailApiResponse = SummaryApiResponse & {
   property_address: string | null;
   preferred_contact_method: "email" | "phone";
   access_notes: string | null;
+  evidence_notes: string | null;
   consent_to_contact: boolean;
   consent_to_share_with_contractors: boolean;
   internal_review_notes: string | null;
@@ -70,6 +71,7 @@ function detailFromApi(body: DetailApiResponse): OperatorSubmissionDetail {
     propertyAddress: body.property_address,
     preferredContactMethod: body.preferred_contact_method,
     accessNotes: body.access_notes,
+    evidenceNotes: body.evidence_notes,
     consentToContact: body.consent_to_contact,
     consentToShareWithContractors: body.consent_to_share_with_contractors,
     internalReviewNotes: body.internal_review_notes,
