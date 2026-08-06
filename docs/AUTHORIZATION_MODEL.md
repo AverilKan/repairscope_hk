@@ -68,6 +68,14 @@ verified Clerk user
 Operator capability permits defined review actions, not unrestricted database
 access. Sourcing remains review-led.
 
+The public repair-brief ingestion launch's operator review endpoints
+(`GET`/`PATCH /api/repair-submissions`, `docs/PUBLIC_INGESTION_LAUNCH.md`)
+are the first real use of `require_operator` — the same capability check
+this section describes, not a new mechanism. The public creation endpoint
+(`POST /api/repair-submissions`) is deliberately the one endpoint with no
+identity check at all: it accepts a submission from anyone, and the
+founder's manual review is the authorization step, not a client capability.
+
 Repair responsibility and occupancy are data, not access grants. RepairScope
 does not determine tenant liability, expose commercial quotes to tenants,
 charge tenants or authorise deposit deductions.

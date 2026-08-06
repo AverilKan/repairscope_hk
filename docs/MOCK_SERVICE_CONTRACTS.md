@@ -22,6 +22,7 @@ that container; production work should implement the same interfaces in
 | Classification, questionnaire and brief services | classify, load/save, generate/correct | Deterministic mock behaviour; safety answers are never inferred. |
 | `AuthService` | authenticate/verify mock | Contractor invitation-claiming concept only; visual states, creates no real session or capability. Unrelated to landlord authentication — that's real Clerk (`apps/web/services/identity/`, not part of `RepairScopeServices`), not mocked. |
 | `OperatorSourcingService` | launch plan | Operator-reviewed shortlist; automatic broadcast is disabled. |
+| `RepairSubmissionService` | `submit(input)` | The one member of `RepairScopeServices` with a real, non-mocked API implementation in `api` mode (`ApiRepairSubmissionService`, `services/api.ts`) — see `docs/PUBLIC_INGESTION_LAUNCH.md`. The mock returns a fake `RS-XXXXXX` reference after a simulated delay; it never rejects on job value, category or size. |
 
 ## Composition and state
 
@@ -36,3 +37,9 @@ boundaries to the server.
 
 `ProposalComparisonService` intentionally has no client-supplied auth claims.
 `ContractorTaskService` is the only route-to-task resolution boundary.
+
+`OperatorSubmissionService` (`apps/web/services/operator/`) is deliberately
+**not** part of `RepairScopeServices` — like `CurrentUserService`
+(`apps/web/services/identity/`), it needs a live Clerk session and is
+composed via its own hook (`useOperatorSubmissionService`), not the
+`repairScopeServices` singleton.

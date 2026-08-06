@@ -145,3 +145,49 @@ deploy time without changing this scope: the initial service-area wording
 enquiries contact address, the privacy/data-protection contact, and the
 public domain. See `docs/KNOWN_LIMITATIONS.md` for what remains a legal-review
 placeholder rather than final copy.
+
+## Implementation record
+
+**Backend.** `RepairSubmission` (`apps/api/app/models/repair_submission.py`,
+migration `8b9a7bc2485c`) persists the questionnaire answers, generated
+brief, safety flags, contact/consent fields and the internal
+status/closed-reason. `POST /api/repair-submissions` is public — no
+`Authorization` header required — validates every field (length caps, a
+whole-body size limit, `consent_to_contact` must be true, extra fields
+rejected outright) and returns a short `RS-XXXXXX` reference.
+`GET /api/repair-submissions[/:id]` and `PATCH /api/repair-submissions/:id`
+are gated by the existing `AuthorizationService.require_operator` — the
+same mechanism `docs/AUTHORIZATION_MODEL.md` already documents, not a new
+one. PATCH only accepts `reviewing`/`pursuing`/`needs_landlord_information`/
+`closed` (never `new`), and `closed_reason` is required exactly when
+closing.
+
+**Frontend.** `RepairSubmissionPanel` (`apps/web/components/RepairSubmissionPanel.tsx`)
+replaced the old Clerk-gated `LandlordSourcingGate`, which never actually
+called a submission service — it only wrote a fake ownership key to
+`localStorage` after a fake timeout. The public flow (questionnaire →
+brief → `RepairSubmissionPanel`'s contact/consent form → confirmation with
+the real reference) has no Clerk touchpoint anywhere in it. The
+questionnaire's five existing `SafetyRule` notices (gas/electrical/water/
+insecure/structural) now also carry the fixed required sentence
+("This issue may require urgent attendance…") alongside their specific
+practical advice.
+
+**Operator review.** `/operator` (previously a static placeholder) is now a
+real screen behind `OperatorGate` — the same Clerk session and
+`CurrentUserService` the landlord account flow uses, checked for the
+`operator` capability. It lists recent submissions and lets an operator
+set status, a closed reason, and internal notes.
+
+**Evidence.** 71 backend tests (16 new for this launch), 124 frontend unit
+tests (17 new), and Playwright coverage of the safety-notice sentence, a
+full submission reaching a real reference, the submit button staying
+disabled without consent, and the signed-out/protected-route redirect
+behaviour (run against the `api` data source per that spec file's header
+comment).
+
+**Known limitation.** Contractor outreach after a submission is marked
+"pursuing" is manual (email/phone, outside this system) for the first
+pilot, per this document's "what this launch deliberately does not
+include" section above — there is no automated matching or delivery to
+build against yet.

@@ -20,6 +20,15 @@ These endpoints are proposed and not implemented in this frontend.
 
 ## Repairs, briefs and sourcing
 
+*Public intake is done, separately from the canonical `Repair` entity below*
+— `POST /api/repair-submissions` (public, unauthenticated) persists a
+`RepairSubmission` with the generated brief and questionnaire answers
+attached; `GET`/`PATCH /api/repair-submissions[/:id]` (operator-only) support
+manual review. See `docs/PUBLIC_INGESTION_LAUNCH.md`. None of the endpoints
+below exist yet — a `RepairSubmission` marked "pursuing" is not itself a
+`Repair`; turning one into canonical sourcing work is exactly the phase
+these endpoints describe, still to be built.
+
 - `POST /api/repair-drafts`; `PUT /api/repair-drafts/:id`
 - `POST /api/intakes/classify`; `GET /api/questionnaires/:category`
 - `POST /api/repair-drafts/:id/brief`
