@@ -504,10 +504,21 @@ export function QuestionnaireEngine({
           completedStepIds,
         }),
       );
-      void repairScopeServices.questionnaire
-        .saveDraft(draft)
-        .then(() => setSavedAt(formatSavedTime()))
-        .catch(() => setSaveError(true));
+      // The local write above is the durable save for the public intake
+      // flow (see docs/PUBLIC_INGESTION_LAUNCH.md) — server-side draft
+      // persistence is a deferred capability, not a launch requirement.
+      // Remote saveDraft is attempted best-effort only; its adapter stub
+      // throws synchronously when unavailable (not a rejected promise), so
+      // this must be a try/catch, not a .then/.catch chain, or the throw
+      // becomes an uncaught exception instead of falling back gracefully.
+      (async () => {
+        try {
+          await repairScopeServices.questionnaire.saveDraft(draft);
+          setSavedAt(formatSavedTime());
+        } catch {
+          setSaveError(true);
+        }
+      })();
     }, 220);
     return () => window.clearTimeout(saveTimer);
   }, [
