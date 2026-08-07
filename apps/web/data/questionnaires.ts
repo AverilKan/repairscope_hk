@@ -129,7 +129,7 @@ const commonTail: QuestionnaireStep[] = [
       id: "postcode",
       type: "postcode",
       label: "Property postcode",
-      placeholder: "e.g. SE15 4RF",
+      placeholder: "e.g. WD17 1AA",
       required: true,
     },
   ]),

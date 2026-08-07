@@ -141,6 +141,30 @@ export function isValidUkPostcode(
   return /^(?:GIR 0AA|[A-Z]{1,2}\d[A-Z\d]? \d[A-Z]{2})$/.test(postcode);
 }
 
+/**
+ * The postcode step is skipped when a full postcode was already captured
+ * earlier (e.g. the public intake's first-screen field) — there is one
+ * canonical `responses.postcode` value, not a separate "already answered"
+ * flag, so this only needs to check that value against the same validator
+ * used to accept it in the first place. A while loop (rather than a single
+ * `if`) keeps this correct if a second skippable step is ever added.
+ */
+export function questionnaireNextVisibleStepIndex(
+  schema: QuestionnaireSchema,
+  fromIndex: number,
+  responses: RepairIntakeDraft["responses"],
+): number {
+  let index = fromIndex;
+  while (
+    index < schema.steps.length - 1 &&
+    schema.steps[index].id === "postcode" &&
+    isValidUkPostcode(responses.postcode)
+  ) {
+    index += 1;
+  }
+  return index;
+}
+
 export function normaliseContactName(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
@@ -233,7 +257,7 @@ export function questionnaireStepValidationErrors(
       !isValidUkPostcode(responses[field.id])
     ) {
       errors[field.id] =
-        "Enter a full UK postcode, including the final three characters, for example SE15 4RF.";
+        "Enter a full UK postcode, including the final three characters, for example WD17 1AA.";
     }
     if (
       field.type === "name" &&

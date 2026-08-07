@@ -7,9 +7,14 @@ import {
   questionnaireByCategory,
   QUESTIONNAIRE_VERSION,
 } from "@/data/questionnaires";
-import { correctionMeetsMinimumWords } from "@/domain/rules";
+import {
+  correctionMeetsMinimumWords,
+  isValidUkPostcode,
+  normaliseUkPostcode,
+} from "@/domain/rules";
 import { classifyIssueReport } from "@/domain/classification";
 import { buildRepairBrief } from "@/domain/brief";
+import { getRepairDraftStorageKey } from "@/domain/storageKeys";
 import type {
   IssueClassification,
   ProblemBrief,
@@ -65,8 +70,9 @@ function StartAndClassify({
 }: {
   startFresh?: boolean;
 }) {
-  const [report, setReport] = useState(defaultReport);
-  const [postcode, setPostcode] = useState("SE15");
+  const [report, setReport] = useState("");
+  const [postcode, setPostcode] = useState("");
+  const [postcodeError, setPostcodeError] = useState("");
   const [phase, setPhase] = useState<
     "start" | "describe" | "processing" | "suggestion"
   >(startFresh ? "describe" : "start");
@@ -138,9 +144,15 @@ function StartAndClassify({
       setError("Describe what has happened before continuing.");
       return;
     }
+    if (postcode.trim() && !isValidUkPostcode(postcode)) {
+      setPostcodeError("Enter a full UK postcode, for example WD17 1AA.");
+      return;
+    }
     if (processingRef.current) return;
     processingRef.current = true;
     setError("");
+    setPostcodeError("");
+    if (postcode.trim()) setPostcode(normaliseUkPostcode(postcode));
     setPhase("processing");
     // Category guessing is a pure local transformation (see
     // domain/classification.ts) — it never calls the deferred
@@ -171,7 +183,9 @@ function StartAndClassify({
 
   const confirmCategoryChange = () => {
     if (selectedCategory) {
-      window.localStorage.removeItem(`repairscope-draft-${selectedCategory}`);
+      window.localStorage.removeItem(
+        getRepairDraftStorageKey(`draft-${selectedCategory}`),
+      );
     }
     setSelectedCategory(null);
     setResumeDraft(null);
@@ -182,7 +196,9 @@ function StartAndClassify({
 
   const confirmReportChange = () => {
     if (selectedCategory) {
-      window.localStorage.removeItem(`repairscope-draft-${selectedCategory}`);
+      window.localStorage.removeItem(
+        getRepairDraftStorageKey(`draft-${selectedCategory}`),
+      );
     }
     setSelectedCategory(null);
     setClassification(null);
@@ -309,6 +325,7 @@ function StartAndClassify({
               id="repair-report"
               rows={6}
               value={report}
+              placeholder={defaultReport}
               onChange={(event) => {
                 setReport(event.target.value);
                 setError("");
@@ -327,9 +344,21 @@ function StartAndClassify({
                 <input
                   id="initial-postcode"
                   value={postcode}
-                  onChange={(event) => setPostcode(event.target.value)}
-                  placeholder="e.g. SE15"
+                  onChange={(event) => {
+                    setPostcode(event.target.value);
+                    setPostcodeError("");
+                  }}
+                  placeholder="e.g. WD17 1AA"
+                  aria-invalid={Boolean(postcodeError)}
+                  aria-describedby={
+                    postcodeError ? "initial-postcode-error" : undefined
+                  }
                 />
+                {postcodeError && (
+                  <p className="field-error" id="initial-postcode-error">
+                    {postcodeError}
+                  </p>
+                )}
               </div>
             </div>
             <div className="text-field">

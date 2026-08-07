@@ -9,6 +9,7 @@ import {
   normalisePhoneNumber,
   normaliseUkPostcode,
   questionnaireFieldIsVisible,
+  questionnaireNextVisibleStepIndex,
   questionnaireResumeState,
   questionnaireStepUsesAutomaticProgression,
   questionnaireStepValidationErrors,
@@ -405,8 +406,12 @@ export function QuestionnaireEngine({
     () => questionnaireResumeState(schema, resumeDraft, initialResponses),
     [initialResponses, resumeDraft, schema],
   );
-  const [activeIndex, setActiveIndex] = useState(
-    () => initialQuestionnaireState.activeIndex,
+  const [activeIndex, setActiveIndex] = useState(() =>
+    questionnaireNextVisibleStepIndex(
+      schema,
+      initialQuestionnaireState.activeIndex,
+      initialQuestionnaireState.responses,
+    ),
   );
   const [responses, setResponses] =
     useState<RepairIntakeDraft["responses"]>(
@@ -418,9 +423,17 @@ export function QuestionnaireEngine({
   const [saveError, setSaveError] = useState(false);
   const [acknowledgements, setAcknowledgements] =
     useState<SafetyAcknowledgements>({});
-  const [completedStepIds, setCompletedStepIds] = useState<string[]>(
-    () => initialQuestionnaireState.completedStepIds,
-  );
+  const [completedStepIds, setCompletedStepIds] = useState<string[]>(() => {
+    const resolvedIndex = questionnaireNextVisibleStepIndex(
+      schema,
+      initialQuestionnaireState.activeIndex,
+      initialQuestionnaireState.responses,
+    );
+    const skipped = schema.steps
+      .slice(initialQuestionnaireState.activeIndex, resolvedIndex)
+      .map((step) => step.id);
+    return [...new Set([...initialQuestionnaireState.completedStepIds, ...skipped])];
+  });
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [announcement, setAnnouncement] = useState("");
   const [hydrated, setHydrated] = useState(false);
@@ -454,22 +467,34 @@ export function QuestionnaireEngine({
             acknowledgements?: SafetyAcknowledgements;
             completedStepIds?: string[];
           };
-          const restoredIndex =
-            parsed.activeIndex ??
-            parsed.stepIndex ??
-            initialQuestionnaireState.activeIndex;
-          setActiveIndex(
-            Math.min(restoredIndex, Math.max(schema.steps.length - 1, 0)),
-          );
-          setResponses({
+          const restoredResponses = {
             ...initialQuestionnaireState.responses,
             ...(parsed.responses ?? {}),
-          });
-          setAcknowledgements(parsed.acknowledgements ?? {});
-          setCompletedStepIds(
-            parsed.completedStepIds ??
-              initialQuestionnaireState.completedStepIds,
+          };
+          const restoredIndex = Math.min(
+            parsed.activeIndex ??
+              parsed.stepIndex ??
+              initialQuestionnaireState.activeIndex,
+            Math.max(schema.steps.length - 1, 0),
           );
+          const resolvedIndex = questionnaireNextVisibleStepIndex(
+            schema,
+            restoredIndex,
+            restoredResponses,
+          );
+          const skipped = schema.steps
+            .slice(restoredIndex, resolvedIndex)
+            .map((step) => step.id);
+          setActiveIndex(resolvedIndex);
+          setResponses(restoredResponses);
+          setAcknowledgements(parsed.acknowledgements ?? {});
+          setCompletedStepIds([
+            ...new Set([
+              ...(parsed.completedStepIds ??
+                initialQuestionnaireState.completedStepIds),
+              ...skipped,
+            ]),
+          ]);
           setSavedAt("restored");
         }
       } catch {
@@ -479,7 +504,7 @@ export function QuestionnaireEngine({
       }
     }, 0);
     return () => window.clearTimeout(restoreTimer);
-  }, [initialQuestionnaireState, schema.steps, storageKey]);
+  }, [initialQuestionnaireState, schema, storageKey]);
 
   useEffect(() => {
     if (!hydrated || completed) return;
@@ -568,11 +593,22 @@ export function QuestionnaireEngine({
   };
 
   const revealStep = (index: number) => {
-    const step = schema.steps[index];
+    const resolvedIndex = questionnaireNextVisibleStepIndex(
+      schema,
+      index,
+      responses,
+    );
+    const step = schema.steps[resolvedIndex];
     if (!step) return;
-    setActiveIndex(index);
+    if (resolvedIndex > index) {
+      const skipped = schema.steps.slice(index, resolvedIndex);
+      setCompletedStepIds((current) => [
+        ...new Set([...current, ...skipped.map((s) => s.id)]),
+      ]);
+    }
+    setActiveIndex(resolvedIndex);
     setAnnouncement(`Next question: ${step.title}`);
-    focusStep(index);
+    focusStep(resolvedIndex);
   };
 
   const markStepComplete = (stepId: string) => {

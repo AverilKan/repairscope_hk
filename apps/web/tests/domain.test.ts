@@ -178,7 +178,7 @@ test("postcode requires a full UK postcode and normalises spacing", () => {
     }),
     {
       postcode:
-        "Enter a full UK postcode, including the final three characters, for example SE15 4RF.",
+        "Enter a full UK postcode, including the final three characters, for example WD17 1AA.",
     },
   );
   assert.equal(
