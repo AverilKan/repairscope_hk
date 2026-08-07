@@ -8,6 +8,8 @@ import {
   QUESTIONNAIRE_VERSION,
 } from "@/data/questionnaires";
 import { correctionMeetsMinimumWords } from "@/domain/rules";
+import { classifyIssueReport } from "@/domain/classification";
+import { buildRepairBrief } from "@/domain/brief";
 import type {
   IssueClassification,
   ProblemBrief,
@@ -140,7 +142,11 @@ function StartAndClassify({
     processingRef.current = true;
     setError("");
     setPhase("processing");
-    const result = await repairScopeServices.classification.classify(report);
+    // Category guessing is a pure local transformation (see
+    // domain/classification.ts) — it never calls the deferred
+    // repairScopeServices.classification API capability, so the public
+    // intake flow works the same in mock and hosted API mode.
+    const result = classifyIssueReport(report);
     setClassification(result);
     setShowCategoryPicker(true);
     setPhase("suggestion");
@@ -656,13 +662,19 @@ function GeneratedBriefReview({
 
   useEffect(() => {
     let active = true;
-    void repairScopeServices.contractorBriefs.generate(draft).then((generated) => {
+    // Brief building is a pure local transformation of the questionnaire
+    // draft (see domain/brief.ts) — it never calls the deferred
+    // repairScopeServices.contractorBriefs API capability, so the public
+    // intake flow works the same in mock and hosted API mode. The short
+    // delay preserves the existing "preparing your brief" UX beat.
+    const generateTimer = window.setTimeout(() => {
       if (!active) return;
-      setBrief(generated);
+      setBrief(buildRepairBrief(draft));
       setPhase("ready");
-    });
+    }, 300);
     return () => {
       active = false;
+      window.clearTimeout(generateTimer);
     };
   }, [draft]);
 

@@ -5,6 +5,8 @@ import {
   demoOpportunity,
 } from "@/data/fixtures";
 import { responseFixtureForRepair } from "@/data/responseFixtures";
+import { classifyIssueReport } from "@/domain/classification";
+import { buildRepairBrief } from "@/domain/brief";
 import {
   createSubmittedInspectionRequest,
   createSubmittedRepairQuote,
@@ -73,37 +75,7 @@ const wait = (milliseconds = 450) =>
 class MockIssueClassificationService implements IssueClassificationService {
   async classify(report: string): Promise<IssueClassification> {
     await wait(650);
-    const source = report.toLowerCase();
-    let primaryCategory: RepairCategoryId = "general-maintenance";
-    let alternativeCategory: RepairCategoryId | undefined;
-
-    if (/ceiling|rain|roof|tile|flashing/.test(source)) {
-      primaryCategory = "roofing";
-      alternativeCategory = "damp-mould";
-    } else if (/leak|pipe|tap|toilet|water/.test(source)) {
-      primaryCategory = "plumbing-leak";
-      alternativeCategory = "roofing";
-    } else if (/boiler|heating|hot water/.test(source)) {
-      primaryCategory = "boiler-heating";
-    } else if (/socket|power|electric|light/.test(source)) {
-      primaryCategory = "electrical";
-    }
-
-    const symptoms = [
-      /ceiling/.test(source) ? "ceiling affected" : undefined,
-      /rain/.test(source) ? "triggered by rainfall" : undefined,
-      /drip|leak|water/.test(source) ? "water present" : undefined,
-      /stain|brown patch/.test(source) ? "visible staining" : undefined,
-    ].filter((value): value is string => Boolean(value));
-
-    return {
-      primaryCategory,
-      alternativeCategory,
-      symptoms:
-        symptoms.length > 0 ? symptoms : ["reported repair symptom"],
-      confidence: symptoms.length > 1 ? "high" : "medium",
-      safetyFieldsPrefilled: false,
-    };
+    return classifyIssueReport(report);
   }
 }
 
@@ -135,44 +107,7 @@ class MockContractorBriefService implements ContractorBriefService {
 
   async generate(draft: RepairIntakeDraft): Promise<ProblemBrief> {
     await wait(600);
-    return {
-      id: `brief-${draft.id}-v1`,
-      repairId: draft.id.replace("draft", "repair"),
-      originalReport: draft.originalReport,
-      reportedFacts: [
-        draft.originalReport,
-        ...draft.extractedSymptoms.map((symptom) => `Reported: ${symptom}.`),
-      ],
-      structuredSymptoms: draft.extractedSymptoms,
-      affectedArea:
-        String(draft.responses.plumbingLocation ?? draft.responses.dampLocation ?? "Area stated in report"),
-      onsetAndTriggers: [
-        String(
-          draft.responses.electricalOnset ??
-            draft.responses.dampDuration ??
-            "Timing not confirmed",
-        ),
-      ],
-      evidence: [],
-      urgency:
-        (draft.responses.urgency as ProblemBrief["urgency"]) ?? "routine",
-      occupancy:
-        (draft.responses.occupancy as ProblemBrief["occupancy"]) ?? "other",
-      accessOverview: String(
-        draft.responses.access ?? "Access responsibility not confirmed",
-      ),
-      confirmedUnknowns: [
-        "The technical cause has not been confirmed.",
-        "Hidden damage and access requirements may change the scope.",
-      ],
-      contractorRequests: [
-        "State a working diagnosis and confidence.",
-        "Separate inspection from proposed repair work.",
-        "List inclusions, exclusions, assumptions and variation risks.",
-        "Confirm price, VAT, availability, duration and guarantee.",
-      ],
-      version: 1,
-    };
+    return buildRepairBrief(draft);
   }
 
   async applyCorrection(
