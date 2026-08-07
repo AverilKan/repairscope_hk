@@ -192,6 +192,42 @@ pilot, per this document's "what this launch deliberately does not
 include" section above — there is no automated matching or delivery to
 build against yet.
 
+## Frontend architecture: no service dependency in the public path
+
+A hosted-staging verification (2026-08-07) found the public flow was
+unreachable in a real API-mode deployment: the homepage's "Report a new
+repair" CTA (`/landlord/repairs/new`, `StartAndClassify`) and brief
+generation (`GeneratedBriefReview`) called
+`repairScopeServices.classification.classify` and
+`repairScopeServices.contractorBriefs.generate` — both deliberately
+unavailable in API mode (`services/api.ts`), by design, since neither has
+a real backend endpoint. The first hung the entry point forever; the
+second crashed the brief step. This had gone uncaught because the
+existing Playwright coverage of `RepairSubmissionPanel` starts from a
+hardcoded fixture repair id, bypassing both calls entirely, and the rest
+of the suite runs against mock mode, where both calls succeed.
+
+Both were already pure, deterministic transformations of local
+questionnaire data — extracted into `domain/classification.ts`
+(`classifyIssueReport`) and `domain/brief.ts` (`buildRepairBrief`) and
+called directly by the launch flow in both mock and API mode, with the
+mock services now delegating to the same functions. **The public launch
+path has no `repairScopeServices` dependency for classification or brief
+generation in either data source** — it's local computation, not a
+"capability that happens to be available." The `classification` and
+`contractorBriefs` API-mode capabilities remain deliberately unavailable
+otherwise (e.g. `contractorBriefs.getForRepair`, used only by the
+separate existing-repair review route) — this fix does not expand their
+surface.
+
+The questionnaire's autosave (`QuestionnaireEngine`) already writes every
+answer to `localStorage` synchronously as the durable save for this
+anonymous flow; a best-effort remote `questionnaire.saveDraft` attempt on
+top of that now degrades to a "Saved on this device" UI state via
+try/catch instead of an uncaught exception, since the API-mode adapter's
+unavailable-capability stubs throw synchronously rather than rejecting a
+promise.
+
 ## Launch-hardening fixes
 
 A pre-launch audit found the auth dependency chain crashed (500, and not
