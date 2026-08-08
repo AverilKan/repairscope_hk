@@ -43,12 +43,13 @@ const defaultReport =
 // The launch intake asks only whether evidence exists, not for a
 // description of it — a free-text "describe your photos" box produced
 // low-value answers without RepairScope being able to receive the actual
-// files yet. This canned note is what responses.evidenceNotes holds when
-// the landlord says yes; it is the same field the backend and operator
-// review already expect (see docs/PUBLIC_INGESTION_LAUNCH.md), so nothing
-// downstream needed to change for this.
-const EVIDENCE_AVAILABLE_NOTE =
-  "Landlord indicated evidence is available (photos, videos, reports or previous quotes). RepairScope may ask for this separately after reviewing the brief.";
+// files yet. This is what responses.evidenceNotes holds when the landlord
+// says yes — deliberately a stable, minimal marker rather than UI copy or
+// a sentence that could read as landlord-written, since it reuses the
+// same field the backend and operator review already expect (see
+// docs/PUBLIC_INGESTION_LAUNCH.md) as a compatibility bridge, not a real
+// evidence-description feature.
+const EVIDENCE_AVAILABLE_NOTE = "Evidence available";
 
 const categorySlugs = new Set<RepairCategoryId>(
   Object.keys(questionnaireByCategory) as RepairCategoryId[],
