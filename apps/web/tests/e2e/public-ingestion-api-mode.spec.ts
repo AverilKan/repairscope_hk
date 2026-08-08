@@ -40,6 +40,7 @@ test("the real landlord entry point reaches a submittable brief in API mode with
   await page
     .getByLabel("Tenant message or description")
     .fill("STAGING TEST — DO NOT ACTION. Dripping bathroom tap, slow drip, not urgent.");
+  await page.getByRole("radio", { name: "No / not sure" }).click({ force: true });
   await page.getByRole("button", { name: "Analyse problem" }).click();
 
   // Classification must resolve (not hang forever on "Understanding the
@@ -58,10 +59,6 @@ test("the real landlord entry point reaches a submittable brief in API mode with
   ).toBeVisible();
   await page.getByRole("radio", { name: "No" }).first().click({ force: true });
   await page.getByRole("button", { name: "Add details" }).first().click();
-  await page
-    .getByRole("textbox", { name: "Photos, videos, reports or previous quotations" })
-    .fill("STAGING TEST — two phone photos of the tap, not attached here.");
-  await page.getByRole("button", { name: "Add details" }).click();
   await page.getByLabel("Property postcode").fill("WD17 4RF");
   await page.getByRole("button", { name: "Confirm postcode" }).click();
   await page.getByRole("radio", { name: /^Routine/ }).click({ force: true });

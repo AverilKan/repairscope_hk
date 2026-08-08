@@ -106,24 +106,12 @@ const collapseSafetyRule: SafetyRule = {
   severity: "stop",
 };
 
-const photoStep = step(
-  "evidence",
-  "Evidence",
-  "Add anything that helps a contractor understand the problem",
-  [
-    {
-      id: "evidenceNotes",
-      type: "long_text",
-      label: "Photos, videos, reports or previous quotations",
-      help: "Describe any photos, videos, reports or previous quotations you have. RepairScope may ask you to send relevant evidence separately after reviewing the brief.",
-      required: false,
-    },
-  ],
-  "Evidence is optional, but clear context can reduce avoidable site visits.",
-);
-
+// There is no dedicated evidence step in the questionnaire — the initial
+// "Problem report" screen's yes/no evidence question (StartAndClassify,
+// components/LandlordApp.tsx) is the only place a landlord is asked about
+// evidence, and it writes directly into this same responses.evidenceNotes
+// key. See docs/PUBLIC_INGESTION_LAUNCH.md.
 const commonTail: QuestionnaireStep[] = [
-  photoStep,
   step("postcode", "Property", "Where is the property?", [
     {
       id: "postcode",

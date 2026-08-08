@@ -40,6 +40,16 @@ import {
 const defaultReport =
   "Tenant says a brown patch has appeared on the back bedroom ceiling. It drips after heavy rain, then stops. They noticed it three weeks ago.";
 
+// The launch intake asks only whether evidence exists, not for a
+// description of it — a free-text "describe your photos" box produced
+// low-value answers without RepairScope being able to receive the actual
+// files yet. This canned note is what responses.evidenceNotes holds when
+// the landlord says yes; it is the same field the backend and operator
+// review already expect (see docs/PUBLIC_INGESTION_LAUNCH.md), so nothing
+// downstream needed to change for this.
+const EVIDENCE_AVAILABLE_NOTE =
+  "Landlord indicated evidence is available (photos, videos, reports or previous quotes). RepairScope may ask for this separately after reviewing the brief.";
+
 const categorySlugs = new Set<RepairCategoryId>(
   Object.keys(questionnaireByCategory) as RepairCategoryId[],
 );
@@ -83,7 +93,7 @@ function StartAndClassify({
   const [showCategoryPicker, setShowCategoryPicker] = useState(true);
   const [categoryChangeWarning, setCategoryChangeWarning] = useState(false);
   const [reportChangeWarning, setReportChangeWarning] = useState(false);
-  const [evidenceNotes, setEvidenceNotes] = useState("");
+  const [hasEvidence, setHasEvidence] = useState<"yes" | "no" | null>(null);
   const [briefDraft, setBriefDraft] = useState<RepairIntakeDraft | null>(null);
   const [resumeDraft, setResumeDraft] = useState<RepairIntakeDraft | null>(null);
   const [error, setError] = useState("");
@@ -99,9 +109,11 @@ function StartAndClassify({
       const draftEvidence = draft.responses.evidenceNotes;
       setReport(draft.originalReport);
       if (typeof draftPostcode === "string") setPostcode(draftPostcode);
-      if (typeof draftEvidence === "string") {
-        setEvidenceNotes(draftEvidence);
-      }
+      setHasEvidence(
+        typeof draftEvidence === "string" && draftEvidence.trim()
+          ? "yes"
+          : "no",
+      );
       setClassification({
         primaryCategory: draft.category,
         alternativeCategory: draft.alternativeCategory,
@@ -120,9 +132,11 @@ function StartAndClassify({
   const initialResponses = useMemo(
     () => ({
       ...(postcode.trim() ? { postcode } : {}),
-      ...(evidenceNotes.trim() ? { evidenceNotes } : {}),
+      ...(hasEvidence === "yes"
+        ? { evidenceNotes: EVIDENCE_AVAILABLE_NOTE }
+        : {}),
     }),
-    [evidenceNotes, postcode],
+    [hasEvidence, postcode],
   );
 
   const revealCategory = () => {
@@ -361,18 +375,46 @@ function StartAndClassify({
                 )}
               </div>
             </div>
-            <div className="text-field">
-              <label htmlFor="initial-evidence-notes">
-                Photos, videos, reports or previous quotations (optional now)
-              </label>
-              <textarea
-                id="initial-evidence-notes"
-                rows={2}
-                value={evidenceNotes}
-                onChange={(event) => setEvidenceNotes(event.target.value)}
-                placeholder="Describe any photos, videos, reports or previous quotations you have."
-              />
-            </div>
+            <fieldset className="choice-field">
+              <legend>
+                Do you have any photos, videos, reports or previous quotes?
+              </legend>
+              <div className="choice-grid">
+                <label
+                  className={`choice-card ${hasEvidence === "yes" ? "choice-card--selected" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="has-evidence"
+                    checked={hasEvidence === "yes"}
+                    onChange={() => setHasEvidence("yes")}
+                  />
+                  <span className="choice-card__indicator" aria-hidden="true" />
+                  <span>
+                    <strong>Yes</strong>
+                  </span>
+                </label>
+                <label
+                  className={`choice-card ${hasEvidence === "no" ? "choice-card--selected" : ""}`}
+                >
+                  <input
+                    type="radio"
+                    name="has-evidence"
+                    checked={hasEvidence === "no"}
+                    onChange={() => setHasEvidence("no")}
+                  />
+                  <span className="choice-card__indicator" aria-hidden="true" />
+                  <span>
+                    <strong>No / not sure</strong>
+                  </span>
+                </label>
+              </div>
+              {hasEvidence === "yes" && (
+                <p className="field-help">
+                  We may ask you to send these after reviewing the repair.
+                </p>
+              )}
+            </fieldset>
             <button className="button" type="button" onClick={classify}>
               Analyse problem
             </button>
@@ -386,7 +428,7 @@ function StartAndClassify({
             <strong>{report}</strong>
             <small>
               {postcode || "Postcode not added"} ·{" "}
-              {evidenceNotes.trim() ? "Evidence described" : "No evidence described yet"}
+              {hasEvidence === "yes" ? "Evidence available" : "No evidence available"}
             </small>
           </div>
           <button
