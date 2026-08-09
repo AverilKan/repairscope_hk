@@ -8,6 +8,7 @@ import type {
   SubmissionStatus,
 } from "@/domain/operatorSubmission";
 import { useOperatorSubmissionService } from "@/services/operator/useOperatorSubmissionService";
+import { GeneratedBriefDocument } from "./GeneratedBriefDocument";
 import { StatusPill } from "./SiteShell";
 
 const STATUS_OPTIONS: { value: Exclude<SubmissionStatus, "new">; label: string }[] = [
@@ -170,6 +171,8 @@ function SubmissionDetailPanel({ id, onUpdated }: { id: string; onUpdated: () =>
         </div>
       )}
 
+      <GeneratedBriefDocument brief={detail.generatedBrief} />
+
       <dl className="operator-review__facts">
         <div>
           <dt>Landlord</dt>
@@ -217,15 +220,10 @@ function SubmissionDetailPanel({ id, onUpdated }: { id: string; onUpdated: () =>
         </div>
       </dl>
 
-      <div className="operator-review__brief">
-        <p className="eyebrow">Generated brief</p>
-        <pre>{JSON.stringify(detail.generatedBrief, null, 2)}</pre>
-      </div>
-
-      <div className="operator-review__answers">
-        <p className="eyebrow">Questionnaire answers</p>
+      <details className="operator-review__answers">
+        <summary>Show raw answers</summary>
         <pre>{JSON.stringify(detail.questionnaireAnswers, null, 2)}</pre>
-      </div>
+      </details>
 
       <label className="operator-review__notes-label">
         Internal review notes

@@ -29,6 +29,7 @@ import {
   type RepairSubmissionPanelPrefill,
 } from "./RepairSubmissionPanel";
 import { QuestionnaireEngine } from "./QuestionnaireEngine";
+import { GeneratedBriefDocument } from "./GeneratedBriefDocument";
 import { ResponseComparisonPage } from "./ResponseComparisonPage";
 import { BackLink, PageIntro, SiteShell, StatusPill } from "./SiteShell";
 import {
@@ -959,51 +960,7 @@ function BriefReview({
       </section>
 
       <section className="brief-document">
-        <div className="brief-document__masthead">
-          <div>
-            <p className="eyebrow">RepairScope neutral brief</p>
-            <h2>Intermittent bedroom ceiling water ingress</h2>
-          </div>
-          <div className="brief-ref">
-            <span>Repair</span>
-            <strong>{brief.repairId.toUpperCase()}</strong>
-          </div>
-        </div>
-
-        <div className="brief-lead">
-          <span className="scope-mark">01</span>
-          <p>
-            Water staining and intermittent dripping have appeared on the back
-            bedroom ceiling after heavy rain. The source has not been confirmed.
-            Contractors should state their working diagnosis, whether inspection
-            is required, and what their proposed work would address.
-          </p>
-        </div>
-
-        <div className="brief-grid">
-          <BriefSection number="02" title="Reported facts" items={currentBrief.reportedFacts} />
-          <BriefSection number="03" title="Confirmed unknowns" items={currentBrief.confirmedUnknowns} tone="unknown" />
-          <BriefSection
-            number="04"
-            title="Evidence being shared"
-            items={
-              currentBrief.evidence.length
-                ? currentBrief.evidence.map((item) => item.name)
-                : ["No files added"]
-            }
-          />
-          <BriefSection
-            number="05"
-            title="Access overview"
-            items={[currentBrief.accessOverview]}
-          />
-          <BriefSection
-            number="06"
-            title="What contractors must provide"
-            items={currentBrief.contractorRequests}
-            wide
-          />
-        </div>
+        <GeneratedBriefDocument brief={currentBrief} bare />
 
         <div className="brief-correction">
           <label htmlFor="brief-correction">
@@ -1096,38 +1053,6 @@ function BriefReview({
         onSubmitted={clearPendingBriefDraft}
       />
     </main>
-  );
-}
-
-function BriefSection({
-  number,
-  title,
-  items,
-  tone,
-  wide,
-}: {
-  number: string;
-  title: string;
-  items: string[];
-  tone?: "unknown";
-  wide?: boolean;
-}) {
-  return (
-    <section
-      className={`brief-section ${wide ? "brief-section--wide" : ""} ${
-        tone ? `brief-section--${tone}` : ""
-      }`}
-    >
-      <header>
-        <span>{number}</span>
-        <h3>{title}</h3>
-      </header>
-      <ul>
-        {items.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </section>
   );
 }
 
