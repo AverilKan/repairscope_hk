@@ -3146,6 +3146,20 @@ select:focus {
   text-align: right;
 }
 
+.site-footer__links {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+}
+
+.site-footer__links a {
+  color: var(--ink-soft);
+}
+
+.site-footer__links a:hover {
+  color: var(--ink);
+}
+
 @media (max-width: 1180px) {
   .site-header {
     grid-template-columns: auto 1fr;

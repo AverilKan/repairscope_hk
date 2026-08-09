@@ -53,6 +53,10 @@ export function SiteShell({
           </span>
           <p>Neutral repair briefs. Independent proposals. Private clarification.</p>
         </div>
+        <nav className="site-footer__links" aria-label="Legal">
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
+        </nav>
         <p className="site-footer__note">
           Prototype data only · No real invitations, payments or contractor
           verification

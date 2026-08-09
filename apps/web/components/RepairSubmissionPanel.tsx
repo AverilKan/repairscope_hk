@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import type { ProblemBrief } from "@/domain/types";
 import {
@@ -251,6 +252,11 @@ export function RepairSubmissionPanel({
             </span>
           </label>
         </div>
+
+        <p className="field-help">
+          See our <Link href="/privacy">privacy notice</Link> for how this
+          information is used.
+        </p>
 
         {submissionBlocked && submissionBlockReason && (
           <p className="repair-submission-panel__blocked" role="status">

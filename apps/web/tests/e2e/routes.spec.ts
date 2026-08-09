@@ -22,6 +22,8 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/landlord/repairs/new/roofing", identifyingText: "Roofing questions" },
   { path: "/landlord/repairs/rs-1047/responses", identifyingText: "Contractor responses" },
   { path: "/landlord/repairs/rs-1047/progress", identifyingText: "Repair progress" },
+  { path: "/privacy", identifyingText: "How RepairScope handles your information" },
+  { path: "/terms", identifyingText: "What RepairScope is, and what it isn't" },
 ];
 
 for (const route of ROUTES) {
