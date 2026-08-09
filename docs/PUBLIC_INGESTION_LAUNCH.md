@@ -295,3 +295,41 @@ form data intact for retry. Deliberately submitting the same brief twice
 (two browser tabs, for example) still creates two separate
 `RepairSubmission` rows with two references — acceptable for a low-volume
 pilot; revisit only if this is actually observed causing confusion.
+
+## Deployment topology (staging)
+
+As of commit `bbb627c` / tag `custom-domain-verified-2026-08-09`, everything
+described in this document runs against **staging infrastructure only** —
+there is no separate production deployment yet.
+
+**Frontend** — one Vercel project, reachable at two hosted origins:
+- `https://repair-scope-green.vercel.app` (the project's default domain)
+- `https://www.repairscope.co.uk` (custom domain attached to the same
+  project; the apex `repairscope.co.uk` 308-redirects to the `www` host)
+
+Both serve the identical build and the identical environment configuration
+— same `NEXT_PUBLIC_REPAIRSCOPE_API_BASE_URL` (the staging API below), same
+Clerk **development** tenant (confirmed live by the persistent "Clerk has
+been loaded with development keys" console warning on both origins).
+
+**Backend** — `https://repairscope-staging-api.onrender.com`, a single
+Render web service, fronted by Cloudflare (visible via `cf-ray`/`server:
+cloudflare` response headers). Backing store is a single staging
+PostgreSQL instance on Render. `REPAIRSCOPE_CORS_ALLOWED_ORIGINS` and
+`REPAIRSCOPE_CLERK_AUTHORIZED_PARTIES` explicitly list both frontend
+origins above (exact match, no wildcard — see `app/core/config.py`).
+
+**Auth** — one Clerk development instance shared by both frontend origins;
+one operator capability grant exists in the staging database (via
+`uv run python -m app.admin grant-capability`, not an HTTP endpoint).
+
+**Data** — the staging `repair_submissions` table is reset to empty as of
+this tag; every record created during verification work was either closed
+through the operator workflow or deleted directly (no application-level
+delete endpoint exists, by design — see "Operator provisioning" above).
+
+**Not yet separated:** there is no production Render service, no
+production Postgres, no production Clerk instance, and no DNS split
+between a staging and production hostname. Until that exists,
+`www.repairscope.co.uk` **is** staging — treat any submission through it
+accordingly.
