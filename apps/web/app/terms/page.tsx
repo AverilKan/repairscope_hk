@@ -76,10 +76,7 @@ export default function TermsPage() {
           </p>
         </section>
 
-        <p className="field-help">
-          This is early, pilot-stage wording, not a final legal terms of
-          service. It will be reviewed and expanded as the service grows.
-        </p>
+        <p className="field-help">Last updated: 9 August 2026.</p>
       </main>
     </SiteShell>
   );
