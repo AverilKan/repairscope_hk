@@ -23,21 +23,33 @@ export function SiteShell({
         </Link>
         <div className="surface-label" aria-label={`Current area: ${surface}`}>
           <span className="surface-label__dot" aria-hidden="true" />
-          {surface === "public" ? "Repair procurement, clarified" : `${surface} view`}
+          {surface === "public"
+            ? "Describe · Source · Compare · Choose"
+            : `${surface} view`}
         </div>
         <nav className="site-nav" aria-label="Primary navigation">
+          {surface === "public" && (
+            <>
+              <Link href="/#how-it-works">How it works</Link>
+              <Link href="/#for-landlords">For landlords</Link>
+              <Link href="/#for-contractors">For contractors</Link>
+              <Link href="/#faqs">FAQs</Link>
+            </>
+          )}
           {surface === "landlord" && (
             <Link href="/landlord/repairs">My repairs</Link>
           )}
-          {surface !== "contractor" && (
+          {surface !== "public" && surface !== "contractor" && (
             <Link href="/landlord/repairs">Repair workspace</Link>
           )}
-          <Link href="/contractor/respond/demo-token">
-            Contractor invitation
-          </Link>
+          {surface !== "public" && (
+            <Link href="/contractor/respond/demo-token">
+              Contractor invitation
+            </Link>
+          )}
           {surface === "public" && (
-            <Link className="button button--small" href="/landlord">
-              Open landlord workspace
+            <Link className="button button--small" href="/landlord/repairs/new">
+              Submit a repair
             </Link>
           )}
         </nav>
@@ -51,15 +63,17 @@ export function SiteShell({
             </span>
             <span>RepairScope</span>
           </span>
-          <p>Neutral repair briefs. Independent proposals. Private clarification.</p>
+          <p>
+            One clear brief. Selected contractors. Comparable proposals. You
+            choose.
+          </p>
         </div>
         <nav className="site-footer__links" aria-label="Legal">
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </nav>
         <p className="site-footer__note">
-          Prototype data only · No real invitations, payments or contractor
-          verification
+          Founding pilot · Significant, non-emergency repairs in England
         </p>
       </footer>
     </div>

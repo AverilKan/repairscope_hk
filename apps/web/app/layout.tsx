@@ -35,30 +35,30 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase,
     title: {
-      default: "RepairScope — Repair proposals, clarified",
+      default: "RepairScope — Help with significant rental-property repairs",
       template: "%s · RepairScope",
     },
     description:
-      "Create neutral repair briefs, compare independent contractor proposals and clarify meaningful differences privately.",
+      "Tell RepairScope what has gone wrong. We create a clear repair brief, approach suitable independent contractors and organise their proposals for you.",
     openGraph: {
-      title: "RepairScope — Repair proposals, clarified",
+      title: "Got a significant repair at your rental property?",
       description:
-        "From tenant report to neutral brief, comparable proposals and immutable revisions.",
+        "Tell us what has gone wrong once. RepairScope helps source suitable contractors and makes their proposals easier to understand.",
       type: "website",
       images: [
         {
           url: new URL("/og.png", metadataBase).toString(),
           width: 1792,
           height: 897,
-          alt: "RepairScope — Repair proposals, clarified",
+          alt: "RepairScope helps landlords source contractors for significant repairs",
         },
       ],
     },
     twitter: {
       card: "summary_large_image",
-      title: "RepairScope — Repair proposals, clarified",
+      title: "Got a significant repair at your rental property?",
       description:
-        "Neutral briefs, independent proposals and private questions.",
+        "Tell us what has gone wrong once. We organise the brief, contractor sourcing and responses.",
       images: [new URL("/og.png", metadataBase).toString()],
     },
   };
