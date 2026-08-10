@@ -44,7 +44,9 @@ test("sign-in shell's back link navigates client-side to the home route", async 
 
   await page.getByRole("link", { name: "Back to RepairScope" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByText("From messy report to defined repair")).toBeVisible();
+  await expect(
+    page.getByText("Got a significant repair at your rental property?"),
+  ).toBeVisible();
 
   const markerSurvived = await page.evaluate(
     () => (window as unknown as { __navMarker?: string }).__navMarker === "still-here",

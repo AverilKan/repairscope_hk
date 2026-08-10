@@ -1184,7 +1184,7 @@ test("mobile comparison, loading, empty and error states are present", async () 
   assert.match(css, /@media \(max-width: 840px\)[\s\S]*\.clean-response-card/);
   assert.match(
     homeSource,
-    /href="\/landlord\/repairs\/new"[\s\S]*Start as a landlord/,
+    /href="\/landlord\/repairs\/new"[\s\S]*Submit a repair/,
   );
   assert.match(landlordSource, /startFresh \? "describe" : "start"/);
   assert.match(landlordSource, /if \(startFresh\) return/);

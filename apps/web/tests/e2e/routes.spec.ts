@@ -9,7 +9,7 @@ import { trackPageErrors } from "./helpers";
 // genuine `next start` in turn — see docs/FRONTEND_RUNTIME_MIGRATION.md.
 
 const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
-  { path: "/", identifyingText: "From messy report to defined repair" },
+  { path: "/", identifyingText: "Got a significant repair at your rental property?" },
   { path: "/sign-in", identifyingText: "Landlord account access" },
   { path: "/sign-up", identifyingText: "Landlord account access" },
   { path: "/contractor", identifyingText: "CONTRACTOR RESPONSE PORTAL" },
