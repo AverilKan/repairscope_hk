@@ -33,7 +33,10 @@ class RepairSubmission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     landlord_name: Mapped[str] = mapped_column(String, nullable=False)
     landlord_email: Mapped[str] = mapped_column(String, nullable=False)
     landlord_phone: Mapped[str] = mapped_column(String, nullable=False)
-    property_postcode: Mapped[str] = mapped_column(String, nullable=False)
+    # Nullable: Hong Kong properties have no postcode system. HK submissions
+    # instead carry district/estate/block/floor/unit in questionnaire_answers
+    # and a canonical human-readable property_address below.
+    property_postcode: Mapped[str | None] = mapped_column(String, nullable=True)
     property_address: Mapped[str | None] = mapped_column(String, nullable=True)
     preferred_contact_method: Mapped[PreferredContactMethod] = mapped_column(
         Enum(

@@ -45,7 +45,10 @@ class RepairSubmissionCreateRequest(BaseModel):
     landlord_name: str = Field(max_length=_SHORT_TEXT_MAX)
     landlord_email: str = Field(max_length=_SHORT_TEXT_MAX)
     landlord_phone: str = Field(max_length=_SHORT_TEXT_MAX)
-    property_postcode: str = Field(max_length=_SHORT_TEXT_MAX)
+    # Optional: Hong Kong properties have no postcode. The HK public intake
+    # sends district/estate/block/floor/unit inside questionnaire_answers and
+    # a canonical human-readable property_address instead.
+    property_postcode: str | None = Field(default=None, max_length=_SHORT_TEXT_MAX)
     property_address: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
     preferred_contact_method: PreferredContactMethod
     access_notes: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
@@ -87,6 +90,19 @@ class RepairSubmissionCreateRequest(BaseModel):
                 raise ValueError("Each safety flag must be short.")
         return value
 
+    @model_validator(mode="after")
+    def _require_some_property_location(self) -> "RepairSubmissionCreateRequest":
+        # Hong Kong submissions have no postcode, so property_address (built
+        # from district/estate/block/floor/unit) is what locates the
+        # property instead — at least one of the two must be present.
+        if not (self.property_postcode or "").strip() and not (
+            self.property_address or ""
+        ).strip():
+            raise ValueError(
+                "Either property_postcode or property_address is required."
+            )
+        return self
+
 
 class RepairSubmissionCreateResponse(BaseModel):
     public_reference: str
@@ -100,7 +116,7 @@ class RepairSubmissionSummary(BaseModel):
     status: SubmissionStatus
     issue_category: str
     landlord_name: str
-    property_postcode: str
+    property_postcode: str | None
     safety_flags: list[str]
     created_at: datetime
 
@@ -118,7 +134,7 @@ class RepairSubmissionDetail(BaseModel):
     landlord_name: str
     landlord_email: str
     landlord_phone: str
-    property_postcode: str
+    property_postcode: str | None
     property_address: str | None
     preferred_contact_method: PreferredContactMethod
     access_notes: str | None
