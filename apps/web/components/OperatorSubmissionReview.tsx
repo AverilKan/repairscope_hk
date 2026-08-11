@@ -8,8 +8,21 @@ import type {
   SubmissionStatus,
 } from "@/domain/operatorSubmission";
 import { useOperatorSubmissionService } from "@/services/operator/useOperatorSubmissionService";
+import { questionnaireByCategory } from "@/data/questionnaires";
+import type { RepairCategoryId } from "@/domain/types";
 import { GeneratedBriefDocument } from "./GeneratedBriefDocument";
 import { StatusPill } from "./SiteShell";
+
+// issue_category is persisted as the RepairCategoryId slug chosen during
+// intake (see RepairSubmissionPanel), but travels through the API as a
+// plain string — resolved defensively here since older/unrecognised values
+// must still render safely rather than throw.
+function categoryLabelFor(issueCategory: string): string {
+  return (
+    questionnaireByCategory[issueCategory as RepairCategoryId]?.label ??
+    issueCategory
+  );
+}
 
 const STATUS_OPTIONS: { value: Exclude<SubmissionStatus, "new">; label: string }[] = [
   { value: "reviewing", label: "Reviewing" },
@@ -171,7 +184,10 @@ function SubmissionDetailPanel({ id, onUpdated }: { id: string; onUpdated: () =>
         </div>
       )}
 
-      <GeneratedBriefDocument brief={detail.generatedBrief} />
+      <GeneratedBriefDocument
+        brief={detail.generatedBrief}
+        categoryLabel={categoryLabelFor(detail.issueCategory)}
+      />
 
       <dl className="operator-review__facts">
         <div>

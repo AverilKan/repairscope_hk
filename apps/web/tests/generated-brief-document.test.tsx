@@ -75,6 +75,81 @@ test("a missing brief renders a fallback instead of crashing", () => {
   assert.ok(screen.getByText("No brief is available for this submission."));
 });
 
+// Regression coverage for a defect where the masthead heading and lead
+// paragraph were a fixed "Intermittent bedroom ceiling water ingress…"
+// scenario rendered for every submission regardless of category or actual
+// report content (HK-A0 item A).
+
+test("headline is derived from the caller-supplied category label, not a fixed scenario", () => {
+  render(
+    React.createElement(GeneratedBriefDocument, {
+      brief: fullBrief,
+      categoryLabel: "Plumbing / leak",
+    }),
+  );
+  assert.ok(screen.getByText("Plumbing / leak"));
+  assert.equal(
+    screen.queryByText("Intermittent bedroom ceiling water ingress"),
+    null,
+  );
+});
+
+test("a plumbing case cannot show a ceiling-ingress headline and an electrical case cannot show a leak headline", () => {
+  const { unmount: unmountPlumbing } = render(
+    React.createElement(GeneratedBriefDocument, {
+      brief: { ...fullBrief, originalReport: "Kitchen tap will not stop dripping." },
+      categoryLabel: "Plumbing / leak",
+    }),
+  );
+  assert.ok(screen.getByText("Plumbing / leak"));
+  assert.equal(screen.queryByText(/ceiling/i), null);
+  unmountPlumbing();
+  cleanup();
+
+  render(
+    React.createElement(GeneratedBriefDocument, {
+      brief: { ...fullBrief, originalReport: "A socket in the lounge sparked." },
+      categoryLabel: "Electrical",
+    }),
+  );
+  assert.ok(screen.getByText("Electrical"));
+  assert.equal(screen.queryByText(/water ingress/i), null);
+  assert.ok(screen.getByText(/A socket in the lounge sparked\./));
+});
+
+test("lead paragraph renders the actual original report text, not invented content", () => {
+  render(
+    React.createElement(GeneratedBriefDocument, {
+      brief: {
+        ...fullBrief,
+        originalReport: "Bathroom extractor fan has stopped working entirely.",
+      },
+      categoryLabel: "General maintenance",
+    }),
+  );
+  assert.ok(
+    screen.getByText(/Bathroom extractor fan has stopped working entirely\./),
+  );
+});
+
+test("missing category label and missing original report render safely, not the old fixed scenario", () => {
+  render(
+    React.createElement(GeneratedBriefDocument, {
+      brief: { reportedFacts: ["Kitchen tap leaking heavily, floor is wet."] },
+    }),
+  );
+  assert.ok(screen.getByText("Repair brief"));
+  assert.ok(
+    screen.getByText(
+      /No original report text was recorded for this submission\./,
+    ),
+  );
+  assert.equal(
+    screen.queryByText("Intermittent bedroom ceiling water ingress"),
+    null,
+  );
+});
+
 test("bare mode omits the outer .brief-document wrapper (for the landlord screen's own card)", () => {
   const { container: bareContainer } = render(
     React.createElement(GeneratedBriefDocument, { brief: fullBrief, bare: true }),

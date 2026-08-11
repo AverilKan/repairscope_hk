@@ -10,6 +10,7 @@
 // field here is read defensively rather than assumed present.
 type GeneratedBriefLike = {
   repairId?: string;
+  originalReport?: string;
   reportedFacts?: string[];
   confirmedUnknowns?: string[];
   evidence?: { name?: string }[];
@@ -19,9 +20,18 @@ type GeneratedBriefLike = {
 
 export function GeneratedBriefDocument({
   brief,
+  categoryLabel,
   bare = false,
 }: {
   brief: GeneratedBriefLike | null | undefined;
+  /**
+   * The repair category's own label (e.g. "Plumbing / leak"), looked up by
+   * the caller from the category recorded against this submission/draft.
+   * Rendered as the brief's headline instead of inventing or assuming a
+   * scenario — falls back to a neutral label when the category cannot be
+   * resolved (e.g. an older record) rather than guessing.
+   */
+  categoryLabel?: string;
   /**
    * The landlord "Check the facts" screen wraps this in its own
    * `.brief-document` section alongside the correction form, so it renders
@@ -51,7 +61,7 @@ export function GeneratedBriefDocument({
       <div className="brief-document__masthead">
         <div>
           <p className="eyebrow">RepairScope neutral brief</p>
-          <h2>Intermittent bedroom ceiling water ingress</h2>
+          <h2>{categoryLabel ?? "Repair brief"}</h2>
         </div>
         <div className="brief-ref">
           <span>Repair</span>
@@ -62,10 +72,11 @@ export function GeneratedBriefDocument({
       <div className="brief-lead">
         <span className="scope-mark">01</span>
         <p>
-          Water staining and intermittent dripping have appeared on the back
-          bedroom ceiling after heavy rain. The source has not been confirmed.
-          Contractors should state their working diagnosis, whether inspection
-          is required, and what their proposed work would address.
+          {brief.originalReport?.trim() ||
+            "No original report text was recorded for this submission."}{" "}
+          The cause has not been confirmed. Contractors should state their
+          working diagnosis, whether inspection is required, and what their
+          proposed work would address.
         </p>
       </div>
 
