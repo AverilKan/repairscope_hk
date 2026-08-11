@@ -201,7 +201,7 @@ test("postcode requires a full UK postcode and normalises spacing", () => {
   );
 });
 
-test("contact details collect role first and validate before contact preference", () => {
+test("contact step only collects role/authority — name, email, phone and preferred contact are collected once, on the submission panel", () => {
   const electrical = questionnaireByCategory.electrical;
   const contactIndex = electrical.steps.findIndex(
     (step) => step.id === "contact",
@@ -212,19 +212,21 @@ test("contact details collect role first and validate before contact preference"
     electrical.steps.some((step) => step.id === "role"),
     false,
   );
+  // Regression coverage for a defect where contactName/contactEmail/
+  // contactPhone/preferredContact were asked here AND again (with
+  // different wording/options) on RepairSubmissionPanel — only the
+  // panel's answer was ever persisted, so the questionnaire's answers to
+  // these fields were silently discarded (HK-A0 item D).
   assert.deepEqual(
     contactStep.fields.map((field) => field.id),
-    [
-      "role",
-      "accountRoleExplanation",
-      "contactName",
-      "contactEmail",
-      "contactPhone",
-      "preferredContact",
-    ],
+    ["role", "accountRoleExplanation"],
   );
   assert.equal(
-    contactStep.fields.some((field) => field.id === "contractorContact"),
+    contactStep.fields.some((field) =>
+      ["contactName", "contactEmail", "contactPhone", "preferredContact"].includes(
+        field.id,
+      ),
+    ),
     false,
   );
   const roleField = contactStep.fields.find((field) => field.id === "role");
@@ -255,6 +257,10 @@ test("contact details collect role first and validate before contact preference"
     }),
     true,
   );
+  // isValidContactName/isValidEmailAddress/isValidPhoneNumber remain
+  // generic, exported validators (used by questionnaireStepValidationErrors
+  // for any "name"/"email"/"phone" field type) even though no current
+  // questionnaire field exercises them — kept as-is, out of scope for D.
   assert.equal(isValidContactName("1234"), false);
   assert.equal(isValidContactName("Alex Morgan"), true);
   assert.equal(isValidEmailAddress("asdf"), false);
@@ -262,51 +268,32 @@ test("contact details collect role first and validate before contact preference"
   assert.equal(isValidPhoneNumber("07"), false);
   assert.equal(isValidPhoneNumber("+44 7123 456789"), true);
 
-  assert.deepEqual(
-    questionnaireStepValidationErrors(electrical, contactIndex, {
-      role: "landlord",
-      contactName: "1234",
-      contactEmail: "asdf",
-      contactPhone: "07",
-      preferredContact: "email",
-    }),
-    {
-      contactName:
-        "Enter a valid name using letters, spaces, apostrophes or hyphens.",
-      contactEmail:
-        "Enter a valid email address, for example alex@example.com.",
-      contactPhone:
-        "Enter a valid phone number, including the area or mobile code.",
-    },
-  );
-
   assert.equal(
-    canContinueQuestionnaireStep(
-      electrical,
-      contactIndex,
-      {
-        role: "agent",
-        contactName: "Alex Morgan",
-        contactEmail: "alex@example.com",
-        contactPhone: "07123 456789",
-        preferredContact: "either",
-      },
-      false,
-    ),
+    canContinueQuestionnaireStep(electrical, contactIndex, { role: "agent" }, false),
     true,
   );
   assert.deepEqual(
     questionnaireStepValidationErrors(electrical, contactIndex, {
       role: "other-authorised",
-      contactName: "Alex Morgan",
-      contactEmail: "alex@example.com",
-      contactPhone: "07123 456789",
-      preferredContact: "email",
     }),
     {
       accountRoleExplanation:
         "Briefly explain how you are authorised to manage this repair.",
     },
+  );
+});
+
+test("context step no longer duplicates RepairSubmissionPanel's sharing-consent checkbox", () => {
+  const electrical = questionnaireByCategory.electrical;
+  const contextStep = electrical.steps.find((step) => step.id === "context");
+  assert.ok(contextStep);
+  assert.deepEqual(
+    contextStep.fields.map((field) => field.id),
+    ["additionalContext"],
+  );
+  assert.equal(
+    electrical.steps.some((step) => step.id === "context-consent"),
+    false,
   );
 });
 
@@ -505,7 +492,11 @@ test("public repair-brief submission requires no account and captures contact/co
   );
   assert.match(landlordSource, /repairscope-pending-brief-draft-v1/);
   assert.match(landlordSource, /savePendingBriefDraft\(draft\)/);
-  assert.match(landlordSource, /clearPendingBriefDraft\}/);
+  assert.match(landlordSource, /clearPendingBriefDraft\(\);/);
+  // Submitting also clears the current journey id (domain/journey.ts), so
+  // the next repair the landlord starts does not silently resume this
+  // just-submitted one (HK-A0 item E).
+  assert.match(landlordSource, /clearCurrentJourney\(\);/);
   assert.match(routeSource, /<LandlordApp path=\{path\}/);
   // Deliberate: no server-side auth() call or capability check in the
   // landlord route itself — see docs/FRONTEND_RUNTIME_MIGRATION.md's

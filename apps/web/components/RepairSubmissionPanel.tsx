@@ -15,9 +15,6 @@ import { repairScopeServices } from "@/services";
 import { StatusPill } from "./SiteShell";
 
 export interface RepairSubmissionPanelPrefill {
-  fullName?: string;
-  email?: string;
-  phone?: string;
   postcode?: string;
 }
 
@@ -35,9 +32,9 @@ interface ContactFormState {
 
 function initialFormState(prefill: RepairSubmissionPanelPrefill): ContactFormState {
   return {
-    landlordName: prefill.fullName ?? "",
-    landlordEmail: prefill.email ?? "",
-    landlordPhone: prefill.phone ?? "",
+    landlordName: "",
+    landlordEmail: "",
+    landlordPhone: "",
     propertyPostcode: prefill.postcode ?? "",
     propertyAddress: "",
     preferredContactMethod: "email",

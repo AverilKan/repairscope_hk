@@ -67,14 +67,7 @@ test("the real landlord entry point reaches a submittable brief in API mode with
   await page.getByRole("radio", { name: "Landlord or property manager" }).click({ force: true });
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("radio", { name: "Landlord", exact: true }).click({ force: true });
-  await page.getByLabel("Full name").fill("Staging Test Landlord");
-  await page.getByLabel("Email address").fill("staging-test@example.com");
-  await page.getByLabel("Phone number").fill("07700900000");
-  await page.getByRole("radio", { name: "Email" }).click({ force: true });
   await page.getByRole("button", { name: "Continue" }).click();
-  await page
-    .getByLabel(/I agree RepairScope can share this brief/)
-    .check();
   await page.getByRole("button", { name: "Generate repair brief" }).click();
 
   // Brief generation must resolve (not crash the route) without ever
@@ -84,7 +77,15 @@ test("the real landlord entry point reaches a submittable brief in API mode with
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Submit for RepairScope review" })).toBeVisible();
 
+  // Contact details and sharing consent are collected once, here on the
+  // submission panel — not earlier in the questionnaire (see HK-A0 item D).
+  await page.getByLabel("Full name").fill("Staging Test Landlord");
+  await page.getByLabel("Email address").fill("staging-test@example.com");
+  await page.getByLabel("Telephone number").fill("07700900000");
   await page.getByLabel(/I consent to RepairScope contacting me/).check();
+  await page
+    .getByLabel(/I consent to RepairScope sharing the approved brief/)
+    .check();
   await page.getByRole("button", { name: "Submit for RepairScope review" }).click();
   await expect(page.getByText("RS-TESTAPI")).toBeVisible();
 

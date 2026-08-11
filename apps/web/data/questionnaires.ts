@@ -7,12 +7,6 @@ import type {
   SafetyRule,
 } from "@/domain/types";
 
-// Bump this whenever a questionnaire's fields, steps or safety rules change
-// in a way that matters for how a submitted answer set should be
-// interpreted — stored on every RepairSubmission so past submissions remain
-// interpretable after the schema evolves.
-export const QUESTIONNAIRE_VERSION = "v1";
-
 const option = (
   value: string,
   label: string,
@@ -190,38 +184,16 @@ const commonTail: QuestionnaireStep[] = [
           equals: "other-authorised",
         },
       },
-      {
-        id: "contactName",
-        type: "name",
-        label: "Full name",
-        placeholder: "e.g. Alex Morgan",
-        required: true,
-      },
-      {
-        id: "contactEmail",
-        type: "email",
-        label: "Email address",
-        placeholder: "you@example.com",
-        required: true,
-      },
-      {
-        id: "contactPhone",
-        type: "phone",
-        label: "Phone number",
-        help: "Include the area or mobile code.",
-        placeholder: "e.g. 07123 456789",
-        required: true,
-      },
-      select("preferredContact", "Preferred notification method", [
-        option("email", "Email"),
-        option("phone", "Phone"),
-        option("either", "Either"),
-      ]),
     ],
-    "The authorised landlord or manager owns the repair record. These contact details are not shared with contractors from this step.",
+    // Contact name/email/phone and preferred contact method are collected
+    // once, on the final submission panel (RepairSubmissionPanel) — the
+    // authoritative, persisted record. They are deliberately not asked
+    // again here; asking twice let the questionnaire's answers silently
+    // diverge from what the landlord confirmed and submitted.
+    "The authorised landlord or manager owns the repair record. You will provide contact details when you submit this brief.",
   ),
   step(
-    "context-consent",
+    "context",
     "Final details",
     "Anything else contractors should know?",
     [
@@ -232,17 +204,30 @@ const commonTail: QuestionnaireStep[] = [
         false,
         true,
       ),
-      {
-        id: "shareConsent",
-        type: "checkbox",
-        label:
-          "I agree RepairScope can share this brief and the selected evidence with invited contractors for this repair.",
-        required: true,
-      },
     ],
-    "You will review the exact contractor brief before anything is submitted.",
+    // Sharing consent is collected once, on the final submission panel
+    // (RepairSubmissionPanel's "I consent to RepairScope sharing…"
+    // checkbox) — the authoritative, persisted consent flag. It is
+    // deliberately not asked again here as a separate checkbox.
+    "You will review the exact contractor brief, and confirm sharing consent, before anything is submitted.",
   ),
 ];
+
+// Field ids shared by every category (the commonTail above), as opposed to
+// a category's own steps (e.g. plumbingLocation, boilerSymptom). Used to
+// keep a journey's shared answers (postcode, urgency, access, role, …)
+// when the landlord changes category mid-journey, while dropping the
+// previous category's own answers — see startNewOrResumeJourney's callers
+// in components/LandlordApp.tsx.
+export const commonTailFieldIds = new Set(
+  commonTail.flatMap((step) => step.fields.map((field) => field.id)),
+);
+
+// Bump this whenever a category's fields, steps or safety rules change in a
+// way that matters for how a submitted answer set should be interpreted —
+// persisted on every RepairSubmission (see questionnaireVersionLabel below)
+// so past submissions remain interpretable after the schema evolves.
+const CURRENT_SCHEMA_VERSION = 4;
 
 const withTail = (
   category: RepairCategoryId,
@@ -256,7 +241,7 @@ const withTail = (
   shortLabel,
   description,
   steps: [...categorySteps, ...commonTail],
-  version: 4,
+  version: CURRENT_SCHEMA_VERSION,
 });
 
 export const questionnaireSchemas: QuestionnaireSchema[] = [
@@ -807,7 +792,10 @@ export const questionnaireSchemas: QuestionnaireSchema[] = [
             option("operator_entry", "Entered on my behalf"),
           ]),
         ],
-        "RepairScope keeps the original document attached to the normalised proposal.",
+        // No document upload exists yet (see docs/PUBLIC_INGESTION_LAUNCH.md
+        // and RepairSubmissionPanel's evidenceNotes field) — this must not
+        // claim RepairScope has attached or stored the original document.
+        "Describe the quote in detail here. RepairScope will ask you to send the original document separately once the brief has been reviewed.",
       ),
     ],
   ),
@@ -820,3 +808,13 @@ export const questionnaireByCategory = Object.fromEntries(
 export const categoryCards = questionnaireSchemas.map(
   ({ category, label, description }) => ({ category, label, description }),
 );
+
+/**
+ * The questionnaire_version persisted on a RepairSubmission — derived from
+ * the actual schema (steps/fields/safety rules) that produced the answers,
+ * so a persisted value always matches the schema that generated it. Do not
+ * reintroduce a separately hand-maintained version constant here.
+ */
+export function questionnaireVersionLabel(category: RepairCategoryId): string {
+  return `v${questionnaireByCategory[category].version}`;
+}

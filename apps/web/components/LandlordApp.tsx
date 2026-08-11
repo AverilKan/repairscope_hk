@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   categoryCards,
+  commonTailFieldIds,
   questionnaireByCategory,
-  QUESTIONNAIRE_VERSION,
+  questionnaireVersionLabel,
 } from "@/data/questionnaires";
 import {
   correctionMeetsMinimumWords,
@@ -13,8 +14,14 @@ import {
   normaliseUkPostcode,
 } from "@/domain/rules";
 import { classifyIssueReport } from "@/domain/classification";
-import { buildRepairBrief } from "@/domain/brief";
+import { applyBriefCorrection, buildRepairBrief } from "@/domain/brief";
 import { getRepairDraftStorageKey } from "@/domain/storageKeys";
+import {
+  clearCurrentJourney,
+  getOrCreateCurrentJourneyId,
+  keepSharedResponsesOnly,
+  startNewJourney,
+} from "@/domain/journey";
 import type {
   IssueClassification,
   ProblemBrief,
@@ -77,6 +84,36 @@ function clearPendingBriefDraft() {
   window.localStorage.removeItem(pendingBriefDraftKey);
 }
 
+// Called when the landlord abandons the currently selected category (or the
+// original report) partway through the questionnaire. Keeps the journey's
+// storage entry — and every shared/commonTail answer already given — but
+// drops the abandoned category's own answers, so they cannot resurface
+// (e.g. into buildRepairBrief's affectedArea/onsetAndTriggers fields) if a
+// different category is chosen next. See domain/journey.ts.
+function dropCategorySpecificDraftResponses(journeyId: string) {
+  const storageKey = getRepairDraftStorageKey(journeyId);
+  try {
+    const stored = window.localStorage.getItem(storageKey);
+    if (!stored) return;
+    const parsed = JSON.parse(stored) as {
+      responses?: RepairIntakeDraft["responses"];
+      [key: string]: unknown;
+    };
+    window.localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        ...parsed,
+        responses: keepSharedResponsesOnly(
+          parsed.responses ?? {},
+          commonTailFieldIds,
+        ),
+      }),
+    );
+  } catch {
+    window.localStorage.removeItem(storageKey);
+  }
+}
+
 function StartAndClassify({
   startFresh = false,
 }: {
@@ -101,6 +138,15 @@ function StartAndClassify({
   const [error, setError] = useState("");
   const processingRef = useRef(false);
   const categoryRef = useRef<HTMLElement | null>(null);
+  // One anonymous journey id per repair report, independent of category —
+  // see domain/journey.ts. startFresh (a genuinely new repair, e.g.
+  // /landlord/repairs/new) always mints a new one; resuming the landlord
+  // workspace keeps whichever journey was already in progress, so Back/
+  // Continue and a reload stay on the same journey. Computed once via the
+  // useState lazy initializer, not re-read on every render.
+  const [journeyId] = useState(() =>
+    startFresh ? startNewJourney() : getOrCreateCurrentJourneyId(),
+  );
 
   useEffect(() => {
     if (startFresh) return;
@@ -198,11 +244,10 @@ function StartAndClassify({
   };
 
   const confirmCategoryChange = () => {
-    if (selectedCategory) {
-      window.localStorage.removeItem(
-        getRepairDraftStorageKey(`draft-${selectedCategory}`),
-      );
-    }
+    // The journey id does not change here — only the abandoned category's
+    // own answers are dropped; shared answers (postcode, urgency, access,
+    // role, …) stay, so the journey and its progress are not lost.
+    dropCategorySpecificDraftResponses(journeyId);
     setSelectedCategory(null);
     setResumeDraft(null);
     setCategoryChangeWarning(false);
@@ -211,11 +256,7 @@ function StartAndClassify({
   };
 
   const confirmReportChange = () => {
-    if (selectedCategory) {
-      window.localStorage.removeItem(
-        getRepairDraftStorageKey(`draft-${selectedCategory}`),
-      );
-    }
+    dropCategorySpecificDraftResponses(journeyId);
     setSelectedCategory(null);
     setClassification(null);
     setResumeDraft(null);
@@ -448,8 +489,8 @@ function StartAndClassify({
             <div className="dependency-warning" role="alert">
               <strong>Re-analysing may change the question set.</strong>
               <p>
-                Category-specific answers will be cleared. The report, postcode
-                and uploaded files will remain.
+                Category-specific answers will be cleared. The report,
+                postcode and evidence notes will remain.
               </p>
               <div>
                 <button
@@ -518,7 +559,7 @@ function StartAndClassify({
                   <strong>Changing category replaces these questions.</strong>
                   <p>
                     Category-specific answers will be cleared. Your problem
-                    report, postcode and uploaded files will stay.
+                    report, postcode and evidence notes will stay.
                   </p>
                   <div>
                     <button
@@ -593,6 +634,7 @@ function StartAndClassify({
           extractedSymptoms={classification?.symptoms ?? []}
           initialResponses={initialResponses}
           resumeDraft={resumeDraft ?? undefined}
+          draftId={journeyId}
           onComplete={(draft) => {
             savePendingBriefDraft(draft);
             setResumeDraft(null);
@@ -641,6 +683,11 @@ function QuestionnaireRoute({
 }) {
   const [briefDraft, setBriefDraft] = useState<RepairIntakeDraft | null>(null);
   const [resumeDraft, setResumeDraft] = useState<RepairIntakeDraft | null>(null);
+  // Resumes the current journey (survives reload) rather than always
+  // minting a new one, so a direct category link behaves consistently
+  // with StartAndClassify — see the journeyId comment there and
+  // domain/journey.ts.
+  const [journeyId] = useState(() => getOrCreateCurrentJourneyId());
   const schema = questionnaireByCategory[category];
 
   useEffect(() => {
@@ -673,6 +720,7 @@ function QuestionnaireRoute({
         schema={schema}
         originalReport={defaultReport}
         resumeDraft={resumeDraft ?? undefined}
+        draftId={journeyId}
         onComplete={(draft) => {
           savePendingBriefDraft(draft);
           setResumeDraft(null);
@@ -858,10 +906,13 @@ function BriefReview({
     setCorrectionStatus("updating");
     setCorrectionError("");
     try {
-      const result = await repairScopeServices.contractorBriefs.applyCorrection(
-        currentBrief,
-        correction,
-      );
+      // Correction is a pure local transformation (see
+      // domain/brief.ts::applyBriefCorrection) — it never calls the
+      // deferred repairScopeServices.contractorBriefs API capability, so
+      // the public intake flow works the same in mock and hosted API mode
+      // (see the classify()/buildRepairBrief() calls above for the same
+      // pattern).
+      const result = applyBriefCorrection(currentBrief, correction);
       setCurrentBrief(result.brief);
       setAppliedCorrection(result);
       setCorrection("");
@@ -876,19 +927,10 @@ function BriefReview({
     }
   };
 
+  // Name/email/phone are collected once, on RepairSubmissionPanel itself —
+  // see the questionnaire "contact" step's comment in data/questionnaires.ts
+  // for why they are not asked earlier and prefilled here.
   const contactPrefill: RepairSubmissionPanelPrefill = {
-    fullName:
-      typeof draft?.responses.contactName === "string"
-        ? draft.responses.contactName
-        : undefined,
-    email:
-      typeof draft?.responses.contactEmail === "string"
-        ? draft.responses.contactEmail
-        : undefined,
-    phone:
-      typeof draft?.responses.contactPhone === "string"
-        ? draft.responses.contactPhone
-        : undefined,
     postcode:
       typeof draft?.responses.postcode === "string"
         ? draft.responses.postcode
@@ -960,7 +1002,15 @@ function BriefReview({
       </section>
 
       <section className="brief-document">
-        <GeneratedBriefDocument brief={currentBrief} bare />
+        <GeneratedBriefDocument
+          brief={currentBrief}
+          categoryLabel={
+            draft?.category
+              ? questionnaireByCategory[draft.category]?.label
+              : undefined
+          }
+          bare
+        />
 
         <div className="brief-correction">
           <label htmlFor="brief-correction">
@@ -1032,7 +1082,9 @@ function BriefReview({
 
       <RepairSubmissionPanel
         brief={currentBrief}
-        questionnaireVersion={QUESTIONNAIRE_VERSION}
+        questionnaireVersion={questionnaireVersionLabel(
+          draft?.category ?? "general-maintenance",
+        )}
         issueCategory={draft?.category ?? "general-maintenance"}
         questionnaireAnswers={draft?.responses ?? {}}
         safetyFlags={safetyFlags}
@@ -1050,7 +1102,13 @@ function BriefReview({
               ? "The brief is being updated. Submission will be available when it is ready."
               : undefined
         }
-        onSubmitted={clearPendingBriefDraft}
+        onSubmitted={() => {
+          clearPendingBriefDraft();
+          // The next repair the landlord starts must get a different
+          // journey id rather than silently resuming this just-submitted
+          // one — see domain/journey.ts.
+          clearCurrentJourney();
+        }}
       />
     </main>
   );

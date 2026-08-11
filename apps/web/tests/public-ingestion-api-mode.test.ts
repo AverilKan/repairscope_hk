@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { classifyIssueReport } from "../domain/classification";
-import { buildRepairBrief } from "../domain/brief";
+import { applyBriefCorrection, buildRepairBrief } from "../domain/brief";
+import { ceilingBrief } from "../data/fixtures";
+import {
+  questionnaireByCategory,
+  questionnaireVersionLabel,
+} from "../data/questionnaires";
 import { mockServices } from "../services/mock";
 import { createMockRepairScopeServices } from "../services/index";
 import { createApiRepairScopeServices, ApiCapabilityUnavailableError } from "../services/api";
@@ -125,4 +130,59 @@ test("classification and contractorBriefs.generate remain deliberately unavailab
     () => api.contractorBriefs.getForRepair("any-id"),
     ApiCapabilityUnavailableError,
   );
+  // applyCorrection stays unavailable too — the fix for HK-A0 item B is
+  // that the public launch flow (LandlordApp's BriefReview) no longer
+  // calls this service method at all, not that this stub becomes callable.
+  assert.throws(
+    () => api.contractorBriefs.applyCorrection(ceilingBrief, "any correction"),
+    ApiCapabilityUnavailableError,
+  );
+});
+
+// Regression coverage for a defect where the "Check the facts" correction
+// form called repairScopeServices.contractorBriefs.applyCorrection, which
+// throws ApiCapabilityUnavailableError in real-API mode — silently breaking
+// brief correction on the hosted launch (HK-A0 item B).
+
+test("applyBriefCorrection never depends on a backend service and is what the public launch flow calls directly", () => {
+  const result = applyBriefCorrection(
+    ceilingBrief,
+    "The staining is in the front bedroom, not the back bedroom.",
+  );
+  assert.equal(result.brief.version, ceilingBrief.version + 1);
+  assert.match(result.brief.reportedFacts.at(-1) ?? "", /front bedroom/);
+  // Correcting a brief must not silently fail and must not invent a new
+  // diagnosis or price — only the factual correction is appended.
+  assert.equal(result.brief.originalReport, ceilingBrief.originalReport);
+});
+
+test("applyBriefCorrection and the mock contractorBriefs.applyCorrection agree", async () => {
+  const direct = applyBriefCorrection(ceilingBrief, "Front bedroom, not back.");
+  const viaMock = await mockServices.contractorBrief.applyCorrection(
+    ceilingBrief,
+    "Front bedroom, not back.",
+  );
+  assert.deepEqual(direct, viaMock);
+});
+
+test("applyBriefCorrection rejects a blank correction and cannot silently succeed", () => {
+  assert.throws(() => applyBriefCorrection(ceilingBrief, "   "));
+});
+
+// Regression coverage for a defect where every RepairSubmission persisted a
+// hardcoded questionnaire_version of "v1" while the actual questionnaire
+// schemas were already at structural version 4 — the persisted value never
+// reflected the schema that produced the answers (HK-A0 item C).
+
+test("questionnaireVersionLabel is derived from the real schema version, not a separately hand-maintained constant", () => {
+  for (const category of Object.keys(questionnaireByCategory) as Array<
+    keyof typeof questionnaireByCategory
+  >) {
+    const schema = questionnaireByCategory[category];
+    assert.equal(
+      questionnaireVersionLabel(category),
+      `v${schema.version}`,
+      `questionnaireVersionLabel(${category}) must match the schema's own version`,
+    );
+  }
 });
