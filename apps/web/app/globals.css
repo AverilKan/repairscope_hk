@@ -4565,12 +4565,14 @@ select:focus {
   margin-bottom: 10px;
 }
 
+.category-suggestion h1,
 .category-suggestion h2 {
-  margin-bottom: 12px;
+  margin-bottom: 18px;
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
 .category-suggestion > p:not(.eyebrow) {
+  margin-bottom: 28px;
   color: var(--ink-soft);
 }
 
