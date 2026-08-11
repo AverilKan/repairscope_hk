@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { classifyIssueReport } from "../domain/classification";
 import { applyBriefCorrection, buildRepairBrief } from "../domain/brief";
@@ -21,33 +22,32 @@ import type { RepairIntakeDraft } from "../domain/types";
 // with no service/network dependency in either mock or API mode. See
 // docs/PUBLIC_INGESTION_LAUNCH.md.
 
-test("classifyIssueReport never depends on a backend service and covers every launch category", () => {
+// classifyIssueReport is no longer called by the HK public intake flow
+// (category-first, not free-text-first — see components/LandlordApp.tsx),
+// but remains exported/valid for MockIssueClassificationService's Gate B
+// mock surface, so it must still return current, valid category ids.
+test("classifyIssueReport is not called by the HK intake flow but still returns valid category ids", async () => {
   assert.equal(
     classifyIssueReport("Tenant reports a leaking tap in the kitchen").primaryCategory,
-    "plumbing-leak",
+    "plumbing",
   );
-  // Note: "leak|pipe|tap|toilet|water" is checked before "boiler|heating|hot
-  // water", so a report mentioning both matches the water branch first —
-  // that ordering is existing, unchanged behaviour (see domain/classification.ts).
   assert.equal(
-    classifyIssueReport("Boiler has stopped working, no heating").primaryCategory,
-    "boiler-heating",
+    classifyIssueReport("Ceiling stained after heavy rain").primaryCategory,
+    "leak",
   );
   assert.equal(
     classifyIssueReport("A socket in the lounge sparked").primaryCategory,
     "electrical",
   );
   assert.equal(
-    classifyIssueReport("Ceiling stained after heavy rain").primaryCategory,
-    "roofing",
-  );
-  // No recognisable keyword still returns a usable category rather than
-  // throwing or rejecting the report — the launch never turns any issue
-  // away (docs/PUBLIC_INGESTION_LAUNCH.md's "Product decision").
-  assert.equal(
     classifyIssueReport("Something is generally not right").primaryCategory,
-    "general-maintenance",
+    "other",
   );
+  const landlordSource = await readFile(
+    new URL("../components/LandlordApp.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.doesNotMatch(landlordSource, /classifyIssueReport/);
 });
 
 test("classifyIssueReport and the mock classification service agree", async () => {
@@ -59,14 +59,14 @@ test("classifyIssueReport and the mock classification service agree", async () =
 
 test("buildRepairBrief is grounded in the draft and never invents diagnosis or price", () => {
   const draft: RepairIntakeDraft = {
-    id: "draft-plumbing-leak",
-    category: "plumbing-leak",
+    id: "draft-plumbing",
+    category: "plumbing",
     originalReport: "STAGING TEST — dripping bathroom tap, slow drip, not urgent.",
     extractedSymptoms: ["water present"],
     responses: {
-      urgency: "routine",
-      occupancy: "tenant_occupied",
-      access: "I will arrange access",
+      safety: "none",
+      duration: "week",
+      availability: "Weekday evenings after 7pm",
     },
     safetyAcknowledgements: [],
     status: "draft",
@@ -78,8 +78,7 @@ test("buildRepairBrief is grounded in the draft and never invents diagnosis or p
   assert.equal(brief.originalReport, draft.originalReport);
   assert.ok(brief.reportedFacts.includes(draft.originalReport));
   assert.equal(brief.urgency, "routine");
-  assert.equal(brief.occupancy, "tenant_occupied");
-  assert.equal(brief.accessOverview, "I will arrange access");
+  assert.equal(brief.accessOverview, "Weekday evenings after 7pm");
   assert.equal(brief.confirmedUnknowns.length > 0, true);
 
   const serialised = JSON.stringify(brief).toLowerCase();

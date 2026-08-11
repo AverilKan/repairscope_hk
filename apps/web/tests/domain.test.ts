@@ -16,25 +16,21 @@ import { mockServices } from "../services/mock";
 import {
   questionnaireByCategory,
   questionnaireSchemas,
+  sharedTailFieldIds,
 } from "../data/questionnaires";
 import {
   canContinueQuestionnaireStep,
-  clearDependentQuestionnaireResponses,
   correctionMeetsMinimumWords,
   createSingleFlightGate,
   isValidContactName,
   isValidEmailAddress,
   isValidPhoneNumber,
-  isValidUkPostcode,
-  normaliseUkPostcode,
-  questionnaireFieldIsVisible,
-  questionnaireResumeState,
   questionnaireStepUsesAutomaticProgression,
-  questionnaireStepValidationErrors,
   requiredFieldsMissing,
   safetyAnswersAreUnprefilled,
   validateQuestionnaireSchemas,
 } from "../domain/rules";
+import { rebuildDraftForCategoryChange } from "../domain/journey";
 import {
   calculateContractorQuote,
   contractorMaterialsTotal,
@@ -93,307 +89,211 @@ import {
   selectionFixture,
 } from "../data/procurementFixtures";
 
-test("all ten landlord entry routes have valid questionnaire configuration", () => {
+test("all ten Hong Kong problem categories have valid, bilingual questionnaire configuration", () => {
   assert.equal(questionnaireSchemas.length, 10);
   assert.deepEqual(validateQuestionnaireSchemas(questionnaireSchemas), []);
 
   const expected: RepairCategoryId[] = [
-    "boiler-heating",
-    "plumbing-leak",
+    "leak",
+    "drainage",
+    "plumbing",
     "electrical",
-    "painting-decorating",
-    "roofing",
-    "damp-mould",
-    "windows-doors",
-    "safety-compliance",
-    "general-maintenance",
-    "existing-quote",
+    "aircon",
+    "door-window",
+    "surface",
+    "bathroom",
+    "other",
+    "unsure",
   ];
   for (const category of expected) {
-    assert.ok(questionnaireByCategory[category]);
-    assert.ok(questionnaireByCategory[category].steps.length >= 10);
+    const schema = questionnaireByCategory[category];
+    assert.ok(schema, `missing schema for ${category}`);
+    assert.ok(schema.label.zh, `${category} missing zh label`);
+    assert.ok(schema.label.en, `${category} missing en label`);
+    // Every step/field must carry both languages, not just English.
+    for (const step of schema.steps) {
+      assert.ok(step.title.zh && step.title.en, `${category}/${step.id} missing bilingual title`);
+      for (const field of step.fields) {
+        assert.ok(
+          field.label.zh && field.label.en,
+          `${category}/${step.id}/${field.id} missing bilingual label`,
+        );
+        for (const option of field.options ?? []) {
+          assert.ok(
+            option.label.zh && option.label.en,
+            `${category}/${step.id}/${field.id}/${option.value} missing bilingual option label`,
+          );
+        }
+      }
+    }
   }
 });
 
-test("required fields block continuation and answers remain reusable when navigating back", () => {
-  const schema = questionnaireByCategory["plumbing-leak"];
-  const responses: RepairIntakeDraft["responses"] = {};
-  assert.deepEqual(requiredFieldsMissing(schema, 0, responses), [
-    "plumbingLocation",
-  ]);
+test("category-first: standard categories ask affected area then three branch facts before the shared tail", () => {
+  const leak = questionnaireByCategory.leak;
+  assert.deepEqual(leak.steps.slice(0, 2).map((step) => step.id), ["affected", "branch"]);
+  const branchStep = leak.steps[1];
+  assert.deepEqual(
+    branchStep.fields.map((field) => field.id),
+    ["branchFirst", "branchSecond", "branchThird"],
+  );
+});
 
-  responses.plumbingLocation = "bathroom";
+test("other/unsure categories skip the branch questions for a small free-text description, but keep the timeline step", () => {
+  for (const category of ["other", "unsure"] as const) {
+    const schema = questionnaireByCategory[category];
+    assert.equal(schema.steps[0].id, "other-detail");
+    assert.equal(
+      schema.steps.some((step) => step.id === "affected" || step.id === "branch"),
+      false,
+    );
+    assert.ok(
+      schema.steps.some((step) => step.id === "timeline"),
+      `${category} must not drop the timeline step`,
+    );
+  }
+});
+
+test("safety is one shared check, not per-category, and is required before continuing on 'yes'", () => {
+  const leak = questionnaireByCategory.leak;
+  const electrical = questionnaireByCategory.electrical;
+  const leakSafety = leak.steps.find((step) => step.id === "safety");
+  const electricalSafety = electrical.steps.find((step) => step.id === "safety");
+  assert.deepEqual(leakSafety?.fields[0].options?.map((o) => o.value), [
+    "fire",
+    "gas",
+    "flood",
+    "structure",
+    "none",
+  ]);
+  assert.deepEqual(leakSafety?.fields[0].options, electricalSafety?.fields[0].options);
+
+  assert.equal(safetyAnswersAreUnprefilled(leak, {}), true);
+  assert.equal(
+    canContinueQuestionnaireStep(leak, leak.steps.findIndex((s) => s.id === "safety"), { safety: "fire" }, false),
+    false,
+  );
+  assert.equal(
+    canContinueQuestionnaireStep(leak, leak.steps.findIndex((s) => s.id === "safety"), { safety: "none" }, false),
+    true,
+  );
+});
+
+test("electrical's branch has a second, category-specific safety trigger (burning smell / sparks)", () => {
+  const electrical = questionnaireByCategory.electrical;
+  const branchStep = electrical.steps.find((step) => step.id === "branch");
+  const first = branchStep?.fields.find((field) => field.id === "branchFirst");
+  assert.ok(first?.safetyRule);
+  assert.deepEqual(first?.safetyRule?.triggerValues, ["smell-sparks"]);
+});
+
+test("required fields block continuation and answers remain reusable when navigating back", () => {
+  const schema = questionnaireByCategory.plumbing;
+  const affectedIndex = schema.steps.findIndex((step) => step.id === "affected");
+  const responses: RepairIntakeDraft["responses"] = {};
+  assert.deepEqual(requiredFieldsMissing(schema, affectedIndex, responses), ["affected"]);
+
+  responses.affected = "kitchen";
   const preserved = structuredClone(responses);
-  assert.deepEqual(requiredFieldsMissing(schema, 0, responses), []);
+  assert.deepEqual(requiredFieldsMissing(schema, affectedIndex, responses), []);
   assert.deepEqual(responses, preserved);
 });
 
-test("safety-critical fields are never prefilled", () => {
-  const boiler = questionnaireByCategory["boiler-heating"];
-  const draftResponses: RepairIntakeDraft["responses"] = {
-    boilerSymptom: "no-heating",
-  };
-  assert.equal(safetyAnswersAreUnprefilled(boiler, draftResponses), true);
-  assert.equal(draftResponses.gasSmell, undefined);
-});
-
-test("gas warning acknowledgement blocks continuation", () => {
-  const boiler = questionnaireByCategory["boiler-heating"];
-  const responses: RepairIntakeDraft["responses"] = { gasSmell: "yes" };
-  assert.equal(
-    canContinueQuestionnaireStep(boiler, 0, responses, false),
-    false,
-  );
-  assert.equal(
-    canContinueQuestionnaireStep(boiler, 0, responses, true),
-    true,
-  );
-});
-
-test("progressive questionnaire auto-advances ordinary choices but not safety", () => {
+test("progressive questionnaire auto-advances ordinary single-choice steps but not the safety step", () => {
   const electrical = questionnaireByCategory.electrical;
-  assert.equal(
-    questionnaireStepUsesAutomaticProgression(electrical.steps[0]),
-    false,
-  );
-  assert.equal(
-    questionnaireStepUsesAutomaticProgression(electrical.steps[1]),
-    true,
-  );
+  const affectedStep = electrical.steps.find((step) => step.id === "affected")!;
+  const safetyStep = electrical.steps.find((step) => step.id === "safety")!;
+  assert.equal(questionnaireStepUsesAutomaticProgression(affectedStep), true);
+  // The safety step has a safetyRule attached, so it must never auto-advance
+  // even though it is otherwise a single-select step.
+  assert.equal(questionnaireStepUsesAutomaticProgression(safetyStep), false);
 });
 
-test("postcode requires a full UK postcode and normalises spacing", () => {
-  const electrical = questionnaireByCategory.electrical;
-  const postcodeIndex = electrical.steps.findIndex(
-    (step) => step.id === "postcode",
-  );
-
-  assert.equal(isValidUkPostcode("SE15"), false);
-  assert.equal(isValidUkPostcode("SE15 4RF"), true);
-  assert.equal(isValidUkPostcode("sw1a1aa"), true);
-  assert.equal(normaliseUkPostcode("sw1a1aa"), "SW1A 1AA");
+test("Hong Kong address step asks district/estate/block/floor/unit — no UK postcode field anywhere in the schema", () => {
+  const leak = questionnaireByCategory.leak;
+  const addressStep = leak.steps.find((step) => step.id === "address");
+  assert.ok(addressStep);
   assert.deepEqual(
-    questionnaireStepValidationErrors(electrical, postcodeIndex, {
-      postcode: "SE15",
-    }),
-    {
-      postcode:
-        "Enter a full UK postcode, including the final three characters, for example WD17 1AA.",
-    },
+    addressStep.fields.map((field) => field.id),
+    ["district", "building", "block", "floor", "unit"],
   );
-  assert.equal(
-    canContinueQuestionnaireStep(
-      electrical,
-      postcodeIndex,
-      { postcode: "SE15" },
+  for (const schema of questionnaireSchemas) {
+    assert.equal(
+      schema.steps.some((step) => step.fields.some((field) => field.type === "postcode")),
       false,
-    ),
-    false,
-  );
-  assert.equal(
-    canContinueQuestionnaireStep(
-      electrical,
-      postcodeIndex,
-      { postcode: "SE15 4RF" },
-      false,
-    ),
-    true,
-  );
-});
-
-test("contact step only collects role/authority — name, email, phone and preferred contact are collected once, on the submission panel", () => {
-  const electrical = questionnaireByCategory.electrical;
-  const contactIndex = electrical.steps.findIndex(
-    (step) => step.id === "contact",
-  );
-  const contactStep = electrical.steps[contactIndex];
-
-  assert.equal(
-    electrical.steps.some((step) => step.id === "role"),
-    false,
-  );
-  // Regression coverage for a defect where contactName/contactEmail/
-  // contactPhone/preferredContact were asked here AND again (with
-  // different wording/options) on RepairSubmissionPanel — only the
-  // panel's answer was ever persisted, so the questionnaire's answers to
-  // these fields were silently discarded (HK-A0 item D).
-  assert.deepEqual(
-    contactStep.fields.map((field) => field.id),
-    ["role", "accountRoleExplanation"],
-  );
-  assert.equal(
-    contactStep.fields.some((field) =>
-      ["contactName", "contactEmail", "contactPhone", "preferredContact"].includes(
-        field.id,
-      ),
-    ),
-    false,
-  );
-  const roleField = contactStep.fields.find((field) => field.id === "role");
-  assert.deepEqual(
-    roleField?.options?.map((option) => option.label),
-    [
-      "Landlord",
-      "Letting agent",
-      "Property manager",
-      "Other authorised representative",
-    ],
-  );
-  assert.equal(
-    roleField?.options?.some((option) => /tenant|occupier/i.test(option.label)),
-    false,
-  );
-  const authorityField = contactStep.fields.find(
-    (field) => field.id === "accountRoleExplanation",
-  );
-  assert.ok(authorityField);
-  assert.equal(
-    questionnaireFieldIsVisible(authorityField, { role: "landlord" }),
-    false,
-  );
-  assert.equal(
-    questionnaireFieldIsVisible(authorityField, {
-      role: "other-authorised",
-    }),
-    true,
-  );
-  // isValidContactName/isValidEmailAddress/isValidPhoneNumber remain
-  // generic, exported validators (used by questionnaireStepValidationErrors
-  // for any "name"/"email"/"phone" field type) even though no current
-  // questionnaire field exercises them — kept as-is, out of scope for D.
-  assert.equal(isValidContactName("1234"), false);
-  assert.equal(isValidContactName("Alex Morgan"), true);
-  assert.equal(isValidEmailAddress("asdf"), false);
+      `${schema.category} must not use the UK "postcode" field type`,
+    );
+  }
+  // Generic name/email/phone validators remain exported, general-purpose
+  // utilities (used nowhere in the HK schema, which collects contact
+  // details once on RepairSubmissionPanel instead — see domain/submission.ts).
+  assert.equal(isValidContactName("Alex Chan"), true);
   assert.equal(isValidEmailAddress("alex@example.com"), true);
-  assert.equal(isValidPhoneNumber("07"), false);
-  assert.equal(isValidPhoneNumber("+44 7123 456789"), true);
+  assert.equal(isValidPhoneNumber("+852 9123 4567"), true);
+});
 
-  assert.equal(
-    canContinueQuestionnaireStep(electrical, contactIndex, { role: "agent" }, false),
-    true,
-  );
+test("building context and access/relationship steps preserve the approved Sites question set", () => {
+  const leak = questionnaireByCategory.leak;
+  const building = leak.steps.find((step) => step.id === "building");
   assert.deepEqual(
-    questionnaireStepValidationErrors(electrical, contactIndex, {
-      role: "other-authorised",
-    }),
-    {
-      accountRoleExplanation:
-        "Briefly explain how you are authorised to manage this repair.",
-    },
+    building?.fields.map((field) => field.id),
+    ["management", "sharedArea"],
+  );
+  const access = leak.steps.find((step) => step.id === "access");
+  assert.deepEqual(access?.fields.map((field) => field.id), ["accessBy", "availability"]);
+  assert.deepEqual(
+    access?.fields[0].options?.map((option) => option.value),
+    ["owner", "tenant", "family", "management", "other"],
+  );
+  const relationship = leak.steps.find((step) => step.id === "relationship");
+  assert.deepEqual(
+    relationship?.fields[0].options?.map((option) => option.value),
+    ["owner-occupier", "landlord", "manager", "other"],
   );
 });
 
-test("context step no longer duplicates RepairSubmissionPanel's sharing-consent checkbox", () => {
-  const electrical = questionnaireByCategory.electrical;
-  const contextStep = electrical.steps.find((step) => step.id === "context");
-  assert.ok(contextStep);
-  assert.deepEqual(
-    contextStep.fields.map((field) => field.id),
-    ["additionalContext"],
-  );
-  assert.equal(
-    electrical.steps.some((step) => step.id === "context-consent"),
-    false,
-  );
+test("evidence step asks whether evidence exists and its kind, without claiming a real upload", () => {
+  for (const schema of questionnaireSchemas) {
+    const evidence = schema.steps.find((step) => step.id === "evidence");
+    assert.ok(evidence, `${schema.category} missing evidence step`);
+    assert.deepEqual(
+      evidence.fields.map((field) => field.id),
+      ["hasEvidence", "evidenceKind"],
+    );
+  }
 });
 
-test("repair responsibility is separate from manager authority and occupancy", () => {
-  const electrical = questionnaireByCategory.electrical;
-  const responsibility = electrical.steps.find(
-    (step) => step.id === "responsibility",
-  );
-  const occupancy = electrical.steps.find((step) => step.id === "occupancy");
-
-  assert.ok(responsibility);
-  assert.equal(
-    responsibility.title,
-    "Who is currently expected to be responsible for this repair?",
-  );
-  assert.deepEqual(
-    responsibility.fields[0].options?.map((option) => option.label),
-    [
-      "Landlord or property manager",
-      "Tenant",
-      "Responsibility is unclear",
-      "Responsibility is disputed",
-      "Other arrangement",
-    ],
-  );
-  assert.match(
-    responsibility.description ?? "",
-    /does not determine legal or contractual responsibility/,
-  );
-  assert.deepEqual(
-    occupancy?.fields[0].options?.map((option) => option.label),
-    ["Tenant occupied", "Owner occupied", "Vacant", "Other"],
-  );
-});
-
-test("editing a generated brief restores every response at the final step", () => {
-  const schema = questionnaireByCategory.roofing;
-  const draft: RepairIntakeDraft = {
-    id: "draft-roofing",
-    category: "roofing",
-    originalReport: "Tenant reports water after rain.",
-    extractedSymptoms: ["water present"],
-    responses: {
-      roofingSymptom: "leak",
-      evidenceNotes: "Photo of the water stain on the ceiling.",
-      postcode: "SE15 3DF",
-      urgency: "emergency",
-      occupancy: "tenant_occupied",
-      access: "landlord",
-      repairResponsibility: "tenant",
-      responsibilityBasis: "Landlord reports tenant damage.",
-      role: "landlord",
-      contactName: "Alex Morgan",
-      contactEmail: "alex@example.com",
-      contactPhone: "07123 456789",
-      preferredContact: "email",
-      additionalContext: "Use side entrance.",
-      shareConsent: true,
-    },
-    safetyAcknowledgements: [],
-    status: "brief_ready",
-    updatedAt: "2026-08-03T12:00:00.000Z",
+test("category change rebuilds draft state safely: shared answers kept, category-specific answers and progression discarded", () => {
+  const previousResponses: RepairIntakeDraft["responses"] = {
+    // shared (kept):
+    district: "eastern",
+    building: "Kornhill",
+    relationship: "owner-occupier",
+    // category-specific to the OLD category (must be dropped):
+    affected: "kitchen",
+    branchFirst: "leak",
+    branchSecond: "constant",
+    branchThird: "yes",
   };
+  const rebuilt = rebuildDraftForCategoryChange(
+    "journey-1",
+    "electrical",
+    questionnaireByCategory.electrical.version,
+    previousResponses,
+    sharedTailFieldIds,
+  );
 
-  const resumed = questionnaireResumeState(schema, draft, {
-    postcode: "OUTDATED",
+  assert.deepEqual(rebuilt.responses, {
+    district: "eastern",
+    building: "Kornhill",
+    relationship: "owner-occupier",
   });
-
-  assert.equal(resumed.activeIndex, schema.steps.length - 1);
-  assert.deepEqual(
-    resumed.completedStepIds,
-    schema.steps.slice(0, -1).map((step) => step.id),
-  );
-  assert.deepEqual(resumed.responses, draft.responses);
-  resumed.responses.contactName = "Changed locally";
-  assert.equal(draft.responses.contactName, "Alex Morgan");
-});
-
-test("editing an earlier answer clears only downstream questionnaire fields", () => {
-  const electrical = questionnaireByCategory.electrical;
-  const responses: RepairIntakeDraft["responses"] = {
-    electricalIssue: "sockets",
-    electricalCount: "two-three",
-    electricalOnset: "today",
-    evidenceNotes: "Photo of the socket.",
-    postcode: "SE15 4RF",
-  };
-
-  const retained = clearDependentQuestionnaireResponses(
-    electrical,
-    responses,
-    1,
-    ["electrical-onset", "electrical-access"],
-  );
-
-  assert.equal(retained.electricalIssue, "sockets");
-  assert.equal(retained.electricalCount, "two-three");
-  assert.equal(retained.electricalOnset, undefined);
-  assert.equal(retained.evidenceNotes, "Photo of the socket.");
-  assert.equal(retained.postcode, "SE15 4RF");
+  // Never blindly copy the old numeric index, completed steps or safety
+  // acknowledgements — always recomputed fresh for the new schema.
+  assert.equal(rebuilt.activeIndex, 0);
+  assert.deepEqual(rebuilt.completedStepIds, []);
+  assert.deepEqual(rebuilt.acknowledgements, {});
+  assert.equal(rebuilt.category, "electrical");
 });
 
 test("rapid repeated submissions can enter a single flight only once", () => {
@@ -473,30 +373,23 @@ test("public repair-brief submission requires no account and captures contact/co
   assert.match(layoutSource, /ClerkProvider/);
   assert.doesNotMatch(panelSource, /@clerk|useAuth|ClerkProvider/);
   assert.match(panelSource, /consentToContact/);
-  assert.match(panelSource, /consentToShareWithContractors/);
+  // Contractor-sharing consent is deliberately not collected on this
+  // screen — it stays false until obtained separately later. See the
+  // ContactFormState comment in RepairSubmissionPanel.tsx.
+  assert.match(panelSource, /consentToShareWithContractors:\s*false/);
+  assert.doesNotMatch(panelSource, /checked=\{form\.consentToShareWithContractors\}/);
   assert.match(
     panelSource,
-    /This issue may require urgent attendance\. Do not wait for RepairScope to source/,
+    /Submission does not guarantee managed sourcing and does not broadcast your information to contractors\./,
   );
-  assert.match(
-    panelSource,
-    /Submitting does not guarantee that contractors will be available/,
-  );
-  assert.match(landlordSource, /Something incorrect or missing\?/);
+  assert.match(landlordSource, /Something incorrect or missing/);
   assert.match(landlordSource, /Edit questionnaire answers/);
   assert.match(landlordSource, /Apply correction/);
-  assert.match(landlordSource, /Updating brief…/);
-  assert.match(
-    landlordSource,
-    /Apply or remove your pending correction before submitting this brief/,
-  );
-  assert.match(landlordSource, /repairscope-pending-brief-draft-v1/);
-  assert.match(landlordSource, /savePendingBriefDraft\(draft\)/);
-  assert.match(landlordSource, /clearPendingBriefDraft\(\);/);
-  // Submitting also clears the current journey id (domain/journey.ts), so
-  // the next repair the landlord starts does not silently resume this
-  // just-submitted one (HK-A0 item E).
-  assert.match(landlordSource, /clearCurrentJourney\(\);/);
+  // The corrected brief is persisted to journey-scoped storage (not only
+  // React state), so it survives reload/navigation within the journey —
+  // see domain/journey.ts's writeJourneyBrief.
+  assert.match(landlordSource, /writeJourneyBrief/);
+  assert.match(landlordSource, /clearJourney\(journeyId\)/);
   assert.match(routeSource, /<LandlordApp path=\{path\}/);
   // Deliberate: no server-side auth() call or capability check in the
   // landlord route itself — see docs/FRONTEND_RUNTIME_MIGRATION.md's
@@ -507,22 +400,32 @@ test("public repair-brief submission requires no account and captures contact/co
   assert.doesNotMatch(packageSource, /drizzle-orm|drizzle-kit/);
 });
 
-test("questionnaire safety notices carry the required urgent-attendance sentence, not a diagnosis", async () => {
+test("a safety-triggering answer is a full-screen exit (onSafetyExit), never an inline acknowledge-and-continue card", async () => {
   const engineSource = await readFile(
     new URL("../components/QuestionnaireEngine.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(
-    engineSource,
-    /This issue may require urgent attendance\. Do not wait for RepairScope to source and\s*\n?\s*compare contractors\. Contact an appropriate emergency service or contractor now\./,
+  const landlordSource = await readFile(
+    new URL("../components/LandlordApp.tsx", import.meta.url),
+    "utf8",
   );
-  // The sentence sits alongside each rule's specific practical advice
-  // (rule.message), not in place of it — the five SafetyRule constants in
-  // data/questionnaires.ts are untouched by this addition.
-  assert.match(engineSource, /\{rule\.message\}/);
-  // No diagnosis language — the warning tells the landlord what to do, it
-  // never claims to identify the cause.
-  assert.doesNotMatch(engineSource, /diagnos/i);
+  assert.match(engineSource, /onSafetyExit/);
+  // The old inline "SafetyNotice" acknowledge-and-continue pattern must not
+  // return — a safety exit takes over the whole screen (SafetyExit in
+  // LandlordApp.tsx), it does not let the user tick a box and carry on.
+  assert.doesNotMatch(engineSource, /SafetyNotice/);
+  assert.match(landlordSource, /function SafetyExit/);
+  assert.match(landlordSource, /tel:999/);
+  // No diagnosis language in the safety-exit screen specifically — it
+  // tells the owner what to do, it never claims to identify the cause.
+  // ("diagnos" legitimately appears elsewhere in this file, e.g. "Keep the
+  // diagnosis open" — asserting the opposite: that RepairScope does NOT
+  // claim one.)
+  const safetyExitBody = landlordSource.slice(
+    landlordSource.indexOf("function SafetyExit"),
+    landlordSource.indexOf("function NewRepairFlow"),
+  );
+  assert.doesNotMatch(safetyExitBody, /diagnos/i);
 });
 
 test("brief correction creates a new brief version without mutating the original", async () => {
@@ -1177,32 +1080,28 @@ test("mobile comparison, loading, empty and error states are present", async () 
     homeSource,
     /href="\/landlord\/repairs\/new"[\s\S]*Submit a repair/,
   );
-  assert.match(landlordSource, /startFresh \? "describe" : "start"/);
-  assert.match(landlordSource, /if \(startFresh\) return/);
-  assert.match(landlordSource, /Understanding the report…/);
-  assert.match(
-    landlordSource,
-    /\[showCategoryPicker, setShowCategoryPicker\] = useState\(true\)/,
-  );
-  assert.match(landlordSource, /aria-expanded=\{showCategoryPicker\}/);
-  assert.match(landlordSource, /Hide other categories/);
-  assert.match(
-    landlordSource,
-    /Private repair record · Not shared with contractors/,
-  );
-  assert.match(landlordSource, /Not independently determined/);
-  assert.match(landlordSource, /Operator review required/);
+  // Category-first entry (HK-A0 rework): no more free-text-first
+  // "startFresh ? describe : start" phase machine — CategoryPickerScreen
+  // is the first thing NewRepairFlow renders once a journey id is known.
+  assert.match(landlordSource, /function CategoryPickerScreen/);
+  assert.match(landlordSource, /function NewRepairFlow/);
+  assert.doesNotMatch(landlordSource, /Understanding the report…/);
+  // The old UK schema's separate "repair responsibility" record (private,
+  // landlord/tenant/disputed + free-text basis) has no equivalent in the
+  // approved Sites design, which only asks "relationship to the property"
+  // — intentionally dropped, not a regression.
   assert.match(landlordSource, /resumeDraft=\{resumeDraft \?\? undefined\}/);
   assert.match(landlordSource, /setResumeDraft\(briefDraft\)/);
   assert.match(landlordSource, /<ResponseComparisonPage repairId=/);
   assert.match(questionnaireSource, /aria-live="polite"/);
   assert.match(questionnaireSource, /scrollIntoView/);
   assert.doesNotMatch(questionnaireSource, /← Back/);
-  assert.doesNotMatch(questionnaireSource, /Answers are saved as you go/);
   assert.match(questionnaireSource, /if \(checked\) onChange\(item\.value\)/);
-  assert.match(questionnaireSource, /Confirm postcode/);
-  assert.match(questionnaireSource, /field\.type === "email"/);
-  assert.match(questionnaireSource, /field\.type === "phone"/);
+  // The UK "postcode" field type/normalisation is gone from the engine —
+  // Hong Kong has no postcode (see the address-step tests above).
+  assert.doesNotMatch(questionnaireSource, /Confirm postcode|normaliseUkPostcode/);
+  assert.doesNotMatch(questionnaireSource, /field\.type === "email"/);
+  assert.doesNotMatch(questionnaireSource, /field\.type === "phone"/);
 });
 
 test("submitted repair quote freezes its accepted total and cost snapshot", () => {

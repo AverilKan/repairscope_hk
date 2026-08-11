@@ -3,10 +3,13 @@ import test from "node:test";
 import { canSubmitRepairSubmissionForm } from "../domain/submission";
 
 const VALID_FORM = {
-  landlordName: "Jamie Landlord",
+  landlordName: "Jamie Chan",
   landlordEmail: "jamie@example.com",
-  landlordPhone: "07700900000",
-  propertyPostcode: "WD17",
+  landlordPhone: "+852 9123 4567",
+  // Hong Kong has no postcode — propertyAddress (built from the
+  // questionnaire's district/estate/block/floor/unit answers) is what
+  // locates the property instead. See domain/submission.ts.
+  propertyAddress: "Eastern Kornhill 12 A",
   consentToContact: true,
 };
 
@@ -33,8 +36,8 @@ test("canSubmitRepairSubmissionForm rejects a blank phone number", () => {
   assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, landlordPhone: "" }), false);
 });
 
-test("canSubmitRepairSubmissionForm rejects a blank postcode", () => {
-  assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, propertyPostcode: "" }), false);
+test("canSubmitRepairSubmissionForm rejects a blank property address", () => {
+  assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, propertyAddress: "" }), false);
 });
 
 test("canSubmitRepairSubmissionForm rejects while submissionBlocked (e.g. a pending brief correction)", () => {
