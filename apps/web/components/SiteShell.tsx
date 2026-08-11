@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useLanguage } from "./LanguageContext";
 
 type Surface = "public" | "landlord" | "contractor" | "operator";
 
@@ -52,6 +55,7 @@ export function SiteShell({
               Submit a repair
             </Link>
           )}
+          {surface === "landlord" && <LanguageToggle />}
         </nav>
       </header>
       {children}
@@ -76,6 +80,29 @@ export function SiteShell({
           Founding pilot · Significant, non-emergency repairs in England
         </p>
       </footer>
+    </div>
+  );
+}
+
+export function LanguageToggle() {
+  const { lang, setLang } = useLanguage();
+  return (
+    <div className="lang-toggle" aria-label="Language">
+      <button
+        type="button"
+        className={lang === "zh" ? "active" : ""}
+        onClick={() => setLang("zh")}
+      >
+        繁
+      </button>
+      <span>/</span>
+      <button
+        type="button"
+        className={lang === "en" ? "active" : ""}
+        onClick={() => setLang("en")}
+      >
+        EN
+      </button>
     </div>
   );
 }

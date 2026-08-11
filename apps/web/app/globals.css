@@ -213,6 +213,31 @@ h3 {
   border-color: var(--ink);
 }
 
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+}
+
+.lang-toggle button {
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: var(--ink-muted, #6b7280);
+  border-radius: 4px;
+}
+
+.lang-toggle button.active {
+  color: var(--ink);
+  background: var(--surface-muted, #eef1f4);
+}
+
+.lang-toggle span {
+  color: var(--ink-muted, #6b7280);
+}
+
 .button {
   display: inline-flex;
   min-height: 48px;
