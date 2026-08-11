@@ -4,7 +4,10 @@ export interface RepairSubmissionContactDetails {
   landlordName: string;
   landlordEmail: string;
   landlordPhone: string;
-  propertyPostcode: string;
+  // Hong Kong properties have no postcode — propertyAddress (district,
+  // estate/building, block, floor, unit) is what locates the property.
+  // propertyPostcode stays for API-shape compatibility but is not required.
+  propertyPostcode?: string;
   propertyAddress?: string;
   preferredContactMethod: PreferredContactMethod;
   accessNotes?: string;
@@ -39,7 +42,7 @@ export interface RepairSubmissionFormFields {
   landlordName: string;
   landlordEmail: string;
   landlordPhone: string;
-  propertyPostcode: string;
+  propertyAddress: string;
   consentToContact: boolean;
 }
 
@@ -60,7 +63,7 @@ export function canSubmitRepairSubmissionForm(
     form.landlordName.trim().length > 0 &&
     form.landlordEmail.trim().length > 0 &&
     form.landlordPhone.trim().length > 0 &&
-    form.propertyPostcode.trim().length > 0 &&
+    form.propertyAddress.trim().length > 0 &&
     form.consentToContact
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import type { ProblemBrief } from "@/domain/types";
 import {
@@ -8,40 +7,31 @@ import {
   RepairSubmissionNetworkError,
   RepairSubmissionServerError,
   RepairSubmissionValidationError,
-  type PreferredContactMethod,
   type RepairSubmissionResult,
 } from "@/domain/submission";
 import { repairScopeServices } from "@/services";
 import { StatusPill } from "./SiteShell";
+import { useLanguage } from "./LanguageContext";
 
 export interface RepairSubmissionPanelPrefill {
-  postcode?: string;
+  /** Built by the caller from the questionnaire's address step (district/estate/block/floor/unit) — Hong Kong has no postcode. */
+  propertyAddress?: string;
 }
 
 interface ContactFormState {
   landlordName: string;
   landlordEmail: string;
   landlordPhone: string;
-  propertyPostcode: string;
-  propertyAddress: string;
-  preferredContactMethod: PreferredContactMethod;
-  accessNotes: string;
+  // Single consent checkbox (approved Sites copy): covers RepairScope
+  // manually reviewing this submission and contacting the owner about it.
+  // It deliberately does NOT grant contractor-sharing consent — that stays
+  // false here and is obtained separately at the appropriate later
+  // operational point (see docs/PUBLIC_INGESTION_LAUNCH.md).
   consentToContact: boolean;
-  consentToShareWithContractors: boolean;
 }
 
-function initialFormState(prefill: RepairSubmissionPanelPrefill): ContactFormState {
-  return {
-    landlordName: "",
-    landlordEmail: "",
-    landlordPhone: "",
-    propertyPostcode: prefill.postcode ?? "",
-    propertyAddress: "",
-    preferredContactMethod: "email",
-    accessNotes: "",
-    consentToContact: false,
-    consentToShareWithContractors: false,
-  };
+function initialFormState(): ContactFormState {
+  return { landlordName: "", landlordEmail: "", landlordPhone: "", consentToContact: false };
 }
 
 export function RepairSubmissionPanel({
@@ -67,21 +57,23 @@ export function RepairSubmissionPanel({
   onSubmitted?: () => void;
   submissionBlockReason?: string;
 }) {
-  const [form, setForm] = useState<ContactFormState>(() => initialFormState(prefill));
+  const { lang } = useLanguage();
+  const [form, setForm] = useState<ContactFormState>(initialFormState);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [result, setResult] = useState<RepairSubmissionResult | null>(null);
 
   const hasSafetyFlags = safetyFlags.length > 0;
+  const propertyAddress = prefill.propertyAddress ?? "";
 
   const update = <K extends keyof ContactFormState>(key: K, value: ContactFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
   };
 
-  const canSubmit = canSubmitRepairSubmissionForm(form, {
-    submissionBlocked,
-    submitting: status === "submitting",
-  });
+  const canSubmit = canSubmitRepairSubmissionForm(
+    { ...form, propertyAddress },
+    { submissionBlocked, submitting: status === "submitting" },
+  );
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -100,33 +92,38 @@ export function RepairSubmissionPanel({
           landlordName: form.landlordName.trim(),
           landlordEmail: form.landlordEmail.trim(),
           landlordPhone: form.landlordPhone.trim(),
-          propertyPostcode: form.propertyPostcode.trim(),
-          propertyAddress: form.propertyAddress.trim() || undefined,
-          preferredContactMethod: form.preferredContactMethod,
-          accessNotes: form.accessNotes.trim() || undefined,
+          propertyAddress: propertyAddress.trim() || undefined,
+          preferredContactMethod: "email",
         },
         consent: {
           consentToContact: form.consentToContact,
-          consentToShareWithContractors: form.consentToShareWithContractors,
+          // Contractor-sharing consent is not collected at this stage —
+          // see the ContactFormState comment above.
+          consentToShareWithContractors: false,
         },
       });
       setResult(submitted);
       setStatus("success");
       onSubmitted?.();
     } catch (error) {
-      // Questionnaire answers and contact form state are untouched here —
-      // a failed submission must be retryable without losing anything the
-      // landlord already entered.
       if (error instanceof RepairSubmissionValidationError) {
         setErrorMessage(
-          "RepairScope could not accept this submission — please check the details above and try again.",
+          lang === "zh"
+            ? "RepairScope 未能接受呢次提交，請檢查以上資料再試。"
+            : "RepairScope could not accept this submission — please check the details above and try again.",
         );
       } else if (error instanceof RepairSubmissionNetworkError) {
-        setErrorMessage("Could not reach RepairScope. Check your connection and try again.");
+        setErrorMessage(
+          lang === "zh"
+            ? "未能連接 RepairScope，請檢查網絡再試。"
+            : "Could not reach RepairScope. Check your connection and try again.",
+        );
       } else if (error instanceof RepairSubmissionServerError) {
-        setErrorMessage("Something went wrong on our side. Please try again in a moment.");
+        setErrorMessage(
+          lang === "zh" ? "我哋呢邊出咗少少問題，請稍後再試。" : "Something went wrong on our side. Please try again in a moment.",
+        );
       } else {
-        setErrorMessage("Something went wrong. Please try again.");
+        setErrorMessage(lang === "zh" ? "出咗少少問題，請再試。" : "Something went wrong. Please try again.");
       }
       setStatus("error");
     }
@@ -138,91 +135,59 @@ export function RepairSubmissionPanel({
 
   return (
     <section className="repair-submission-panel" aria-labelledby="repair-submission-heading">
-      <p className="eyebrow">Submit for RepairScope review</p>
-      <h2 id="repair-submission-heading">Provide your contact details</h2>
+      <p className="eyebrow">{lang === "zh" ? "最後一步" : "FINAL STEP"}</p>
+      <h2 id="repair-submission-heading">
+        {lang === "zh" ? "等我哋人手檢視同聯絡你。" : "Let us manually review the case and contact you."}
+      </h2>
 
       {hasSafetyFlags && (
         <div className="safety-notice safety-notice--urgent" role="alert">
-          <div className="safety-notice__flag">Urgent attendance may be needed</div>
+          <div className="safety-notice__flag">{lang === "zh" ? "可能需要盡快處理" : "Urgent attendance may be needed"}</div>
           <p>
-            This issue may require urgent attendance. Do not wait for RepairScope to source and
-            compare contractors. Contact an appropriate emergency service or contractor now. You
-            can still submit this brief for RepairScope&rsquo;s records.
+            {lang === "zh"
+              ? "呢個問題可能需要盡快處理，唔好等 RepairScope 搵師傅比較。請直接聯絡合適嘅緊急服務或師傅。你仍然可以提交呢份資料俾 RepairScope 記錄。"
+              : "This issue may require urgent attendance. Do not wait for RepairScope to source and compare contractors. Contact an appropriate emergency service or contractor now. You can still submit this brief for RepairScope’s records."}
           </p>
         </div>
       )}
 
       <p className="repair-submission-panel__disclosure">
-        RepairScope is a sourcing and comparison service, not the repair contractor. Submissions
-        are manually reviewed. Your information is shared only with selected contractors if you
-        give consent below. Submitting does not guarantee that contractors will be available or
-        that multiple proposals will be obtained.
+        {lang === "zh"
+          ? "提交唔代表一定獲安排試用計劃，亦唔會即時將資料廣播俾師傅。"
+          : "Submission does not guarantee managed sourcing and does not broadcast your information to contractors."}
       </p>
 
       <form onSubmit={(event) => void handleSubmit(event)}>
         <div className="repair-submission-panel__grid">
           <label>
-            Full name
+            {lang === "zh" ? "姓名" : "Name"}
             <input
               type="text"
               value={form.landlordName}
               onChange={(event) => update("landlordName", event.target.value)}
+              autoComplete="name"
               required
             />
           </label>
           <label>
-            Email address
-            <input
-              type="email"
-              value={form.landlordEmail}
-              onChange={(event) => update("landlordEmail", event.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Telephone number
+            {lang === "zh" ? "香港聯絡電話" : "Hong Kong phone"}
             <input
               type="tel"
               value={form.landlordPhone}
               onChange={(event) => update("landlordPhone", event.target.value)}
-              required
-            />
-          </label>
-          <label>
-            Property postcode
-            <input
-              type="text"
-              value={form.propertyPostcode}
-              onChange={(event) => update("propertyPostcode", event.target.value)}
+              autoComplete="tel"
+              placeholder="+852"
               required
             />
           </label>
           <label className="repair-submission-panel__wide">
-            Property address (optional)
+            {lang === "zh" ? "電郵" : "Email"}
             <input
-              type="text"
-              value={form.propertyAddress}
-              onChange={(event) => update("propertyAddress", event.target.value)}
-            />
-          </label>
-          <label>
-            Preferred contact method
-            <select
-              value={form.preferredContactMethod}
-              onChange={(event) =>
-                update("preferredContactMethod", event.target.value as PreferredContactMethod)
-              }
-            >
-              <option value="email">Email</option>
-              <option value="phone">Phone</option>
-            </select>
-          </label>
-          <label className="repair-submission-panel__wide">
-            Access or tenant notes (optional)
-            <textarea
-              rows={3}
-              value={form.accessNotes}
-              onChange={(event) => update("accessNotes", event.target.value)}
+              type="email"
+              value={form.landlordEmail}
+              onChange={(event) => update("landlordEmail", event.target.value)}
+              autoComplete="email"
+              required
             />
           </label>
         </div>
@@ -235,25 +200,13 @@ export function RepairSubmissionPanel({
               onChange={(event) => update("consentToContact", event.target.checked)}
               required
             />
-            <span>I consent to RepairScope contacting me about this submission.</span>
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={form.consentToShareWithContractors}
-              onChange={(event) => update("consentToShareWithContractors", event.target.checked)}
-            />
             <span>
-              I consent to RepairScope sharing the approved brief with contractors it selects,
-              if it decides to pursue this case.
+              {lang === "zh"
+                ? "我同意 RepairScope 人手檢視我提交嘅資料，並就呢個個案聯絡我。未經進一步確認同同意，RepairScope 唔會將資料交俾師傅。"
+                : "I agree that RepairScope may manually review this submission and contact me about the case. RepairScope will not share it with contractors without further confirmation and consent."}
             </span>
           </label>
         </div>
-
-        <p className="field-help">
-          See our <Link href="/privacy">privacy notice</Link> for how this
-          information is used.
-        </p>
 
         {submissionBlocked && submissionBlockReason && (
           <p className="repair-submission-panel__blocked" role="status">
@@ -267,8 +220,13 @@ export function RepairSubmissionPanel({
         )}
 
         <button className="button" type="submit" disabled={!canSubmit}>
-          {status === "submitting" ? "Submitting…" : "Submit for RepairScope review"}
+          {status === "submitting"
+            ? (lang === "zh" ? "安全提交中…" : "Submitting securely…")
+            : (lang === "zh" ? "提交俾 RepairScope 人手檢視" : "Submit for manual review")}
         </button>
+        <p className="privacy-note">
+          {lang === "zh" ? "聯絡資料只用作處理今次維修查詢。" : "Contact details are used only to handle this repair enquiry."}
+        </p>
       </form>
     </section>
   );
@@ -283,29 +241,31 @@ function SubmissionConfirmation({
   result: RepairSubmissionResult;
   hasSafetyFlags: boolean;
 }) {
+  const { lang } = useLanguage();
   return (
     <section className="repair-submission-confirmation" aria-labelledby="submission-confirmation-heading">
-      <StatusPill tone="good">Received</StatusPill>
-      <p className="eyebrow">Submission reference</p>
+      <StatusPill tone="good">{lang === "zh" ? "資料已安全提交" : "SUBMISSION RECEIVED"}</StatusPill>
+      <p className="eyebrow">{lang === "zh" ? "個案參考編號" : "Case reference"}</p>
       <h2 id="submission-confirmation-heading">{result.publicReference}</h2>
       <p>
-        RepairScope has received your brief and will review it. Submission does not guarantee
-        that contractors will be available or that multiple proposals will be obtained —
-        RepairScope will contact you about the next appropriate step.
+        {lang === "zh"
+          ? "我哋已收到你嘅維修資料。RepairScope 會先人手檢查資料，再確認呢單工程適唔適合試用計劃。未確認之前，我哋唔會將資料交俾師傅。"
+          : "We’ve received your repair information. RepairScope will manually review the information and confirm whether the case is suitable for the founding pilot. We will not share it with contractors before that confirmation."}
       </p>
 
       {hasSafetyFlags && (
         <div className="safety-notice safety-notice--urgent" role="alert">
-          <div className="safety-notice__flag">Urgent attendance may be needed</div>
+          <div className="safety-notice__flag">{lang === "zh" ? "可能需要盡快處理" : "Urgent attendance may be needed"}</div>
           <p>
-            This issue may require urgent attendance. Do not wait for RepairScope to source and
-            compare contractors. Contact an appropriate emergency service or contractor now.
+            {lang === "zh"
+              ? "呢個問題可能需要盡快處理，唔好等 RepairScope 搵師傅比較。請直接聯絡合適嘅緊急服務或師傅。"
+              : "This issue may require urgent attendance. Do not wait for RepairScope to source and compare contractors. Contact an appropriate emergency service or contractor now."}
           </p>
         </div>
       )}
 
       <div className="repair-submission-confirmation__brief">
-        <p className="eyebrow">Your submitted brief</p>
+        <p className="eyebrow">{lang === "zh" ? "你提交嘅簡報" : "Your submitted brief"}</p>
         <ul>
           {brief.reportedFacts.map((fact) => (
             <li key={fact}>{fact}</li>
