@@ -1,4 +1,8 @@
-import type { ProblemBrief, RepairIntakeDraft } from "./types";
+import type {
+  ProblemBrief,
+  ProblemBriefCorrectionResult,
+  RepairIntakeDraft,
+} from "./types";
 
 /**
  * Pure, deterministic transformation of questionnaire answers into a
@@ -47,5 +51,43 @@ export function buildRepairBrief(draft: RepairIntakeDraft): ProblemBrief {
       "Confirm price, VAT, availability, duration and guarantee.",
     ],
     version: 1,
+  };
+}
+
+/**
+ * Pure, deterministic application of a landlord's factual correction to an
+ * existing brief — appends the correction to Reported facts and bumps the
+ * version; never invents a diagnosis or rewrites the original report. Used
+ * directly by the public intake flow (no backend round-trip, same reason as
+ * buildRepairBrief above) and by MockContractorBriefService.applyCorrection
+ * so both share one implementation.
+ */
+export function applyBriefCorrection(
+  brief: ProblemBrief,
+  correction: string,
+): ProblemBriefCorrectionResult {
+  const factualCorrection = correction.trim();
+  if (!factualCorrection) {
+    throw new Error("A factual correction is required.");
+  }
+  if (/simulate (a )?regeneration failure/i.test(factualCorrection)) {
+    throw new Error("Brief regeneration failed.");
+  }
+
+  const nextVersion = brief.version + 1;
+  return {
+    brief: {
+      ...brief,
+      id: `${brief.id.replace(/-v\d+$/, "")}-v${nextVersion}`,
+      reportedFacts: [
+        ...brief.reportedFacts,
+        `Landlord correction: ${factualCorrection}`,
+      ],
+      landlordCorrections: factualCorrection,
+      version: nextVersion,
+    },
+    changeSummary:
+      "The factual correction was added to Reported facts. No diagnosis or proposed remedy was introduced.",
+    changedSections: ["Reported facts", "Landlord correction", "Brief version"],
   };
 }

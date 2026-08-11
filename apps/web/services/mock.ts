@@ -6,7 +6,7 @@ import {
 } from "@/data/fixtures";
 import { responseFixtureForRepair } from "@/data/responseFixtures";
 import { classifyIssueReport } from "@/domain/classification";
-import { buildRepairBrief } from "@/domain/brief";
+import { applyBriefCorrection, buildRepairBrief } from "@/domain/brief";
 import {
   createSubmittedInspectionRequest,
   createSubmittedRepairQuote,
@@ -115,30 +115,7 @@ class MockContractorBriefService implements ContractorBriefService {
     correction: string,
   ): Promise<ProblemBriefCorrectionResult> {
     await wait(650);
-    const factualCorrection = correction.trim();
-    if (!factualCorrection) {
-      throw new Error("A factual correction is required.");
-    }
-    if (/simulate (a )?regeneration failure/i.test(factualCorrection)) {
-      throw new Error("Brief regeneration failed.");
-    }
-
-    const nextVersion = brief.version + 1;
-    return {
-      brief: {
-        ...brief,
-        id: `${brief.id.replace(/-v\d+$/, "")}-v${nextVersion}`,
-        reportedFacts: [
-          ...brief.reportedFacts,
-          `Landlord correction: ${factualCorrection}`,
-        ],
-        landlordCorrections: factualCorrection,
-        version: nextVersion,
-      },
-      changeSummary:
-        "The factual correction was added to Reported facts. No diagnosis or proposed remedy was introduced.",
-      changedSections: ["Reported facts", "Landlord correction", "Brief version"],
-    };
+    return applyBriefCorrection(brief, correction);
   }
 }
 
