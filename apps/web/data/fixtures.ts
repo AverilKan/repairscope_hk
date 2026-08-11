@@ -62,7 +62,7 @@ export const ceilingBrief: ProblemBrief = {
 export const ceilingRepair: RepairIntakeRecord = {
   id: "rs-1047",
   reference: "RS–1047",
-  category: "roofing",
+  category: "leak",
   postcodeArea: "SE15",
   brief: ceilingBrief,
   status: "ready_for_review",
@@ -73,7 +73,7 @@ export const ceilingRepair: RepairIntakeRecord = {
 export const plumbingRepair: RepairIntakeRecord = {
   id: "rs-1052",
   reference: "RS–1052",
-  category: "plumbing-leak",
+  category: "plumbing",
   postcodeArea: "E8",
   brief: {
     ...ceilingBrief,

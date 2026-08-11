@@ -28,7 +28,7 @@ export const repairSummaries: RepairSummary[] = [
     latestUpdate: "Questionnaire saved at question 6",
     actionRequired: "Finish the repair questions",
     updatedAt: "2026-08-04T09:42:00.000Z",
-    destination: "/landlord/repairs/new/roofing",
+    destination: "/landlord/repairs/new/leak",
   },
   {
     repairId: "rs-1052",
@@ -109,7 +109,7 @@ export const procurementRepair: RepairDetails = {
   repairId: "rs-1047",
   reference: "RS–1047",
   title: defaultResponseBundle.repairTitle,
-  category: "roofing",
+  category: "leak",
   propertyId: "property-se15-3df",
   landlordAccountId: "landlord-account-demo",
   urgency: "soon",

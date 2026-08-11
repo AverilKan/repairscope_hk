@@ -1,3 +1,4 @@
+import { lt } from "@/domain/i18n";
 import type {
   QuestionnaireField,
   QuestionnaireOption,
@@ -7,22 +8,35 @@ import type {
   SafetyRule,
 } from "@/domain/types";
 
+// Transcribed from the approved Sites HK questionnaire export
+// (RepairScope-Hong-Kong.zip, app/page.tsx) — that file is the UX/copy
+// reference; this module re-implements its content inside the existing
+// schema-driven QuestionnaireEngine rather than adopting its component tree
+// or backend.
+
 const option = (
   value: string,
-  label: string,
-  hint?: string,
-): QuestionnaireOption => ({ value, label, hint });
+  zh: string,
+  en: string,
+  hintZh?: string,
+  hintEn?: string,
+): QuestionnaireOption => ({
+  value,
+  label: lt(zh, en),
+  hint: hintZh && hintEn ? lt(hintZh, hintEn) : undefined,
+});
 
 const select = (
   id: string,
-  label: string,
+  labelZh: string,
+  labelEn: string,
   options: QuestionnaireOption[],
   required = true,
   safetyRule?: SafetyRule,
 ): QuestionnaireField => ({
   id,
   type: "single_select",
-  label,
+  label: lt(labelZh, labelEn),
   options,
   required,
   safetyRule,
@@ -30,791 +44,911 @@ const select = (
 
 const text = (
   id: string,
-  label: string,
-  placeholder: string,
+  labelZh: string,
+  labelEn: string,
+  placeholderZh: string,
+  placeholderEn: string,
   required = true,
   long = false,
 ): QuestionnaireField => ({
   id,
   type: long ? "long_text" : "short_text",
-  label,
-  placeholder,
+  label: lt(labelZh, labelEn),
+  placeholder: lt(placeholderZh, placeholderEn),
   required,
 });
 
 const step = (
   id: string,
-  eyebrow: string,
-  title: string,
+  eyebrowZh: string,
+  eyebrowEn: string,
+  titleZh: string,
+  titleEn: string,
   fields: QuestionnaireField[],
-  description?: string,
-): QuestionnaireStep => ({ id, eyebrow, title, description, fields });
+  descriptionZh?: string,
+  descriptionEn?: string,
+): QuestionnaireStep => ({
+  id,
+  eyebrow: lt(eyebrowZh, eyebrowEn),
+  title: lt(titleZh, titleEn),
+  description:
+    descriptionZh && descriptionEn ? lt(descriptionZh, descriptionEn) : undefined,
+  fields,
+});
 
-const gasSafetyRule: SafetyRule = {
-  triggerValues: ["yes"],
-  title: "Treat a gas smell as an emergency",
-  message:
-    "Do not use electrical switches or naked flames. Leave the property, keep others away and contact the National Gas Emergency Service on 0800 111 999 from a safe place.",
-  acknowledgement:
-    "I understand this warning does not confirm the property is safe or replace emergency advice.",
-  severity: "stop",
-};
+// ---------------------------------------------------------------------------
+// Category taxonomy — observable problems, not trades (see domain/types.ts).
+// ---------------------------------------------------------------------------
 
-const electricalSafetyRule: SafetyRule = {
-  triggerValues: ["burning", "sparks", "smoke"],
-  title: "Stop using the affected circuit",
-  message:
-    "If it is safe to do so, switch off the affected circuit at the consumer unit. For active fire or smoke, leave the property and call emergency services.",
-  acknowledgement:
-    "I understand the normal quote journey must not delay emergency action.",
-  severity: "stop",
-};
-
-const waterSafetyRule: SafetyRule = {
-  triggerValues: ["uncontrolled"],
-  title: "Uncontrolled water needs immediate action",
-  message:
-    "Ask someone at the property to use the stopcock if they can do so safely. Move people away from bulging ceilings and water near electrical fittings.",
-  acknowledgement:
-    "I understand this warning is not confirmation that the escape has been contained.",
-  severity: "urgent",
-};
-
-const insecureSafetyRule: SafetyRule = {
-  triggerValues: ["insecure"],
-  title: "Secure the property first",
-  message:
-    "If an external door or ground-floor opening cannot be secured, arrange urgent attendance and do not leave an occupant at risk.",
-  acknowledgement:
-    "I understand the quote request does not secure the property.",
-  severity: "urgent",
-};
-
-const collapseSafetyRule: SafetyRule = {
-  triggerValues: ["yes"],
-  title: "Keep clear of the affected area",
-  message:
-    "A sagging ceiling, falling material or obvious structural movement needs urgent professional assessment. Keep occupants out of the area.",
-  acknowledgement:
-    "I understand this warning does not confirm the structure is safe.",
-  severity: "stop",
-};
-
-// There is no dedicated evidence step in the questionnaire — the initial
-// "Problem report" screen's yes/no evidence question (StartAndClassify,
-// components/LandlordApp.tsx) is the only place a landlord is asked about
-// evidence, and it writes directly into this same responses.evidenceNotes
-// key. See docs/PUBLIC_INGESTION_LAUNCH.md.
-const commonTail: QuestionnaireStep[] = [
-  step("postcode", "Property", "Where is the property?", [
-    {
-      id: "postcode",
-      type: "postcode",
-      label: "Property postcode",
-      placeholder: "e.g. WD17 1AA",
-      required: true,
-    },
-  ]),
-  step("urgency", "Timing", "When does this need attention?", [
-    select("urgency", "Urgency", [
-      option("emergency", "Today", "Immediate risk or essential service loss"),
-      option("urgent", "Within 48 hours", "Urgent, but the situation is stable"),
-      option("soon", "This week", "Needs arranging soon"),
-      option("routine", "Routine", "Flexible timing"),
-    ]),
-  ]),
-  step("occupancy", "Occupancy", "Who occupies the property?", [
-    select("occupancy", "Current occupancy", [
-      option("tenant_occupied", "Tenant occupied"),
-      option("owner_occupied", "Owner occupied"),
-      option("vacant", "Vacant"),
-      option("other", "Other"),
-    ]),
-  ]),
-  step("access", "Access", "Who will coordinate contractor access?", [
-    select("access", "Access responsibility", [
-      option("me", "I will arrange access"),
-      option("tenant", "The tenant will arrange access"),
-      option("landlord", "The landlord will arrange access"),
-      option("other", "Someone else"),
-    ]),
-  ]),
-  step(
-    "responsibility",
-    "Responsibility",
-    "Who is currently expected to be responsible for this repair?",
-    [
-      select("repairResponsibility", "Current understanding", [
-        option("landlord-manager", "Landlord or property manager"),
-        option("tenant", "Tenant"),
-        option("unclear", "Responsibility is unclear"),
-        option("disputed", "Responsibility is disputed"),
-        option("other", "Other arrangement"),
-      ]),
-      text(
-        "responsibilityBasis",
-        "Basis or supporting notes (optional)",
-        "e.g. Landlord reports the tenant damaged the internal door",
-        false,
-        true,
-      ),
-    ],
-    "This records the current understanding only. RepairScope does not determine legal or contractual responsibility.",
-  ),
-  step(
-    "contact",
-    "Your details",
-    "Who is managing this repair?",
-    [
-      select("role", "Your relationship to the property", [
-        option("landlord", "Landlord"),
-        option("agent", "Letting agent"),
-        option("manager", "Property manager"),
-        option("other-authorised", "Other authorised representative"),
-      ]),
-      {
-        id: "accountRoleExplanation",
-        type: "short_text",
-        label: "How are you authorised to manage this repair?",
-        help: "A RepairScope operator will review this before contractor sourcing.",
-        placeholder: "Briefly explain your authority",
-        required: true,
-        showWhen: {
-          fieldId: "role",
-          equals: "other-authorised",
-        },
-      },
-    ],
-    // Contact name/email/phone and preferred contact method are collected
-    // once, on the final submission panel (RepairSubmissionPanel) — the
-    // authoritative, persisted record. They are deliberately not asked
-    // again here; asking twice let the questionnaire's answers silently
-    // diverge from what the landlord confirmed and submitted.
-    "The authorised landlord or manager owns the repair record. You will provide contact details when you submit this brief.",
-  ),
-  step(
-    "context",
-    "Final details",
-    "Anything else contractors should know?",
-    [
-      text(
-        "additionalContext",
-        "Additional context",
-        "Previous visits, tenant constraints, or details that do not fit elsewhere",
-        false,
-        true,
-      ),
-    ],
-    // Sharing consent is collected once, on the final submission panel
-    // (RepairSubmissionPanel's "I consent to RepairScope sharing…"
-    // checkbox) — the authoritative, persisted consent flag. It is
-    // deliberately not asked again here as a separate checkbox.
-    "You will review the exact contractor brief, and confirm sharing consent, before anything is submitted.",
-  ),
+export const categoryOptions: QuestionnaireOption[] = [
+  option("leak", "滲水／漏水", "Water seepage / leakage"),
+  option("drainage", "去水／渠務問題", "Drainage problem"),
+  option("plumbing", "水喉問題", "Plumbing problem"),
+  option("electrical", "電力／跳掣／冇電", "Electrical / power problem"),
+  option("aircon", "冷氣問題", "Air-conditioning problem"),
+  option("door-window", "門窗問題", "Door / window problem"),
+  option("surface", "牆身／天花／地板損壞", "Wall / ceiling / floor damage"),
+  option("bathroom", "浴室／潔具問題", "Bathroom / sanitary fixture problem"),
+  option("other", "其他維修", "Other repair"),
+  option("unsure", "唔肯定", "Not sure"),
 ];
 
-// Field ids shared by every category (the commonTail above), as opposed to
-// a category's own steps (e.g. plumbingLocation, boilerSymptom). Used to
-// keep a journey's shared answers (postcode, urgency, access, role, …)
-// when the landlord changes category mid-journey, while dropping the
-// previous category's own answers — see startNewOrResumeJourney's callers
-// in components/LandlordApp.tsx.
-export const commonTailFieldIds = new Set(
-  commonTail.flatMap((step) => step.fields.map((field) => field.id)),
+export const categoryCards = categoryOptions.map((item) => ({
+  category: item.value as RepairCategoryId,
+  label: item.label,
+}));
+
+// ---------------------------------------------------------------------------
+// Safety — one shared check (not per-category). Answering anything other
+// than "none" is a full-screen safety exit (see components/LandlordApp.tsx's
+// SafetyExit screen) — never an inline "acknowledge and continue" card. A
+// second, category-specific trigger exists on electrical's first branch
+// question (smell/sparks) — see electricalBranch below.
+// ---------------------------------------------------------------------------
+
+export const generalSafetyRule: SafetyRule = {
+  triggerValues: ["fire", "gas", "flood", "structure"],
+  title: lt("先處理安全", "Safety first"),
+  message: lt(
+    "如果有人身危險、火警、濃烈煤氣味或情況失控，請離開危險範圍並撥 999。亦請盡快聯絡大廈管理處或相關緊急服務。",
+    "If anyone is in immediate danger, there is fire, a strong gas smell or the situation is uncontrolled, leave the danger area and call 999. Contact building management or the relevant emergency service as soon as possible.",
+  ),
+  acknowledgement: lt(
+    "RepairScope 唔會就緊急情況提供診斷。安全處理完成後，你可以返嚟重新整理非緊急維修資料。",
+    "RepairScope does not diagnose emergencies. Once the situation is safe, you can return to organise the non-urgent repair information.",
+  ),
+  severity: "stop",
+};
+
+const safetyField: QuestionnaireField = select(
+  "safety",
+  "而家有冇以下即時危險？",
+  "Is there any immediate danger right now?",
+  [
+    option(
+      "fire",
+      "有火、煙、燒焦味或電器冒火花",
+      "Fire, smoke, burning smell or electrical sparks",
+    ),
+    option("gas", "有濃烈煤氣／石油氣味", "Strong town gas / LPG smell"),
+    option(
+      "flood",
+      "大量入水、爆喉或水勢控制唔到",
+      "Major water ingress, burst pipe or uncontrolled flow",
+    ),
+    option(
+      "structure",
+      "有石屎跌落、天花鬆脫或倒塌風險",
+      "Falling concrete, loose ceiling or collapse risk",
+    ),
+    option("none", "以上都冇，可以繼續", "None of these — safe to continue"),
+  ],
+  true,
+  generalSafetyRule,
+);
+
+const safetyStep: QuestionnaireStep = step(
+  "safety",
+  "安全檢查",
+  "SAFETY CHECK",
+  "而家有冇以下即時危險？",
+  "Is there any immediate danger right now?",
+  [safetyField],
+  "呢一步只係幫你判斷應唔應該等報價，唔係作出診斷。",
+  "This only checks whether it is appropriate to wait for quotations. It is not a diagnosis.",
+);
+
+// ---------------------------------------------------------------------------
+// Shared tail — identical steps after the category-specific "affected" +
+// "branch" (or "other-detail") steps, for every category.
+// ---------------------------------------------------------------------------
+
+const durationOptions = [
+  option("today", "今日", "Today"),
+  option("week", "一星期內", "Within a week"),
+  option("month", "一個月內", "Within a month"),
+  option("longer", "超過一個月", "More than a month"),
+  option("unsure", "唔肯定", "Not sure"),
+];
+const frequencyOptions = [
+  option("once", "只見過一次", "Seen once"),
+  option("occasional", "間中", "Occasionally"),
+  option("daily", "每日", "Daily"),
+  option("constant", "持續", "Constant"),
+  option("unsure", "唔肯定", "Not sure"),
+];
+const worseningOptions = [
+  option("yes", "有惡化", "Getting worse"),
+  option("no", "冇惡化", "Not getting worse"),
+  option("same", "差唔多", "About the same"),
+  option("unsure", "唔肯定", "Not sure"),
+];
+export const priorOptions = [
+  option("inspected", "只係睇過／檢查過", "Inspected only"),
+  option("quote", "收到報價", "Quotation received"),
+  option("attempted", "已經試過維修", "Repair already attempted"),
+  option("no", "冇", "No"),
+  option("unsure", "唔肯定", "Not sure"),
+];
+const managementOptions = [
+  option("yes", "有聯絡", "Contacted"),
+  option("no", "未有聯絡", "Not contacted"),
+  option("not-applicable", "唔適用", "Not applicable"),
+];
+const sharedAreaOptions = [
+  option("yes", "可能有關", "Possibly involved"),
+  option("no", "暫時睇唔到", "Does not appear involved"),
+  option("unsure", "唔肯定", "Not sure"),
+];
+export const accessOptions = [
+  option("owner", "業主本人", "Owner"),
+  option("tenant", "租客", "Tenant"),
+  option("family", "家人", "Family member"),
+  option("management", "管理處", "Management office"),
+  option("other", "其他人", "Someone else"),
+];
+export const relationshipOptions = [
+  option("owner-occupier", "自住業主", "Owner-occupier"),
+  option("landlord", "出租物業業主", "Landlord"),
+  option("manager", "代業主管理", "Managing on behalf of owner"),
+  option("other", "其他", "Other"),
+];
+export const evidenceKindOptions = [
+  option("repair-media", "維修相片／影片", "Repair photo / video"),
+  option("document", "報告／文件", "Report / document"),
+  option("quotation", "現有報價", "Existing quotation"),
+];
+
+export const districtGroups = [
+  {
+    label: lt("香港島", "Hong Kong Island"),
+    options: [
+      option("central-western", "中西區", "Central and Western"),
+      option("wan-chai", "灣仔區", "Wan Chai"),
+      option("eastern", "東區", "Eastern"),
+      option("southern", "南區", "Southern"),
+    ],
+  },
+  {
+    label: lt("九龍", "Kowloon"),
+    options: [
+      option("yau-tsim-mong", "油尖旺區", "Yau Tsim Mong"),
+      option("sham-shui-po", "深水埗區", "Sham Shui Po"),
+      option("kowloon-city", "九龍城區", "Kowloon City"),
+      option("wong-tai-sin", "黃大仙區", "Wong Tai Sin"),
+      option("kwun-tong", "觀塘區", "Kwun Tong"),
+    ],
+  },
+  {
+    label: lt("新界及離島", "New Territories & Islands"),
+    options: [
+      option("kwai-tsing", "葵青區", "Kwai Tsing"),
+      option("tsuen-wan", "荃灣區", "Tsuen Wan"),
+      option("tuen-mun", "屯門區", "Tuen Mun"),
+      option("yuen-long", "元朗區", "Yuen Long"),
+      option("north", "北區", "North"),
+      option("tai-po", "大埔區", "Tai Po"),
+      option("sha-tin", "沙田區", "Sha Tin"),
+      option("sai-kung", "西貢區", "Sai Kung"),
+      option("islands", "離島區", "Islands"),
+    ],
+  },
+];
+export const districtOptions = districtGroups.flatMap((group) => group.options);
+
+const timelineStep = step(
+  "timeline",
+  "發生經過",
+  "WHAT HAS CHANGED OVER TIME",
+  "個問題持續咗幾耐，同埋點樣出現？",
+  "How long has this been happening, and how does it behave?",
+  [
+    select("duration", "幾時開始？", "When did it begin?", durationOptions),
+    select("frequency", "幾常出現？", "How often?", frequencyOptions),
+    select("worsening", "有冇惡化？", "Is it getting worse?", worseningOptions),
+  ],
+  "三個簡短答案可以幫師傅理解情況，唔使估原因。",
+  "Three short facts help a contractor understand the situation without guessing the cause.",
+);
+
+const priorStep = step(
+  "prior",
+  "之前有冇處理過",
+  "WHAT HAS ALREADY HAPPENED",
+  "已經有冇師傅睇過或者報過價？",
+  "Has anyone inspected the problem or provided a quotation?",
+  [
+    select("prior", "之前處理", "Previous action", priorOptions),
+    text(
+      "priorDetail",
+      "之前有人點樣講？（可選填）",
+      "What were you told? (optional)",
+      "照對方原本講法寫就可以，唔代表已證實。",
+      "Use their original explanation. It will not be treated as confirmed.",
+      false,
+      true,
+    ),
+  ],
+  "我哋會分開記低檢查、報價同已做工程，避免將意見當成已證實成因。",
+  "We keep inspection, quotation and attempted work separate, so an opinion is not treated as a confirmed cause.",
+);
+
+// No real file upload exists yet (see docs/PUBLIC_INGESTION_LAUNCH.md and
+// RepairSubmissionPanel's evidenceNotes field) — this step deliberately asks
+// only whether evidence exists and of what kind, not for a file, so it never
+// claims an upload that never happens.
+const evidenceStep = step(
+  "evidence",
+  "相片同文件",
+  "PHOTOS AND DOCUMENTS",
+  "有冇資料可以幫我哋睇清楚？",
+  "Do you have anything that helps show the problem?",
+  [
+    select(
+      "hasEvidence",
+      "你有冇維修相片、影片、報告或現有報價？",
+      "Do you have repair photos, videos, reports or an existing quotation?",
+      [
+        option("yes", "有，稍後可以提供", "Yes, I can provide this later"),
+        option("no", "冇", "No"),
+      ],
+    ),
+    select(
+      "evidenceKind",
+      "主要係邊類資料？",
+      "What kind, mainly?",
+      evidenceKindOptions,
+      false,
+      undefined,
+    ),
+  ],
+  "檔案上載暫時未開放；RepairScope 會喺人手檢視之後另外聯絡你補交。",
+  "File upload is not yet available — RepairScope will contact you separately to collect this after manual review.",
+);
+
+const buildingStep = step(
+  "building",
+  "大廈背景",
+  "BUILDING CONTEXT",
+  "有冇其他單位或管理處可能要一齊了解？",
+  "Might building management or another flat need to be involved?",
+  [
+    select(
+      "management",
+      "有冇聯絡過管理處？",
+      "Have you contacted building management?",
+      managementOptions,
+    ),
+    select(
+      "sharedArea",
+      "問題有冇可能同樓上、隔離單位或者公用地方有關？",
+      "Could the problem involve another flat or a common area?",
+      sharedAreaOptions,
+    ),
+  ],
+  "你唔需要判斷責任，照你知道嘅程度答就得。",
+  "You do not need to decide responsibility. Answer only to the extent you know.",
+);
+
+const accessStep = step(
+  "access",
+  "上門安排",
+  "PRACTICAL ACCESS",
+  "如果需要上門，邊個可以開門？",
+  "If a visit is needed, who can provide access?",
+  [
+    select("accessBy", "開門安排", "Access provided by", accessOptions),
+    text(
+      "availability",
+      "通常咩時段較方便？",
+      "What times are usually practical?",
+      "例如：平日 7 點後；星期六上午",
+      "For example: weekdays after 7pm; Saturday mornings",
+    ),
+  ],
+  "而家唔需要預約確實時間，只要講大概安排。",
+  "You do not need to book an exact appointment now — just give practical availability.",
+);
+
+const addressStep = step(
+  "address",
+  "物業位置",
+  "PROPERTY LOCATION",
+  "維修單位喺邊度？",
+  "Where is the property?",
+  [
+    {
+      id: "district",
+      type: "single_select",
+      label: lt("地區", "District"),
+      required: true,
+      options: districtOptions,
+    },
+    text("building", "屋苑／大廈", "Estate / Building", "", "", true),
+    text("block", "座數", "Block / Tower", "", "", false),
+    text("floor", "樓層", "Floor", "", "", true),
+    text("unit", "單位", "Flat / Unit", "", "", true),
+  ],
+  "詳細地址只會用作人手檢視同合適跟進，唔會自動公開。",
+  "The detailed address is used for manual review and appropriate follow-up. It is not automatically published.",
+);
+
+const relationshipStep = step(
+  "relationship",
+  "同物業嘅關係",
+  "YOUR RELATIONSHIP TO THE PROPERTY",
+  "你係以咩身份處理呢次維修？",
+  "In what capacity are you handling this repair?",
+  [select("relationship", "處理身份", "Relationship", relationshipOptions)],
+  "我哋會按情況確認之後嘅同意同聯絡安排。",
+  "This helps us confirm consent and communication arrangements later.",
+);
+
+const additionalStep = step(
+  "additional",
+  "可選填",
+  "OPTIONAL",
+  "仲有冇其他資料想話俾我哋知？",
+  "Anything else we should know?",
+  [
+    text(
+      "additionalContext",
+      "補充資料",
+      "Additional information",
+      "例如：問題喺裝修工程之後先出現……（可留空）",
+      "For example: This started after recent renovation work… (optional)",
+      false,
+      true,
+    ),
+  ],
+  "如果前面嘅答案已經講清楚，可以直接繼續。",
+  "If the earlier answers cover the problem, you can continue without adding anything.",
+);
+
+const sharedTail: QuestionnaireStep[] = [
+  timelineStep,
+  priorStep,
+  evidenceStep,
+  buildingStep,
+  accessStep,
+  addressStep,
+  relationshipStep,
+  additionalStep,
+];
+
+/** Field ids shared by every category's tail — used by category-change to keep only genuinely shared answers. See domain/journey.ts. */
+export const sharedTailFieldIds = new Set(
+  [safetyStep, ...sharedTail].flatMap((s) => s.fields.map((field) => field.id)),
 );
 
 // Bump this whenever a category's fields, steps or safety rules change in a
 // way that matters for how a submitted answer set should be interpreted —
 // persisted on every RepairSubmission (see questionnaireVersionLabel below)
 // so past submissions remain interpretable after the schema evolves.
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 1;
 
-const withTail = (
-  category: RepairCategoryId,
-  label: string,
-  shortLabel: string,
-  description: string,
-  categorySteps: QuestionnaireStep[],
-): QuestionnaireSchema => ({
-  category,
-  label,
-  shortLabel,
-  description,
-  steps: [...categorySteps, ...commonTail],
-  version: CURRENT_SCHEMA_VERSION,
-});
+interface BranchDefinition {
+  affected: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
+  first: { titleZh: string; titleEn: string; options: QuestionnaireOption[]; safetyRule?: SafetyRule };
+  second: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
+  third: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
+}
+
+// Electrical's first branch answer can itself be an immediate safety exit
+// (burning smell / sparks) — a second, category-specific trigger alongside
+// the shared safety step (see generalSafetyRule above).
+const electricalSparksRule: SafetyRule = {
+  triggerValues: ["smell-sparks"],
+  title: lt("先處理安全", "Safety first"),
+  message: generalSafetyRule.message,
+  acknowledgement: generalSafetyRule.acknowledgement,
+  severity: "stop",
+};
+
+const branches: Record<string, BranchDefinition> = {
+  leak: {
+    affected: {
+      titleZh: "發現問題喺邊度？",
+      titleEn: "Where can you see the problem?",
+      options: [
+        option("ceiling", "天花", "Ceiling"),
+        option("wall", "牆身", "Wall"),
+        option("window", "窗邊", "Around a window"),
+        option("bathroom", "浴室", "Bathroom"),
+        option("floor", "地台", "Floor"),
+        option("other", "其他", "Other"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "通常幾時出現？",
+      titleEn: "When does it usually happen?",
+      options: [
+        option("rain", "落雨時／落雨之後", "During / after rain"),
+        option("use", "用水時", "When water is being used"),
+        option("constant", "持續出現", "All the time"),
+        option("intermittent", "間中出現", "Intermittent"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "見到嘅情況係點？",
+      titleEn: "What can you see?",
+      options: [
+        option("mark", "水印／濕痕", "Water mark / damp patch"),
+        option("drip", "滴水", "Dripping"),
+        option("mould", "發霉／油漆剝落", "Mould / peeling paint"),
+        option("bulge", "牆身鼓起／石屎剝落", "Bulging surface / loose concrete"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "影響範圍有幾大？",
+      titleEn: "How much is affected?",
+      options: [
+        option("spot", "一小處", "One small area"),
+        option("several", "幾個位置", "Several areas"),
+        option("large", "大片範圍", "A large area"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  drainage: {
+    affected: {
+      titleZh: "邊個去水位有問題？",
+      titleEn: "Which outlet is affected?",
+      options: [
+        option("toilet", "座廁", "Toilet"),
+        option("basin", "洗手盆／鋅盤", "Basin / sink"),
+        option("shower", "企缸／浴缸", "Shower / bath"),
+        option("floor-drain", "地渠", "Floor drain"),
+        option("several", "多過一個去水位", "More than one outlet"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "去水情況係點？",
+      titleEn: "What is the drainage doing?",
+      options: [
+        option("blocked", "完全塞咗", "Completely blocked"),
+        option("slow", "去水好慢", "Draining slowly"),
+        option("backflow", "有水倒灌／溢出", "Backing up / overflowing"),
+        option("smell", "主要係有異味", "Mainly an unusual smell"),
+        option("noise", "有異常聲", "Unusual noise"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "之前有冇試過？",
+      titleEn: "Has it happened before?",
+      options: [
+        option("first", "第一次", "First time"),
+        option("recurring", "之前試過，今次再發生", "Recurring"),
+        option("frequent", "經常發生", "Happens often"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "有幾多個去水位受影響？",
+      titleEn: "How many outlets are affected?",
+      options: [
+        option("one", "一個", "One"),
+        option("several", "兩個或以上", "Two or more"),
+        option("whole", "全屋多處", "Several around the flat"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  plumbing: {
+    affected: {
+      titleZh: "邊個位置或設備受影響？",
+      titleEn: "Which area or fitting is affected?",
+      options: [
+        option("kitchen", "廚房", "Kitchen"),
+        option("bathroom", "浴室", "Bathroom"),
+        option("toilet", "座廁", "Toilet"),
+        option("visible-pipe", "見到嘅喉管", "Visible pipe"),
+        option("whole", "全屋供水", "Whole-flat water supply"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "你見到咩情況？",
+      titleEn: "What can you observe?",
+      options: [
+        option("leak", "滴水／漏水", "Dripping / leaking"),
+        option("no-water", "冇水", "No water"),
+        option("pressure", "水壓低／不穩", "Low / uneven pressure"),
+        option("fitting", "水龍頭或潔具損壞", "Damaged tap / fitting"),
+        option("colour", "水有異色／鏽色", "Discoloured / rusty water"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "問題通常幾時出現？",
+      titleEn: "When does it happen?",
+      options: [
+        option("constant", "長期都有", "Constant"),
+        option("use", "用水時先出現", "Only during use"),
+        option("intermittent", "間中出現", "Intermittent"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "而家可唔可以關水掣控制？",
+      titleEn: "Can the water be isolated?",
+      options: [
+        option("yes", "可以", "Yes"),
+        option("no", "唔可以／控制唔到", "No / cannot control it"),
+        option("not-needed", "唔需要關水", "Not needed"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  electrical: {
+    affected: {
+      titleZh: "影響邊個範圍？",
+      titleEn: "What area is affected?",
+      options: [
+        option("one-fitting", "一盞燈／一個插座", "One light / outlet"),
+        option("one-room", "一個房間", "One room"),
+        option("several", "幾個位置", "Several areas"),
+        option("whole", "全屋", "Whole flat"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "你見到咩情況？",
+      titleEn: "What can you observe?",
+      options: [
+        option("no-power", "冇電", "No power"),
+        option("tripping", "跳掣", "Circuit keeps tripping"),
+        option("outlet", "插座／開關有問題", "Outlet / switch problem"),
+        option("light", "燈有問題", "Light problem"),
+        option("smell-sparks", "燒焦味／煙／火花", "Burning smell / smoke / sparks"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+      safetyRule: electricalSparksRule,
+    },
+    second: {
+      titleZh: "之前有冇發生過？",
+      titleEn: "Has it happened before?",
+      options: [
+        option("once", "今次第一次", "First time"),
+        option("recurring", "間中再發生", "Recurring"),
+        option("frequent", "近期成日發生", "Frequently recently"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "受影響設備而家仲有冇使用？",
+      titleEn: "Is the affected item still in use?",
+      options: [
+        option("stopped", "已停止使用", "No, stopped using it"),
+        option("isolated", "已關掣／拔插頭", "Switched off / unplugged"),
+        option("using", "仲使用緊", "Yes, still in use"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  aircon: {
+    affected: {
+      titleZh: "邊類冷氣機有問題？",
+      titleEn: "What type of air conditioner is affected?",
+      options: [
+        option("split", "分體式", "Split type"),
+        option("window", "窗口式", "Window type"),
+        option("concealed", "天花／藏喉式", "Ceiling / concealed type"),
+        option("portable", "移動式", "Portable type"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "你見到咩情況？",
+      titleEn: "What can you observe?",
+      options: [
+        option("not-cooling", "唔凍／唔夠凍", "Not cooling"),
+        option("water", "滴水／漏水", "Leaking water"),
+        option("noise", "有異常聲", "Unusual noise"),
+        option("no-start", "開唔到", "Will not turn on"),
+        option("smell", "有異味", "Unusual smell"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "問題影響幾多部機？",
+      titleEn: "How many units are affected?",
+      options: [
+        option("one", "一部", "One"),
+        option("several", "兩部或以上", "Two or more"),
+        option("all", "全部", "All units"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "最近有冇清洗或維修過？",
+      titleEn: "Has it been serviced recently?",
+      options: [
+        option("recent", "三個月內", "Within three months"),
+        option("past-year", "一年內", "Within a year"),
+        option("no", "冇／好耐之前", "No / a long time ago"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  "door-window": {
+    affected: {
+      titleZh: "邊樣受影響？",
+      titleEn: "What is affected?",
+      options: [
+        option("door", "門", "Door"),
+        option("window", "窗", "Window"),
+        option("sliding", "趟門／趟窗", "Sliding door / window"),
+        option("lock", "門鎖／窗鎖", "Lock"),
+        option("glass", "玻璃", "Glass"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "你見到咩情況？",
+      titleEn: "What can you observe?",
+      options: [
+        option("close", "關唔到／閂唔實", "Will not close properly"),
+        option("water", "入水／滲水", "Water ingress"),
+        option("hardware", "較／轆／手柄損壞", "Damaged hinge / roller / handle"),
+        option("glass", "玻璃裂咗／爛咗", "Cracked / broken glass"),
+        option("frame", "框架變形／鬆脫", "Damaged / loose frame"),
+        option("lock", "鎖有問題", "Lock problem"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "而家可唔可以安全關好？",
+      titleEn: "Can it be secured safely?",
+      options: [
+        option("yes", "可以", "Yes"),
+        option("partial", "勉強可以", "Partly"),
+        option("no", "唔可以", "No"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "問題係突然出現定慢慢變差？",
+      titleEn: "Did it happen suddenly or gradually?",
+      options: [
+        option("sudden", "突然", "Suddenly"),
+        option("gradual", "慢慢變差", "Gradually"),
+        option("always", "一直都係咁", "Always been like this"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  surface: {
+    affected: {
+      titleZh: "邊個表面受損？",
+      titleEn: "Which surface is damaged?",
+      options: [
+        option("wall", "牆身", "Wall"),
+        option("ceiling", "天花", "Ceiling"),
+        option("floor", "地板／地磚", "Floor / tiles"),
+        option("several", "多過一處", "More than one"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "你見到咩情況？",
+      titleEn: "What can you observe?",
+      options: [
+        option("crack", "裂紋", "Crack"),
+        option("loose", "鬆脫／剝落", "Loose / peeling surface"),
+        option("bulge", "鼓起", "Bulging"),
+        option("stain", "污漬／水印", "Stain / water mark"),
+        option("broken", "破損／凹陷", "Broken / dented"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "受損範圍有幾大？",
+      titleEn: "How large is the damaged area?",
+      options: [
+        option("small", "一小處", "One small area"),
+        option("several", "幾處", "Several areas"),
+        option("large", "大片範圍", "A large area"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "附近有冇見到水氣或滲水？",
+      titleEn: "Is there dampness or seepage nearby?",
+      options: [
+        option("yes", "有", "Yes"),
+        option("no", "冇", "No"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+  bathroom: {
+    affected: {
+      titleZh: "浴室邊一部分受影響？",
+      titleEn: "Which part of the bathroom is affected?",
+      options: [
+        option("toilet", "座廁", "Toilet"),
+        option("basin", "洗手盆", "Basin"),
+        option("shower", "企缸／花灑", "Shower"),
+        option("bath", "浴缸", "Bath"),
+        option("tiles", "磁磚／填縫", "Tiles / grout"),
+        option("sealant", "唧膠／防水膠邊", "Sealant"),
+        option("drain", "去水位", "Drain"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    first: {
+      titleZh: "主要見到咩問題？",
+      titleEn: "What is the main problem?",
+      options: [
+        option("leak", "漏水／滲水", "Leakage / seepage"),
+        option("drain", "去水慢／淤塞", "Slow / blocked drain"),
+        option("loose", "鬆脫／破損", "Loose / damaged fitting"),
+        option("sealant", "膠邊發霉／甩開", "Mouldy / failed sealant"),
+        option("flush", "沖水／供水問題", "Flush / water supply problem"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    second: {
+      titleZh: "問題會唔會影響浴室使用？",
+      titleEn: "Does it affect use of the bathroom?",
+      options: [
+        option("cannot-use", "而家用唔到", "Cannot use it"),
+        option("limited", "可以用，但有限制", "Usable with limitations"),
+        option("normal", "仍可正常使用", "Still usable"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+    third: {
+      titleZh: "有冇水流到浴室以外？",
+      titleEn: "Is water reaching outside the bathroom?",
+      options: [
+        option("yes", "有", "Yes"),
+        option("no", "冇", "No"),
+        option("unsure", "唔肯定", "Not sure"),
+      ],
+    },
+  },
+};
+
+function branchSteps(category: string): QuestionnaireStep[] {
+  const branch = branches[category];
+  return [
+    step(
+      "affected",
+      "受影響位置",
+      "WHAT IS AFFECTED",
+      branch.affected.titleZh,
+      branch.affected.titleEn,
+      [select("affected", branch.affected.titleZh, branch.affected.titleEn, branch.affected.options)],
+      "揀你實際見到嘅一項，唔使推斷問題源頭。",
+      "Choose what you can actually see. You do not need to infer the source.",
+    ),
+    step(
+      "branch",
+      "你見到嘅事實",
+      "WHAT YOU CAN OBSERVE",
+      "再講三個簡單情況。",
+      "Three quick facts about the problem.",
+      [
+        select("branchFirst", branch.first.titleZh, branch.first.titleEn, branch.first.options, true, branch.first.safetyRule),
+        select("branchSecond", branch.second.titleZh, branch.second.titleEn, branch.second.options),
+        select("branchThird", branch.third.titleZh, branch.third.titleEn, branch.third.options),
+      ],
+      "每題揀一項；「唔肯定」都係有效答案。",
+      "Choose one answer for each. “Not sure” is a valid answer.",
+    ),
+  ];
+}
+
+const otherDetailStep = step(
+  "other-detail",
+  "用你自己嘅說話",
+  "IN YOUR OWN WORDS",
+  "簡單講吓你見到咩情況？",
+  "Briefly tell us what you can see.",
+  [
+    text(
+      "otherDetail",
+      "情況描述",
+      "Description",
+      "例如：露台趟門個轆好似卡住，推唔郁……",
+      "For example: The balcony sliding door is stuck and will not move…",
+      true,
+      true,
+    ),
+  ],
+  "幾個字都可以。講低受影響嘅物件、位置，或者發生緊咩事。",
+  "A short note is enough. Mention the item, location or what is happening.",
+);
+
+function buildSchema(category: RepairCategoryId, label: [string, string]): QuestionnaireSchema {
+  const categorySteps =
+    category === "other" || category === "unsure"
+      ? [otherDetailStep]
+      : branchSteps(category);
+  return {
+    category,
+    label: lt(label[0], label[1]),
+    shortLabel: lt(label[0], label[1]),
+    description: lt("", ""),
+    steps: [...categorySteps, safetyStep, ...sharedTail],
+    version: CURRENT_SCHEMA_VERSION,
+  };
+}
 
 export const questionnaireSchemas: QuestionnaireSchema[] = [
-  withTail(
-    "boiler-heating",
-    "Boiler / heating",
-    "Heating",
-    "No heat, no hot water, pressure changes, leaks or unusual boiler behaviour.",
-    [
-      step(
-        "boiler-gas-safety",
-        "Safety check",
-        "Can anyone at the property smell gas now?",
-        [
-          select(
-            "gasSmell",
-            "Gas smell",
-            [option("yes", "Yes"), option("no", "No")],
-            true,
-            gasSafetyRule,
-          ),
-        ],
-        "This answer is never suggested or filled in automatically.",
-      ),
-      step("boiler-symptom", "Problem", "What is the boiler doing?", [
-        select("boilerSymptom", "Main symptom", [
-          option("no-heating", "No heating"),
-          option("no-hot-water", "No hot water"),
-          option("neither", "No heating or hot water"),
-          option("pressure", "Pressure keeps changing"),
-          option("leak", "Water is leaking"),
-          option("pilot", "Pilot light will not stay on"),
-          option("noise", "Unusual noise"),
-          option("other", "Something else"),
-        ]),
-      ]),
-      step("boiler-identity", "Equipment", "What do you know about the boiler?", [
-        text(
-          "boilerMakeModel",
-          "Make and model",
-          "e.g. Worcester Greenstar 30i",
-          false,
-        ),
-        {
-          id: "boilerProfile",
-          type: "grouped_select",
-          label: "Age and service history",
-          required: true,
-          groups: [
-            {
-              id: "age",
-              label: "Approximate age",
-              options: [
-                option("under-5", "Under 5 years"),
-                option("5-10", "5–10 years"),
-                option("over-10", "Over 10 years"),
-                option("unknown", "Not known"),
-              ],
-            },
-            {
-              id: "service",
-              label: "Last service",
-              options: [
-                option("under-12m", "Within 12 months"),
-                option("over-12m", "More than 12 months ago"),
-                option("never-unknown", "Never or not known"),
-              ],
-            },
-          ],
-        },
-      ]),
-      step("boiler-type", "System", "What kind of boiler is installed?", [
-        select("boilerType", "Boiler type", [
-          option("combi", "Combi"),
-          option("system", "System"),
-          option("conventional", "Conventional"),
-          option("unknown", "Not known"),
-        ]),
-      ]),
-    ],
-  ),
-  withTail(
-    "plumbing-leak",
-    "Plumbing / leak",
-    "Plumbing",
-    "Leaks, drips, blocked drains, taps, toilets and water supply problems.",
-    [
-      step("plumbing-location", "Location", "Where is the problem?", [
-        select("plumbingLocation", "Affected area", [
-          option("kitchen", "Kitchen"),
-          option("bathroom", "Bathroom"),
-          option("toilet", "WC"),
-          option("heating", "Boiler or heating pipework"),
-          option("outside", "Outside"),
-          option("other", "Somewhere else"),
-        ]),
-      ]),
-      step(
-        "plumbing-flow",
-        "Water escape",
-        "What is the water doing now?",
-        [
-          select(
-            "waterFlow",
-            "Current flow",
-            [
-              option("uncontrolled", "Flowing and not contained"),
-              option("active-contained", "Flowing but contained"),
-              option("slow-drip", "Slow drip"),
-              option("stain-only", "Staining only"),
-              option("stopped", "It has stopped"),
-            ],
-            true,
-            waterSafetyRule,
-          ),
-        ],
-      ),
-      step("plumbing-shutoff", "Containment", "Has the water supply been isolated?", [
-        select("waterIsolated", "Water supply", [
-          option("yes", "Yes"),
-          option("no", "No"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step("plumbing-damage", "Impact", "Has anything else been damaged?", [
-        select("secondaryDamage", "Related damage", [
-          option("yes", "Yes"),
-          option("no", "No"),
-          option("unknown", "Not sure"),
-        ]),
-        text(
-          "damageDetails",
-          "Damage details",
-          "Ceiling, flooring, cabinets or a neighbouring property",
-          false,
-          true,
-        ),
-      ]),
-    ],
-  ),
-  withTail(
-    "electrical",
-    "Electrical",
-    "Electrical",
-    "Power loss, faulty sockets, lighting, tripping, smells or sparks.",
-    [
-      step("electrical-issue", "Problem", "What is happening?", [
-        select(
-          "electricalIssue",
-          "Electrical issue",
-          [
-            option("whole-power", "No power to the whole property"),
-            option("partial-power", "No power in one area"),
-            option("sockets", "Sockets are not working"),
-            option("flickering", "Lights are flickering"),
-            option("tripping", "Circuit breaker keeps tripping"),
-            option("burning", "Burning smell"),
-            option("sparks", "Sparks"),
-            option("smoke", "Smoke"),
-            option("appliance", "Possible appliance fault"),
-            option("other", "Something else"),
-          ],
-          true,
-          electricalSafetyRule,
-        ),
-      ]),
-      step("electrical-scale", "Extent", "How much of the property is affected?", [
-        select("electricalCount", "Affected fittings or area", [
-          option("one", "One fitting"),
-          option("two-three", "2–3 fittings"),
-          option("four-plus", "4 or more"),
-          option("room", "A whole room or area"),
-          option("property", "The whole property"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step("electrical-onset", "Timing", "When did this begin?", [
-        select("electricalOnset", "First noticed", [
-          option("today", "Today"),
-          option("yesterday", "Yesterday"),
-          option("week", "Earlier this week"),
-          option("older", "More than a week ago"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step(
-        "electrical-access",
-        "Access",
-        "Can a contractor reach the consumer unit?",
-        [
-          select("consumerUnitAccess", "Consumer unit access", [
-            option("yes", "Yes"),
-            option("no", "No"),
-            option("unknown", "Not sure"),
-          ]),
-        ],
-      ),
-    ],
-  ),
-  withTail(
-    "painting-decorating",
-    "Painting / decorating",
-    "Decorating",
-    "Room decoration, whole-property refreshes, exterior work and touch-ups.",
-    [
-      step("painting-scope", "Scope", "How much needs decorating?", [
-        select("paintingScope", "Area", [
-          option("one-room", "One room"),
-          option("multiple", "Several rooms"),
-          option("whole", "Whole property"),
-          option("exterior", "Exterior"),
-          option("touchups", "Touch-ups only"),
-        ]),
-      ]),
-      step("painting-size", "Scale", "Roughly how large is the area?", [
-        select("roomSize", "Room size", [
-          option("small", "Small — under 10m²"),
-          option("standard", "Standard — 10–18m²"),
-          option("large", "Large — over 18m²"),
-          option("mixed", "A mix of sizes"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step("painting-prep", "Preparation", "Is repair work needed before painting?", [
-        select("makeGood", "Filling or plaster repair", [
-          option("yes", "Yes"),
-          option("no", "No"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step("painting-finish", "Finish", "What has been decided about the finish?", [
-        select("colourDecision", "Colour", [
-          option("same", "Match the existing colour"),
-          option("decided", "A new colour is chosen"),
-          option("advice", "Recommendations needed"),
-          option("undecided", "Not decided"),
-        ]),
-        select("paintSupply", "Paint supply", [
-          option("contractor", "Contractor to supply"),
-          option("landlord", "I will supply"),
-          option("unknown", "Not decided"),
-        ]),
-      ]),
-    ],
-  ),
-  withTail(
-    "roofing",
-    "Roofing",
-    "Roofing",
-    "Leaks, tiles, flashing, gutters, chimneys and flat-roof problems.",
-    [
-      step("roofing-issue", "Problem", "What has been reported?", [
-        select("roofingIssue", "Roof issue", [
-          option("leak", "Leak"),
-          option("tiles", "Missing or damaged tiles"),
-          option("flashing", "Damaged flashing"),
-          option("gutters", "Gutters"),
-          option("chimney", "Chimney"),
-          option("flat-roof", "Flat roof"),
-          option("replacement", "Possible full replacement"),
-          option("other", "Something else"),
-        ]),
-      ]),
-      step("roofing-type", "Roof", "What kind of roof is it?", [
-        select("roofType", "Roof type", [
-          option("pitched", "Pitched"),
-          option("flat", "Flat"),
-          option("mixed", "Mixed"),
-          option("unknown", "Not known"),
-        ]),
-      ]),
-      step("roofing-access", "Access", "What will a contractor need to plan for?", [
-        select("storeys", "Property height", [
-          option("one", "One storey"),
-          option("two", "Two storeys"),
-          option("three-plus", "Three or more"),
-        ]),
-        select("internalRoofAccess", "Loft or upstairs access", [
-          option("yes", "Likely needed"),
-          option("no", "Not needed"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step(
-        "roofing-structure",
-        "Safety check",
-        "Is there a sagging ceiling, falling material or visible movement?",
-        [
-          select(
-            "collapseRisk",
-            "Visible risk",
-            [option("yes", "Yes"), option("no", "No"), option("unknown", "Not sure")],
-            true,
-            collapseSafetyRule,
-          ),
-        ],
-      ),
-    ],
-  ),
-  withTail(
-    "damp-mould",
-    "Damp / mould",
-    "Damp & mould",
-    "Visible mould, staining, condensation or suspected penetrating or rising damp.",
-    [
-      step("damp-location", "Location", "Where is it visible?", [
-        select("dampLocation", "Affected area", [
-          option("one-wall", "One wall"),
-          option("multiple-walls", "Several walls"),
-          option("ceiling", "Ceiling"),
-          option("windows", "Around windows"),
-          option("furniture", "Behind furniture"),
-          option("bathroom", "Bathroom"),
-          option("whole", "Across the property"),
-        ]),
-      ]),
-      step("damp-size", "Extent", "How large is the affected area?", [
-        select("dampSize", "Approximate area", [
-          option("under-1", "Under 1m²"),
-          option("one-four", "1–4m²"),
-          option("over-four", "Over 4m²"),
-        ]),
-      ]),
-      step("damp-duration", "Timing", "How long has it been present?", [
-        select("dampDuration", "Duration", [
-          option("under-month", "Under one month"),
-          option("one-six", "1–6 months"),
-          option("over-six", "More than 6 months"),
-          option("unknown", "Not known"),
-        ]),
-      ]),
-      step("damp-type", "What is known", "Has anyone suggested a type of damp?", [
-        select("suspectedDampType", "Suspected type", [
-          option("mould", "Black mould"),
-          option("penetrating", "Penetrating damp"),
-          option("rising", "Rising damp"),
-          option("condensation", "Condensation"),
-          option("unknown", "No diagnosis"),
-        ]),
-        select("ventilation", "Ventilation in the affected room", [
-          option("working", "Working extractor or vents"),
-          option("limited", "Limited ventilation"),
-          option("none", "No known ventilation"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-    ],
-  ),
-  withTail(
-    "windows-doors",
-    "Windows / doors",
-    "Windows & doors",
-    "Broken glass, locks, draughts, damaged frames or openings that will not close.",
-    [
-      step("windows-unit", "Unit", "What is affected?", [
-        select("unitType", "Unit type", [
-          option("window", "Window"),
-          option("external-door", "External door"),
-          option("internal-door", "Internal door"),
-          option("patio", "Patio or French door"),
-          option("other", "Something else"),
-        ]),
-      ]),
-      step("windows-material", "Material", "What is it made from?", [
-        select("unitMaterial", "Material", [
-          option("upvc", "uPVC"),
-          option("wood", "Wood"),
-          option("aluminium", "Aluminium"),
-          option("composite", "Composite"),
-          option("unknown", "Not known"),
-        ]),
-      ]),
-      step("windows-problem", "Problem", "What is wrong with it?", [
-        select(
-          "unitProblem",
-          "Problem",
-          [
-            option("operation", "Will not open or close"),
-            option("glass", "Broken glass"),
-            option("lock", "Lock problem"),
-            option("draught", "Draught"),
-            option("misted", "Misted double-glazed unit"),
-            option("frame", "Damaged frame"),
-            option("replacement", "Needs replacing"),
-            option("insecure", "Property cannot be secured"),
-          ],
-          true,
-          insecureSafetyRule,
-        ),
-      ]),
-      step("windows-count", "Scale", "How many units are affected?", [
-        {
-          id: "unitCount",
-          type: "number",
-          label: "Number of units",
-          required: true,
-        },
-      ]),
-    ],
-  ),
-  withTail(
-    "safety-compliance",
-    "Safety / compliance certificates",
-    "Certificates",
-    "CP12, EICR, EPC, PAT, Legionella and fire-risk assessment work.",
-    [
-      step("compliance-type", "Assessment", "What do you need arranged?", [
-        select("certificateType", "Certificate or assessment", [
-          option("cp12", "Gas Safety Record — CP12"),
-          option("eicr", "Electrical Installation Condition Report — EICR"),
-          option("epc", "Energy Performance Certificate — EPC"),
-          option("pat", "Portable appliance testing — PAT"),
-          option("legionella", "Legionella risk assessment"),
-          option("fire", "Fire risk assessment"),
-        ]),
-      ]),
-      step("compliance-timing", "Timing", "What is the current certificate status?", [
-        select("certificateTiming", "Status", [
-          option("renewal", "Renewal"),
-          option("first", "First assessment"),
-          option("expired", "Already expired"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step("compliance-property", "Property", "What is the assessment scope?", [
-        select("propertyScope", "Property scope", [
-          option("single", "Single dwelling"),
-          option("hmo", "HMO"),
-          option("block", "Block or several units"),
-          option("commercial", "Commercial property"),
-        ]),
-      ]),
-      step("compliance-existing", "Records", "Describe the current certificate if available", [
-        {
-          id: "existingCertificateNotes",
-          type: "long_text",
-          label: "Existing certificate",
-          help: "Describe the certificate you have (type, date, issuing engineer). RepairScope may ask you to send it separately after reviewing the brief.",
-          required: false,
-        },
-      ]),
-    ],
-  ),
-  withTail(
-    "general-maintenance",
-    "General maintenance",
-    "Maintenance",
-    "Carpentry, tiling, plastering, handyperson tasks and repairs that do not fit elsewhere.",
-    [
-      step("general-description", "Task", "What needs doing?", [
-        text(
-          "generalDescription",
-          "Describe the task",
-          "e.g. refit a loose cupboard hinge and repair the surrounding timber",
-          true,
-          true,
-        ),
-      ]),
-      step("general-size", "Scale", "How large does the job appear?", [
-        select("jobSize", "Likely time", [
-          option("under-hour", "Under one hour"),
-          option("half-day", "Half day"),
-          option("full-day", "Full day"),
-          option("multi-day", "Several days"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step("general-materials", "Materials", "Are materials already available?", [
-        select("materialsStatus", "Materials", [
-          option("available", "Already at the property"),
-          option("source", "Contractor should source them"),
-          option("some", "Some are available"),
-          option("unknown", "Not sure"),
-        ]),
-      ]),
-      step(
-        "general-safety",
-        "Safety check",
-        "Is there any immediate danger or possible structural movement?",
-        [
-          select(
-            "structuralDanger",
-            "Immediate danger",
-            [option("yes", "Yes"), option("no", "No"), option("unknown", "Not sure")],
-            true,
-            collapseSafetyRule,
-          ),
-        ],
-      ),
-    ],
-  ),
-  withTail(
-    "existing-quote",
-    "Upload an existing quote",
-    "Existing quote",
-    "Add a contractor or letting-agent quote for review and comparison.",
-    [
-      step("upload-intent", "Purpose", "What would you like to do with this quote?", [
-        select("uploadIntent", "Purpose", [
-          option("understand", "Understand the scope and price"),
-          option("compare", "Add it to a proposal comparison"),
-          option("both", "Both"),
-        ]),
-      ]),
-      step("upload-trade", "Trade", "What kind of work is quoted?", [
-        select(
-          "uploadTrade",
-          "Trade",
-          [
-            option("boiler-heating", "Boiler / heating"),
-            option("plumbing-leak", "Plumbing / leak"),
-            option("electrical", "Electrical"),
-            option("painting-decorating", "Painting / decorating"),
-            option("roofing", "Roofing"),
-            option("damp-mould", "Damp / mould"),
-            option("windows-doors", "Windows / doors"),
-            option("safety-compliance", "Safety / compliance"),
-            option("general-maintenance", "General maintenance"),
-          ],
-        ),
-      ]),
-      step("upload-concern", "Focus", "What needs the closest review?", [
-        select("uploadConcern", "Main concern", [
-          option("price", "Price"),
-          option("scope", "What is included"),
-          option("quality", "Proposed approach"),
-          option("timing", "Timing or availability"),
-          option("none", "No specific concern"),
-          option("other", "Something else"),
-        ]),
-      ]),
-      step(
-        "upload-document",
-        "Document",
-        "Describe the quote you already have",
-        [
-          {
-            id: "quoteDocumentNotes",
-            type: "long_text",
-            label: "Quote details",
-            help: "Describe the quote: contractor name, price, scope and date. RepairScope may ask you to send the document separately after reviewing the brief.",
-            required: true,
-          },
-          select("quoteSource", "Where did it come from?", [
-            option("agent_quote", "Letting agent"),
-            option("landlord_upload", "My contractor"),
-            option("email_import", "Forwarded email"),
-            option("operator_entry", "Entered on my behalf"),
-          ]),
-        ],
-        // No document upload exists yet (see docs/PUBLIC_INGESTION_LAUNCH.md
-        // and RepairSubmissionPanel's evidenceNotes field) — this must not
-        // claim RepairScope has attached or stored the original document.
-        "Describe the quote in detail here. RepairScope will ask you to send the original document separately once the brief has been reviewed.",
-      ),
-    ],
-  ),
+  buildSchema("leak", ["滲水／漏水", "Water seepage / leakage"]),
+  buildSchema("drainage", ["去水／渠務問題", "Drainage problem"]),
+  buildSchema("plumbing", ["水喉問題", "Plumbing problem"]),
+  buildSchema("electrical", ["電力／跳掣／冇電", "Electrical / power problem"]),
+  buildSchema("aircon", ["冷氣問題", "Air-conditioning problem"]),
+  buildSchema("door-window", ["門窗問題", "Door / window problem"]),
+  buildSchema("surface", ["牆身／天花／地板損壞", "Wall / ceiling / floor damage"]),
+  buildSchema("bathroom", ["浴室／潔具問題", "Bathroom / sanitary fixture problem"]),
+  buildSchema("other", ["其他維修", "Other repair"]),
+  buildSchema("unsure", ["唔肯定", "Not sure"]),
 ];
 
 export const questionnaireByCategory = Object.fromEntries(
   questionnaireSchemas.map((schema) => [schema.category, schema]),
 ) as Record<RepairCategoryId, QuestionnaireSchema>;
 
-export const categoryCards = questionnaireSchemas.map(
-  ({ category, label, description }) => ({ category, label, description }),
-);
-
 /**
  * The questionnaire_version persisted on a RepairSubmission — derived from
  * the actual schema (steps/fields/safety rules) that produced the answers,
- * so a persisted value always matches the schema that generated it. Do not
- * reintroduce a separately hand-maintained version constant here.
+ * so a persisted value always matches the schema that generated it.
  */
 export function questionnaireVersionLabel(category: RepairCategoryId): string {
   return `v${questionnaireByCategory[category].version}`;
+}
+
+/**
+ * Resolves a raw stored answer (e.g. "quote", "ceiling") back to its
+ * bilingual label via the category's own schema — used by
+ * GeneratedBriefDocument so the same stored brief renders correctly in
+ * either language without regenerating. Falls back to a truthful "Not
+ * specified" rather than the raw slug when the field/value cannot be
+ * resolved (a genuinely missing answer, not an invented one).
+ */
+export function resolveAnswerLabel(
+  category: RepairCategoryId,
+  fieldId: string,
+  value: string | undefined,
+  lang: "zh" | "en",
+): string {
+  if (!value) return lang === "zh" ? "未提供" : "Not specified";
+  const schema = questionnaireByCategory[category];
+  for (const step of schema.steps) {
+    const field = step.fields.find((candidate) => candidate.id === fieldId);
+    if (!field?.options) continue;
+    const match = field.options.find((option) => option.value === value);
+    if (match) return lang === "zh" ? match.label.zh : match.label.en;
+  }
+  return value;
 }

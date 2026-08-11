@@ -1,14 +1,20 @@
+import type { LocalizedText } from "./i18n";
+
+// Hong Kong founding-pilot problem-first categories (observable symptoms,
+// not trades) — replaces the UK reference product's trade-based taxonomy.
+// See data/questionnaires.ts's branchSchemas for each category's follow-up
+// questions.
 export type RepairCategoryId =
-  | "boiler-heating"
-  | "plumbing-leak"
+  | "leak"
+  | "drainage"
+  | "plumbing"
   | "electrical"
-  | "painting-decorating"
-  | "roofing"
-  | "damp-mould"
-  | "windows-doors"
-  | "safety-compliance"
-  | "general-maintenance"
-  | "existing-quote";
+  | "aircon"
+  | "door-window"
+  | "surface"
+  | "bathroom"
+  | "other"
+  | "unsure";
 
 export type QuestionnaireFieldType =
   | "single_select"
@@ -24,30 +30,30 @@ export type QuestionnaireFieldType =
 
 export interface QuestionnaireOption {
   value: string;
-  label: string;
-  hint?: string;
+  label: LocalizedText;
+  hint?: LocalizedText;
 }
 
 export interface QuestionnaireGroup {
   id: string;
-  label: string;
+  label: LocalizedText;
   options: QuestionnaireOption[];
 }
 
 export interface SafetyRule {
   triggerValues: string[];
-  title: string;
-  message: string;
-  acknowledgement: string;
+  title: LocalizedText;
+  message: LocalizedText;
+  acknowledgement: LocalizedText;
   severity: "urgent" | "stop";
 }
 
 export interface QuestionnaireField {
   id: string;
   type: QuestionnaireFieldType;
-  label: string;
-  help?: string;
-  placeholder?: string;
+  label: LocalizedText;
+  help?: LocalizedText;
+  placeholder?: LocalizedText;
   options?: QuestionnaireOption[];
   groups?: QuestionnaireGroup[];
   required: boolean;
@@ -60,17 +66,17 @@ export interface QuestionnaireField {
 
 export interface QuestionnaireStep {
   id: string;
-  eyebrow: string;
-  title: string;
-  description?: string;
+  eyebrow: LocalizedText;
+  title: LocalizedText;
+  description?: LocalizedText;
   fields: QuestionnaireField[];
 }
 
 export interface QuestionnaireSchema {
   category: RepairCategoryId;
-  label: string;
-  shortLabel: string;
-  description: string;
+  label: LocalizedText;
+  shortLabel: LocalizedText;
+  description: LocalizedText;
   steps: QuestionnaireStep[];
   version: number;
 }
@@ -135,6 +141,27 @@ export interface ProblemBrief {
   contractorRequests: string[];
   landlordCorrections?: string;
   version: number;
+
+  // Hong Kong review-section fields (raw values — GeneratedBriefDocument
+  // resolves each to a bilingual label at render time via
+  // data/questionnaires.ts's option lists, so the same stored brief renders
+  // correctly in either language without regenerating). Optional so
+  // BriefReviewRoute's unrelated fetched-brief path (no HK draft behind it)
+  // keeps working without them.
+  category?: RepairCategoryId;
+  priorAction?: {
+    status: string;
+    detail?: string;
+  };
+  buildingContext?: {
+    managementContacted: string;
+    sharedAreaInvolved: string;
+  };
+  propertyLine?: string;
+  relationship?: string;
+  additionalContext?: string;
+  hasEvidence?: string;
+  evidenceKind?: string;
 }
 
 export interface ProblemBriefCorrectionResult {

@@ -10,7 +10,7 @@ const FIXTURE_SUBMISSIONS: OperatorSubmissionDetail[] = [
     id: "mock-submission-1",
     publicReference: "RS-MOCK01",
     status: "new",
-    issueCategory: "plumbing-leak",
+    issueCategory: "plumbing",
     landlordName: "Jamie Landlord",
     propertyPostcode: "WD17",
     safetyFlags: ["water_uncontrolled"],

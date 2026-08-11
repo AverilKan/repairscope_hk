@@ -9,18 +9,18 @@ import type { IssueClassification, RepairCategoryId } from "./types";
  */
 export function classifyIssueReport(report: string): IssueClassification {
   const source = report.toLowerCase();
-  let primaryCategory: RepairCategoryId = "general-maintenance";
+  let primaryCategory: RepairCategoryId = "other";
   let alternativeCategory: RepairCategoryId | undefined;
 
   if (/ceiling|rain|roof|tile|flashing/.test(source)) {
-    primaryCategory = "roofing";
-    alternativeCategory = "damp-mould";
+    primaryCategory = "leak";
+    alternativeCategory = "surface";
   } else if (/leak|pipe|tap|toilet|water/.test(source)) {
-    primaryCategory = "plumbing-leak";
-    alternativeCategory = "roofing";
-  } else if (/boiler|heating|hot water/.test(source)) {
-    primaryCategory = "boiler-heating";
-  } else if (/socket|power|electric|light/.test(source)) {
+    primaryCategory = "plumbing";
+    alternativeCategory = "leak";
+  } else if (/drain|blocked|smell/.test(source)) {
+    primaryCategory = "drainage";
+  } else if (/socket|power|electric|light|spark/.test(source)) {
     primaryCategory = "electrical";
   }
 
