@@ -4567,7 +4567,7 @@ select:focus {
 
 .category-suggestion h1,
 .category-suggestion h2 {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
   font-size: clamp(2rem, 4vw, 3rem);
 }
 
