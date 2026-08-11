@@ -31,6 +31,14 @@ interface QuestionnaireEngineProps {
   extractedSymptoms?: string[];
   initialResponses?: RepairIntakeDraft["responses"];
   resumeDraft?: RepairIntakeDraft;
+  /**
+   * The stable anonymous journey id for this repair (see domain/journey.ts)
+   * — draft storage is keyed by this, not by category, so two separate
+   * repairs of the same category never share draft state. Falls back to a
+   * category-keyed id for callers that have not adopted a journey id yet
+   * (e.g. the standalone category deep-link demo route).
+   */
+  draftId?: string;
   onComplete?: (draft: RepairIntakeDraft) => void;
 }
 
@@ -398,10 +406,11 @@ export function QuestionnaireEngine({
   extractedSymptoms = [],
   initialResponses = emptyResponses,
   resumeDraft,
+  draftId,
   onComplete,
 }: QuestionnaireEngineProps) {
-  const draftId = resumeDraft?.id ?? `draft-${schema.category}`;
-  const storageKey = getRepairDraftStorageKey(draftId);
+  const resolvedDraftId = resumeDraft?.id ?? draftId ?? `draft-${schema.category}`;
+  const storageKey = getRepairDraftStorageKey(resolvedDraftId);
   const initialQuestionnaireState = useMemo(
     () => questionnaireResumeState(schema, resumeDraft, initialResponses),
     [initialResponses, resumeDraft, schema],
@@ -511,7 +520,7 @@ export function QuestionnaireEngine({
     const saveTimer = window.setTimeout(() => {
       setSaveError(false);
       const draft: RepairIntakeDraft = {
-        id: `draft-${schema.category}`,
+        id: resolvedDraftId,
         category: schema.category,
         originalReport,
         extractedSymptoms,
@@ -554,6 +563,7 @@ export function QuestionnaireEngine({
     extractedSymptoms,
     hydrated,
     originalReport,
+    resolvedDraftId,
     responses,
     safetyAcknowledgementList,
     schema.category,
@@ -706,7 +716,7 @@ export function QuestionnaireEngine({
     setBusy(true);
     markStepComplete(currentStep.id);
     const draft: RepairIntakeDraft = {
-      id: `draft-${schema.category}`,
+      id: resolvedDraftId,
       category: schema.category,
       originalReport,
       extractedSymptoms,
@@ -743,7 +753,7 @@ export function QuestionnaireEngine({
         </p>
         <Link
           className="button"
-          href={`/landlord/repairs/${draftId}/brief`}
+          href={`/landlord/repairs/${resolvedDraftId}/brief`}
         >
           Review contractor brief
         </Link>
