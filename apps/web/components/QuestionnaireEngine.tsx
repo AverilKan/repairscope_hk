@@ -4,10 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   canContinueQuestionnaireStep,
-  normaliseContactName,
-  normaliseEmailAddress,
-  normalisePhoneNumber,
-  normaliseUkPostcode,
   questionnaireFieldIsVisible,
   questionnaireNextVisibleStepIndex,
   questionnaireResumeState,
@@ -23,7 +19,8 @@ import type {
   SafetyRule,
 } from "@/domain/types";
 import { repairScopeServices } from "@/services";
-import { getRepairDraftStorageKey } from "@/domain/storageKeys";
+import { readJourneyDraft, writeJourneyDraft, clearJourneyDraft } from "@/domain/journey";
+import { useLanguage } from "./LanguageContext";
 
 interface QuestionnaireEngineProps {
   schema: QuestionnaireSchema;
@@ -31,15 +28,16 @@ interface QuestionnaireEngineProps {
   extractedSymptoms?: string[];
   initialResponses?: RepairIntakeDraft["responses"];
   resumeDraft?: RepairIntakeDraft;
-  /**
-   * The stable anonymous journey id for this repair (see domain/journey.ts)
-   * — draft storage is keyed by this, not by category, so two separate
-   * repairs of the same category never share draft state. Falls back to a
-   * category-keyed id for callers that have not adopted a journey id yet
-   * (e.g. the standalone category deep-link demo route).
-   */
-  draftId?: string;
+  /** The route-carried journey id for this repair — see domain/journey.ts. */
+  journeyId: string;
   onComplete?: (draft: RepairIntakeDraft) => void;
+  /**
+   * Fired instead of the normal step flow when a safety-triggering answer
+   * is given — the parent must stop rendering the questionnaire and show a
+   * dedicated safety-exit screen (no "acknowledge and continue" path back
+   * into the normal flow). See components/LandlordApp.tsx's SafetyExit.
+   */
+  onSafetyExit?: (rule: SafetyRule) => void;
 }
 
 type SafetyAcknowledgements = Record<string, string>;
@@ -68,349 +66,47 @@ function valueHasContent(value: QuestionnaireResponseValue | undefined) {
   return String(value).trim().length > 0;
 }
 
-function responseLabel(
-  field: QuestionnaireField,
-  value: QuestionnaireResponseValue | undefined,
-) {
-  if (!valueHasContent(value)) {
-    return "Not provided";
-  }
-  if (field.type === "single_select" && typeof value === "string") {
-    return field.options?.find((option) => option.value === value)?.label ?? value;
-  }
-  if (
-    field.type === "grouped_select" &&
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  ) {
-    return field.groups
-      ?.map((group) => {
-        const selected = value[group.id];
-        return group.options.find((option) => option.value === selected)?.label;
-      })
-      .filter(Boolean)
-      .join(" · ");
-  }
-  if (Array.isArray(value)) {
-    return `${value.length} item${value.length === 1 ? "" : "s"} added`;
-  }
-  if (typeof value === "boolean") return value ? "Confirmed" : "Not confirmed";
-  return String(value);
-}
-
-function stepSummary(
-  step: QuestionnaireStep,
-  responses: RepairIntakeDraft["responses"],
-) {
-  return step.fields
-    .filter((field) => questionnaireFieldIsVisible(field, responses))
-    .map((field) => responseLabel(field, responses[field.id]))
-    .filter(Boolean)
-    .join(" · ");
-}
-
-function contextualActionLabel(
-  step: QuestionnaireStep,
-  stepIndex: number,
-  totalSteps: number,
-) {
-  if (stepIndex === totalSteps - 1) return "Generate repair brief";
-  if (step.id === "contact" || step.id === "responsibility") {
-    return "Continue";
-  }
-  if (step.fields.some((field) => field.safetyRule)) {
-    return "Confirm safety action";
-  }
-  if (step.fields.some((field) => field.type === "postcode")) {
-    return "Confirm postcode";
-  }
-  if (
-    step.fields.some(
-      (field) =>
-        field.type === "short_text" ||
-        field.type === "name" ||
-        field.type === "email" ||
-        field.type === "phone" ||
-        field.type === "long_text" ||
-        field.type === "number" ||
-        field.type === "postcode",
-    )
-  ) {
-    return "Add details";
-  }
-  return "Save choices";
-}
-
-function FieldControl({
-  field,
-  value,
-  error,
-  onChange,
-}: {
-  field: QuestionnaireField;
-  value: QuestionnaireResponseValue | undefined;
-  error?: string;
-  onChange: (value: QuestionnaireResponseValue) => void;
-}) {
-  const inputId = `field-${field.id}`;
-  const helpId = field.help ? `${inputId}-help` : undefined;
-  const errorId = error ? `${inputId}-error` : undefined;
-  const describedBy = [helpId, errorId].filter(Boolean).join(" ") || undefined;
-
-  if (field.type === "single_select") {
-    return (
-      <fieldset
-        className={`choice-field ${field.safetyRule ? "choice-field--safety" : ""} ${error ? "field--error" : ""}`}
-        aria-describedby={describedBy}
-      >
-        <legend>{field.label}</legend>
-        {field.help && (
-          <p id={helpId} className="field-help">
-            {field.help}
-          </p>
-        )}
-        <div className="choice-grid">
-          {field.options?.map((item) => {
-            const checked = valueIsSelected(value, item.value);
-            return (
-              <label
-                className={`choice-card ${checked ? "choice-card--selected" : ""}`}
-                key={item.value}
-              >
-                <input
-                  type="radio"
-                  name={field.id}
-                  value={item.value}
-                  checked={checked}
-                  onClick={() => {
-                    if (checked) onChange(item.value);
-                  }}
-                  onChange={() => onChange(item.value)}
-                />
-                <span className="choice-card__indicator" aria-hidden="true" />
-                <span>
-                  <strong>{item.label}</strong>
-                  {item.hint && <small>{item.hint}</small>}
-                </span>
-              </label>
-            );
-          })}
-        </div>
-        {error && (
-          <p className="field-error" id={errorId}>
-            {error}
-          </p>
-        )}
-      </fieldset>
-    );
-  }
-
-  if (field.type === "grouped_select") {
-    const groupedValue =
-      typeof value === "object" && value !== null && !Array.isArray(value)
-        ? (value as Record<string, string>)
-        : {};
-    return (
-      <fieldset
-        className={`grouped-field ${error ? "field--error" : ""}`}
-        aria-describedby={describedBy}
-      >
-        <legend>{field.label}</legend>
-        <div className="grouped-field__grid">
-          {field.groups?.map((group) => (
-            <div className="select-group" key={group.id}>
-              <label htmlFor={`${inputId}-${group.id}`}>{group.label}</label>
-              <select
-                id={`${inputId}-${group.id}`}
-                value={groupedValue[group.id] ?? ""}
-                onChange={(event) =>
-                  onChange({
-                    ...groupedValue,
-                    [group.id]: event.target.value,
-                  })
-                }
-              >
-                <option value="">Choose an answer</option>
-                {group.options.map((item) => (
-                  <option value={item.value} key={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </div>
-        {error && (
-          <p className="field-error" id={errorId}>
-            {error}
-          </p>
-        )}
-      </fieldset>
-    );
-  }
-
-  if (field.type === "checkbox") {
-    return (
-      <div className={`checkbox-field ${error ? "field--error" : ""}`}>
-        <label>
-          <input
-            type="checkbox"
-            checked={value === true}
-            onChange={(event) => onChange(event.target.checked)}
-          />
-          <span aria-hidden="true" />
-          <strong>{field.label}</strong>
-        </label>
-        {error && (
-          <p className="field-error" id={errorId}>
-            {error}
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  const isLong = field.type === "long_text";
-  const commonProps = {
-    id: inputId,
-    value: typeof value === "string" || typeof value === "number" ? value : "",
-    placeholder: field.placeholder,
-    "aria-invalid": Boolean(error),
-    "aria-describedby": describedBy,
-  };
-  const inputType =
-    field.type === "email"
-      ? "email"
-      : field.type === "phone"
-        ? "tel"
-        : field.type === "number"
-          ? "number"
-          : "text";
-  const inputMode =
-    field.type === "postcode"
-      ? "text"
-      : field.type === "number"
-        ? "numeric"
-        : field.type === "email"
-          ? "email"
-          : field.type === "phone"
-            ? "tel"
-            : undefined;
-  const autoComplete =
-    field.type === "postcode"
-      ? "postal-code"
-      : field.type === "name"
-        ? "name"
-        : field.type === "email"
-          ? "email"
-          : field.type === "phone"
-            ? "tel"
-            : undefined;
-
-  return (
-    <div className={`text-field ${error ? "field--error" : ""}`}>
-      <label htmlFor={inputId}>{field.label}</label>
-      {field.help && (
-        <p id={helpId} className="field-help">
-          {field.help}
-        </p>
-      )}
-      {isLong ? (
-        <textarea
-          {...commonProps}
-          rows={5}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      ) : (
-        <input
-          {...commonProps}
-          type={inputType}
-          inputMode={inputMode}
-          min={field.type === "number" ? 1 : undefined}
-          autoComplete={autoComplete}
-          maxLength={
-            field.type === "postcode"
-              ? 8
-              : field.type === "name"
-                ? 80
-                : field.type === "email"
-                  ? 254
-                  : field.type === "phone"
-                    ? 30
-                    : undefined
-          }
-          onChange={(event) =>
-            onChange(
-              field.type === "number"
-                ? Number(event.target.value)
-                : event.target.value,
-            )
-          }
-          onBlur={(event) => {
-            if (field.type === "postcode") {
-              onChange(normaliseUkPostcode(event.target.value));
-            } else if (field.type === "name") {
-              onChange(normaliseContactName(event.target.value));
-            } else if (field.type === "email") {
-              onChange(normaliseEmailAddress(event.target.value));
-            } else if (field.type === "phone") {
-              onChange(normalisePhoneNumber(event.target.value));
-            }
-          }}
-        />
-      )}
-      {error && (
-        <p className="field-error" id={errorId}>
-          {error}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function SafetyNotice({
-  rule,
-  acknowledged,
-  onAcknowledge,
-}: {
-  rule: SafetyRule;
-  acknowledged: boolean;
-  onAcknowledge: (value: boolean) => void;
-}) {
-  return (
-    <div className={`safety-notice safety-notice--${rule.severity}`} role="alert">
-      <div className="safety-notice__flag">Safety action required</div>
-      <h3>{rule.title}</h3>
-      <p>{rule.message}</p>
-      <p className="safety-notice__no-wait">
-        This issue may require urgent attendance. Do not wait for RepairScope to source and
-        compare contractors. Contact an appropriate emergency service or contractor now.
-      </p>
-      <label className="safety-acknowledgement">
-        <input
-          type="checkbox"
-          checked={acknowledged}
-          onChange={(event) => onAcknowledge(event.target.checked)}
-        />
-        <span aria-hidden="true" />
-        <strong>{rule.acknowledgement}</strong>
-      </label>
-    </div>
-  );
-}
-
 export function QuestionnaireEngine({
   schema,
   originalReport = "",
   extractedSymptoms = [],
   initialResponses = emptyResponses,
   resumeDraft,
-  draftId,
+  journeyId,
   onComplete,
+  onSafetyExit,
 }: QuestionnaireEngineProps) {
-  const resolvedDraftId = resumeDraft?.id ?? draftId ?? `draft-${schema.category}`;
-  const storageKey = getRepairDraftStorageKey(resolvedDraftId);
+  const { lang, t } = useLanguage();
+
+  const responseLabel = (
+    field: QuestionnaireField,
+    value: QuestionnaireResponseValue | undefined,
+  ) => {
+    if (!valueHasContent(value)) {
+      return lang === "zh" ? "未提供" : "Not provided";
+    }
+    if (field.type === "single_select" && typeof value === "string") {
+      return t(field.options?.find((option) => option.value === value)?.label ?? { zh: value, en: value });
+    }
+    if (typeof value === "boolean") return value ? (lang === "zh" ? "已確認" : "Confirmed") : (lang === "zh" ? "未確認" : "Not confirmed");
+    return String(value);
+  };
+
+  const stepSummary = (step: QuestionnaireStep, responses: RepairIntakeDraft["responses"]) =>
+    step.fields
+      .filter((field) => questionnaireFieldIsVisible(field, responses))
+      .map((field) => responseLabel(field, responses[field.id]))
+      .filter(Boolean)
+      .join(" · ");
+
+  const contextualActionLabel = (step: QuestionnaireStep, stepIndex: number, totalSteps: number) => {
+    if (stepIndex === totalSteps - 1) {
+      return lang === "zh" ? "整理維修簡報" : "Generate repair brief";
+    }
+    return lang === "zh" ? "繼續" : "Continue";
+  };
+
+  const resolvedDraftId = resumeDraft?.id ?? journeyId;
   const initialQuestionnaireState = useMemo(
     () => questionnaireResumeState(schema, resumeDraft, initialResponses),
     [initialResponses, resumeDraft, schema],
@@ -422,16 +118,14 @@ export function QuestionnaireEngine({
       initialQuestionnaireState.responses,
     ),
   );
-  const [responses, setResponses] =
-    useState<RepairIntakeDraft["responses"]>(
-      () => initialQuestionnaireState.responses,
-    );
+  const [responses, setResponses] = useState<RepairIntakeDraft["responses"]>(
+    () => initialQuestionnaireState.responses,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [saveError, setSaveError] = useState(false);
-  const [acknowledgements, setAcknowledgements] =
-    useState<SafetyAcknowledgements>({});
+  const [acknowledgements, setAcknowledgements] = useState<SafetyAcknowledgements>({});
   const [completedStepIds, setCompletedStepIds] = useState<string[]>(() => {
     const resolvedIndex = questionnaireNextVisibleStepIndex(
       schema,
@@ -464,56 +158,35 @@ export function QuestionnaireEngine({
     [acknowledgements],
   );
 
+  // Restore from journey-scoped storage — only when NOT explicitly resuming
+  // a specific draft (resumeDraft already IS the intended starting point,
+  // e.g. after a category-change rebuild; restoring on top of it here would
+  // risk clobbering it with older persisted content for this journey).
   useEffect(() => {
     const restoreTimer = window.setTimeout(() => {
-      try {
-        const saved = window.localStorage.getItem(storageKey);
-        if (saved) {
-          const parsed = JSON.parse(saved) as {
-            activeIndex?: number;
-            stepIndex?: number;
-            responses?: RepairIntakeDraft["responses"];
-            acknowledgements?: SafetyAcknowledgements;
-            completedStepIds?: string[];
-          };
-          const restoredResponses = {
-            ...initialQuestionnaireState.responses,
-            ...(parsed.responses ?? {}),
-          };
-          const restoredIndex = Math.min(
-            parsed.activeIndex ??
-              parsed.stepIndex ??
-              initialQuestionnaireState.activeIndex,
-            Math.max(schema.steps.length - 1, 0),
-          );
-          const resolvedIndex = questionnaireNextVisibleStepIndex(
-            schema,
-            restoredIndex,
-            restoredResponses,
-          );
-          const skipped = schema.steps
-            .slice(restoredIndex, resolvedIndex)
-            .map((step) => step.id);
-          setActiveIndex(resolvedIndex);
-          setResponses(restoredResponses);
-          setAcknowledgements(parsed.acknowledgements ?? {});
-          setCompletedStepIds([
-            ...new Set([
-              ...(parsed.completedStepIds ??
-                initialQuestionnaireState.completedStepIds),
-              ...skipped,
-            ]),
-          ]);
-          setSavedAt("restored");
-        }
-      } catch {
-        window.localStorage.removeItem(storageKey);
-      } finally {
+      if (resumeDraft) {
         setHydrated(true);
+        return;
       }
+      const stored = readJourneyDraft(journeyId, schema.category, schema.version);
+      if (stored) {
+        const restoredResponses = { ...initialQuestionnaireState.responses, ...stored.responses };
+        const resolvedIndex = questionnaireNextVisibleStepIndex(
+          schema,
+          Math.min(stored.activeIndex, Math.max(schema.steps.length - 1, 0)),
+          restoredResponses,
+        );
+        setActiveIndex(resolvedIndex);
+        setResponses(restoredResponses);
+        setAcknowledgements(stored.acknowledgements);
+        setCompletedStepIds([...new Set(stored.completedStepIds)]);
+        setSavedAt("restored");
+      }
+      setHydrated(true);
     }, 0);
     return () => window.clearTimeout(restoreTimer);
-  }, [initialQuestionnaireState, schema, storageKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journeyId, schema.category, schema.version]);
 
   useEffect(() => {
     if (!hydrated || completed) return;
@@ -529,22 +202,18 @@ export function QuestionnaireEngine({
         status: "draft",
         updatedAt: new Date().toISOString(),
       };
-      window.localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          activeIndex,
-          responses,
-          acknowledgements,
-          completedStepIds,
-        }),
-      );
-      // The local write above is the durable save for the public intake
-      // flow (see docs/PUBLIC_INGESTION_LAUNCH.md) — server-side draft
-      // persistence is a deferred capability, not a launch requirement.
+      writeJourneyDraft({
+        journeyId,
+        category: schema.category,
+        schemaVersion: schema.version,
+        activeIndex,
+        responses,
+        acknowledgements,
+        completedStepIds,
+      });
       // Remote saveDraft is attempted best-effort only; its adapter stub
       // throws synchronously when unavailable (not a rejected promise), so
-      // this must be a try/catch, not a .then/.catch chain, or the throw
-      // becomes an uncaught exception instead of falling back gracefully.
+      // this must be a try/catch, not a .then/.catch chain.
       (async () => {
         try {
           await repairScopeServices.questionnaire.saveDraft(draft);
@@ -562,80 +231,66 @@ export function QuestionnaireEngine({
     completedStepIds,
     extractedSymptoms,
     hydrated,
+    journeyId,
     originalReport,
     resolvedDraftId,
     responses,
     safetyAcknowledgementList,
-    schema.category,
-    storageKey,
+    schema,
   ]);
 
   const activeSafetyRule = useMemo(() => {
     for (const field of currentStep.fields) {
       if (!field.safetyRule) continue;
       const response = responses[field.id];
-      if (
-        typeof response === "string" &&
-        field.safetyRule.triggerValues.includes(response)
-      ) {
+      if (typeof response === "string" && field.safetyRule.triggerValues.includes(response)) {
         return field.safetyRule;
       }
     }
     return undefined;
   }, [currentStep.fields, responses]);
 
+  // A safety-triggering answer is a full-screen exit, not an inline
+  // "acknowledge and continue" card — the parent takes over rendering.
+  useEffect(() => {
+    if (activeSafetyRule) onSafetyExit?.(activeSafetyRule);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSafetyRule]);
+
   const focusStep = (index: number) => {
     window.requestAnimationFrame(() => {
       const step = schema.steps[index];
       const section = step ? sectionRefs.current[step.id] : null;
       if (!section) return;
-      const reduceMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      section.scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      });
-      section
-        .querySelector<HTMLElement>("[data-question-heading]")
-        ?.focus({ preventScroll: true });
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      section.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+      section.querySelector<HTMLElement>("[data-question-heading]")?.focus({ preventScroll: true });
     });
   };
 
   const revealStep = (index: number) => {
-    const resolvedIndex = questionnaireNextVisibleStepIndex(
-      schema,
-      index,
-      responses,
-    );
+    const resolvedIndex = questionnaireNextVisibleStepIndex(schema, index, responses);
     const step = schema.steps[resolvedIndex];
     if (!step) return;
     if (resolvedIndex > index) {
       const skipped = schema.steps.slice(index, resolvedIndex);
-      setCompletedStepIds((current) => [
-        ...new Set([...current, ...skipped.map((s) => s.id)]),
-      ]);
+      setCompletedStepIds((current) => [...new Set([...current, ...skipped.map((s) => s.id)])]);
     }
     setActiveIndex(resolvedIndex);
-    setAnnouncement(`Next question: ${step.title}`);
+    setAnnouncement(`${lang === "zh" ? "下一題" : "Next question"}: ${t(step.title)}`);
     focusStep(resolvedIndex);
   };
 
   const markStepComplete = (stepId: string) => {
-    setCompletedStepIds((current) =>
-      current.includes(stepId) ? current : [...current, stepId],
-    );
+    setCompletedStepIds((current) => (current.includes(stepId) ? current : [...current, stepId]));
   };
 
-  const advanceFrom = (
-    stepIndex: number,
-  ) => {
+  const advanceFrom = (stepIndex: number) => {
     const step = schema.steps[stepIndex];
     markStepComplete(step.id);
     setErrors({});
     if (editingIndex === stepIndex) {
       setEditingIndex(null);
-      setAnnouncement(`Answer updated: ${step.title}`);
       focusStep(activeIndex);
       return;
     }
@@ -644,11 +299,7 @@ export function QuestionnaireEngine({
     }
   };
 
-  const changeResponse = (
-    stepIndex: number,
-    fieldId: string,
-    value: QuestionnaireResponseValue,
-  ) => {
+  const changeResponse = (stepIndex: number, fieldId: string, value: QuestionnaireResponseValue) => {
     const step = schema.steps[stepIndex];
     const nextResponses = { ...responses, [fieldId]: value };
     for (const dependentField of step.fields) {
@@ -662,11 +313,6 @@ export function QuestionnaireEngine({
       delete next[fieldId];
       return next;
     });
-    setAcknowledgements((current) => {
-      const next = { ...current };
-      delete next[schema.steps[stepIndex].id];
-      return next;
-    });
 
     if (
       questionnaireStepUsesAutomaticProgression(step) &&
@@ -677,36 +323,18 @@ export function QuestionnaireEngine({
   };
 
   const continueFlow = async () => {
-    if (submitting.current || busy) return;
-    const validationErrors = questionnaireStepValidationErrors(
-      schema,
-      currentIndex,
-      responses,
-    );
+    if (submitting.current || busy || activeSafetyRule) return;
+    const validationErrors = questionnaireStepValidationErrors(schema, currentIndex, responses);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-
-    const safetyAcknowledged = Boolean(
-      acknowledgements[currentStep.id],
-    );
-    if (
-      !canContinueQuestionnaireStep(
-        schema,
-        currentIndex,
-        responses,
-        safetyAcknowledged,
-      )
-    ) {
-      return;
-    }
+    if (!canContinueQuestionnaireStep(schema, currentIndex, responses, true)) return;
 
     if (editingIndex !== null) {
       advanceFrom(currentIndex);
       return;
     }
-
     if (currentIndex < schema.steps.length - 1) {
       advanceFrom(currentIndex);
       return;
@@ -728,70 +356,56 @@ export function QuestionnaireEngine({
     await new Promise((resolve) => window.setTimeout(resolve, 700));
     setBusy(false);
     setCompleted(true);
-    window.localStorage.removeItem(storageKey);
+    clearJourneyDraft(journeyId);
     onComplete?.(draft);
   };
 
   const openPreviousStep = (stepIndex: number) => {
     setEditingIndex(stepIndex);
     setErrors({});
-    setAnnouncement(`Editing: ${schema.steps[stepIndex].title}`);
     focusStep(stepIndex);
   };
 
   if (completed && !onComplete) {
     return (
       <section className="guided-panel guided-panel--complete">
-        <div className="success-mark" aria-hidden="true">
-          ✓
-        </div>
-        <p className="eyebrow">Draft saved</p>
-        <h1>Your answers are ready for brief review</h1>
+        <div className="success-mark" aria-hidden="true">✓</div>
+        <p className="eyebrow">{lang === "zh" ? "草稿已儲存" : "Draft saved"}</p>
+        <h1>{lang === "zh" ? "你嘅答案已可以整理簡報" : "Your answers are ready for brief review"}</h1>
         <p>
-          No contractor has received anything yet. The next step is to check the
-          reported facts, unknowns and evidence.
+          {lang === "zh"
+            ? "未有師傅收到任何資料。下一步係核對已知事實、未知情況同證據。"
+            : "No contractor has received anything yet. The next step is to check the reported facts, unknowns and evidence."}
         </p>
-        <Link
-          className="button"
-          href={`/landlord/repairs/${resolvedDraftId}/brief`}
-        >
-          Review contractor brief
+        <Link className="button" href={`/landlord/repairs/${resolvedDraftId}/brief`}>
+          {lang === "zh" ? "檢視維修簡報" : "Review contractor brief"}
         </Link>
       </section>
     );
   }
 
   return (
-    <section className="progressive-questionnaire" aria-label={`${schema.label} questions`}>
+    <section className="progressive-questionnaire" aria-label={`${t(schema.label)} questions`}>
       <div className="questionnaire-toolbar">
         <div>
-          <span className="questionnaire-toolbar__label">New repair</span>
-          <strong>{schema.shortLabel} questions</strong>
+          <span className="questionnaire-toolbar__label">{lang === "zh" ? "新維修個案" : "New repair"}</span>
+          <strong>{t(schema.shortLabel)}</strong>
         </div>
         <div className="questionnaire-toolbar__status">
           <span className="save-status">
             <span className="save-status__dot" aria-hidden="true" />
             {saveError
-              ? "Saved on this device"
+              ? (lang === "zh" ? "已喺呢部裝置儲存" : "Saved on this device")
               : savedAt === "restored"
-                ? "Draft restored"
+                ? (lang === "zh" ? "已還原草稿" : "Draft restored")
                 : savedAt
-                  ? `Saved ${savedAt}`
-                  : "Saving automatically"}
+                  ? `${lang === "zh" ? "已儲存" : "Saved"} ${savedAt}`
+                  : (lang === "zh" ? "自動儲存中" : "Saving automatically")}
           </span>
           <span>
-            {answeredCount} of {schema.steps.length} answered
+            {answeredCount} / {schema.steps.length}
           </span>
         </div>
-      </div>
-
-      <div className="questionnaire-intro">
-        <p className="eyebrow">{schema.label}</p>
-        <h1>Tell the repair story as it happened.</h1>
-        <p>
-          Only relevant questions appear. Earlier answers stay in view and can
-          be changed at any time.
-        </p>
       </div>
 
       <form
@@ -805,12 +419,8 @@ export function QuestionnaireEngine({
         {schema.steps.slice(0, activeIndex + 1).map((step, stepIndex) => {
           const isCurrent = stepIndex === currentIndex;
           const isCompleted = completedStepIds.includes(step.id);
-          const isPausedNext =
-            editingIndex !== null &&
-            stepIndex === activeIndex &&
-            !isCompleted;
+          const isPausedNext = editingIndex !== null && stepIndex === activeIndex && !isCompleted;
           const summary = stepSummary(step, responses);
-          const safetyAcknowledged = Boolean(acknowledgements[step.id]);
 
           if (isPausedNext) {
             return (
@@ -818,7 +428,6 @@ export function QuestionnaireEngine({
                 className="question-section question-section--queued"
                 id={`question-${step.id}`}
                 key={step.id}
-                aria-label={`Next question: ${step.title}`}
                 ref={(node) => {
                   sectionRefs.current[step.id] = node;
                 }}
@@ -827,9 +436,8 @@ export function QuestionnaireEngine({
                   {String(stepIndex + 1).padStart(2, "0")}
                 </span>
                 <div className="question-section__queued">
-                  <span>Next question</span>
-                  <h2>{step.title}</h2>
-                  <p>Keep or change your answer above to continue here.</p>
+                  <span>{lang === "zh" ? "下一題" : "Next question"}</span>
+                  <h2>{t(step.title)}</h2>
                 </div>
               </section>
             );
@@ -847,11 +455,9 @@ export function QuestionnaireEngine({
                   sectionRefs.current[step.id] = node;
                 }}
               >
-                <span className="question-marker question-marker--complete" aria-hidden="true">
-                  ✓
-                </span>
+                <span className="question-marker question-marker--complete" aria-hidden="true">✓</span>
                 <div className="question-complete__content">
-                  <p>{step.title}</p>
+                  <p>{t(step.title)}</p>
                   <strong>{summary}</strong>
                 </div>
                 <button
@@ -859,7 +465,7 @@ export function QuestionnaireEngine({
                   type="button"
                   onClick={() => openPreviousStep(stepIndex)}
                 >
-                  Change
+                  {lang === "zh" ? "更正" : "Edit"}
                 </button>
               </section>
             );
@@ -867,7 +473,7 @@ export function QuestionnaireEngine({
 
           return (
             <section
-              className={`question-section question-section--current ${step.fields.some((field) => field.safetyRule) ? "question-section--safety" : ""}`}
+              className="question-section question-section--current"
               id={`question-${step.id}`}
               key={step.id}
               ref={(node) => {
@@ -879,65 +485,31 @@ export function QuestionnaireEngine({
               </span>
               <div className="question-section__body">
                 <div className="question-section__heading">
-                  <span>{step.eyebrow}</span>
-                  <h2 tabIndex={-1} data-question-heading>
-                    {step.title}
-                  </h2>
-                  {step.description && <p>{step.description}</p>}
+                  <span>{t(step.eyebrow)}</span>
+                  <h2 tabIndex={-1} data-question-heading>{t(step.title)}</h2>
+                  {step.description && <p>{t(step.description)}</p>}
                 </div>
 
                 <div className="field-stack">
                   {step.fields
-                    .filter((field) =>
-                      questionnaireFieldIsVisible(field, responses),
-                    )
+                    .filter((field) => questionnaireFieldIsVisible(field, responses))
                     .map((field) => (
                       <FieldControl
                         field={field}
                         value={responses[field.id]}
                         error={errors[field.id]}
-                        onChange={(value) =>
-                          changeResponse(stepIndex, field.id, value)
-                        }
+                        onChange={(value) => changeResponse(stepIndex, field.id, value)}
                         key={field.id}
                       />
                     ))}
                 </div>
 
-                {activeSafetyRule && (
-                  <SafetyNotice
-                    rule={activeSafetyRule}
-                    acknowledged={safetyAcknowledged}
-                    onAcknowledge={(acknowledged) =>
-                      setAcknowledgements((current) => {
-                        const next = { ...current };
-                        if (acknowledged) {
-                          next[step.id] = new Date().toISOString();
-                        } else {
-                          delete next[step.id];
-                        }
-                        return next;
-                      })
-                    }
-                  />
-                )}
-
-                {!questionnaireStepUsesAutomaticProgression(step) && (
+                {!questionnaireStepUsesAutomaticProgression(step) && !activeSafetyRule && (
                   <div className="question-action">
-                    <button
-                      className="button"
-                      type="submit"
-                      disabled={
-                        busy || Boolean(activeSafetyRule && !safetyAcknowledged)
-                      }
-                    >
+                    <button className="button" type="submit" disabled={busy}>
                       {busy
-                        ? "Organising your brief…"
-                        : contextualActionLabel(
-                            step,
-                            stepIndex,
-                            schema.steps.length,
-                          )}
+                        ? (lang === "zh" ? "整理緊你嘅簡報…" : "Organising your brief…")
+                        : contextualActionLabel(step, stepIndex, schema.steps.length)}
                     </button>
                   </div>
                 )}
@@ -948,14 +520,107 @@ export function QuestionnaireEngine({
       </form>
 
       <div className="questionnaire-footer-count">
-        <span>Questions completed</span>
+        <span>{lang === "zh" ? "已回答問題" : "Questions completed"}</span>
         <strong>
-          {answeredCount} of {schema.steps.length}
+          {answeredCount} / {schema.steps.length}
         </strong>
       </div>
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}
       </div>
     </section>
+  );
+}
+
+function FieldControl({
+  field,
+  value,
+  error,
+  onChange,
+}: {
+  field: QuestionnaireField;
+  value: QuestionnaireResponseValue | undefined;
+  error?: string;
+  onChange: (value: QuestionnaireResponseValue) => void;
+}) {
+  const { t } = useLanguage();
+  const inputId = `field-${field.id}`;
+  const helpId = field.help ? `${inputId}-help` : undefined;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const describedBy = [helpId, errorId].filter(Boolean).join(" ") || undefined;
+
+  if (field.type === "single_select") {
+    return (
+      <fieldset className={`choice-field ${error ? "field--error" : ""}`} aria-describedby={describedBy}>
+        <legend>{t(field.label)}</legend>
+        {field.help && (
+          <p id={helpId} className="field-help">{t(field.help)}</p>
+        )}
+        <div className="choice-grid">
+          {field.options?.map((item) => {
+            const checked = valueIsSelected(value, item.value);
+            return (
+              <label className={`choice-card ${checked ? "choice-card--selected" : ""}`} key={item.value}>
+                <input
+                  type="radio"
+                  name={field.id}
+                  value={item.value}
+                  checked={checked}
+                  onClick={() => {
+                    if (checked) onChange(item.value);
+                  }}
+                  onChange={() => onChange(item.value)}
+                />
+                <span className="choice-card__indicator" aria-hidden="true" />
+                <span>
+                  <strong>{t(item.label)}</strong>
+                  {item.hint && <small>{t(item.hint)}</small>}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        {error && <p className="field-error" id={errorId}>{error}</p>}
+      </fieldset>
+    );
+  }
+
+  if (field.type === "checkbox") {
+    return (
+      <div className={`checkbox-field ${error ? "field--error" : ""}`}>
+        <label>
+          <input type="checkbox" checked={value === true} onChange={(event) => onChange(event.target.checked)} />
+          <span aria-hidden="true" />
+          <strong>{t(field.label)}</strong>
+        </label>
+        {error && <p className="field-error" id={errorId}>{error}</p>}
+      </div>
+    );
+  }
+
+  const isLong = field.type === "long_text";
+  const commonProps = {
+    id: inputId,
+    value: typeof value === "string" || typeof value === "number" ? value : "",
+    placeholder: field.placeholder ? t(field.placeholder) : undefined,
+    "aria-invalid": Boolean(error),
+    "aria-describedby": describedBy,
+  };
+
+  return (
+    <div className={`text-field ${error ? "field--error" : ""}`}>
+      <label htmlFor={inputId}>{t(field.label)}</label>
+      {field.help && <p id={helpId} className="field-help">{t(field.help)}</p>}
+      {isLong ? (
+        <textarea {...commonProps} rows={5} onChange={(event) => onChange(event.target.value)} />
+      ) : (
+        <input
+          {...commonProps}
+          type="text"
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+      {error && <p className="field-error" id={errorId}>{error}</p>}
+    </div>
   );
 }
