@@ -58,6 +58,14 @@ export interface QuestionnaireField {
   groups?: QuestionnaireGroup[];
   required: boolean;
   safetyRule?: SafetyRule;
+  /**
+   * Visual treatment for a single_select field, matching the approved
+   * Sites design's three choice components: "pill" (short tag-style
+   * buttons — branch/timeline mini-questions), "list" (single-column rows
+   * — safety/prior/access/relationship/district), "grid" (2-column cards
+   * — affected-area). Defaults to "list" when unset.
+   */
+  display?: "pill" | "list" | "grid";
   showWhen?: {
     fieldId: string;
     equals: string;

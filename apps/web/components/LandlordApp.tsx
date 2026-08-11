@@ -123,22 +123,37 @@ function LandlordHome() {
 // Category picker
 // ---------------------------------------------------------------------------
 
-function CategoryGrid({ onSelect }: { onSelect: (category: RepairCategoryId) => void }) {
-  const { t } = useLanguage();
+function CategoryGrid({
+  onSelect,
+  selected,
+}: {
+  onSelect: (category: RepairCategoryId) => void;
+  selected?: RepairCategoryId | null;
+}) {
+  const { lang } = useLanguage();
   return (
-    <div className="category-grid">
-      {categoryOptions.map((item, index) => (
-        <button
-          key={item.value}
-          className="category-card"
-          type="button"
-          onClick={() => onSelect(item.value as RepairCategoryId)}
-        >
-          <span className="category-card__number">{String(index + 1).padStart(2, "0")}</span>
-          <strong>{t(item.label)}</strong>
-          <span className="category-card__arrow" aria-hidden="true">→</span>
-        </button>
-      ))}
+    <div className="problem-grid">
+      {categoryOptions.map((item, index) => {
+        const isChecked = selected === item.value;
+        const isOpenOption = item.value === "other" || item.value === "unsure";
+        return (
+          <button
+            key={item.value}
+            type="button"
+            role="radio"
+            aria-checked={isChecked}
+            className={`${isChecked ? "selected" : ""} ${isOpenOption ? "open-option" : ""}`}
+            onClick={() => onSelect(item.value as RepairCategoryId)}
+          >
+            <span className="problem-index">{String(index + 1).padStart(2, "0")}</span>
+            <span className="problem-copy">
+              <strong>{lang === "zh" ? item.label.zh : item.label.en}</strong>
+              <small>{lang === "zh" ? item.label.en : item.label.zh}</small>
+            </span>
+            <span className="problem-mark" aria-hidden="true">{isChecked ? "✓" : "→"}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

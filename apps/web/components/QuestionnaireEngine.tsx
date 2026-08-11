@@ -550,33 +550,38 @@ function FieldControl({
   const describedBy = [helpId, errorId].filter(Boolean).join(" ") || undefined;
 
   if (field.type === "single_select") {
+    const display = field.display ?? "list";
+    const containerClass =
+      display === "pill" ? "pill-row" : display === "grid" ? "card-grid" : "choice-list";
     return (
       <fieldset className={`choice-field ${error ? "field--error" : ""}`} aria-describedby={describedBy}>
         <legend>{t(field.label)}</legend>
         {field.help && (
           <p id={helpId} className="field-help">{t(field.help)}</p>
         )}
-        <div className="choice-grid">
+        <div className={containerClass} role="radiogroup" aria-label={t(field.label)}>
           {field.options?.map((item) => {
             const checked = valueIsSelected(value, item.value);
             return (
-              <label className={`choice-card ${checked ? "choice-card--selected" : ""}`} key={item.value}>
-                <input
-                  type="radio"
-                  name={field.id}
-                  value={item.value}
-                  checked={checked}
-                  onClick={() => {
-                    if (checked) onChange(item.value);
-                  }}
-                  onChange={() => onChange(item.value)}
-                />
-                <span className="choice-card__indicator" aria-hidden="true" />
-                <span>
-                  <strong>{t(item.label)}</strong>
-                  {item.hint && <small>{t(item.hint)}</small>}
-                </span>
-              </label>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={checked}
+                className={checked ? "selected" : ""}
+                key={item.value}
+                onClick={() => onChange(item.value)}
+              >
+                {display === "list" && (
+                  <span className="choice-list-radio" aria-hidden="true">
+                    {checked ? "✓" : ""}
+                  </span>
+                )}
+                {display === "grid" && (
+                  <span aria-hidden="true">{checked ? "✓" : "→"}</span>
+                )}
+                <strong>{t(item.label)}</strong>
+                {item.hint && <small>{t(item.hint)}</small>}
+              </button>
             );
           })}
         </div>

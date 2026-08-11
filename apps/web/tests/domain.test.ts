@@ -1096,7 +1096,11 @@ test("mobile comparison, loading, empty and error states are present", async () 
   assert.match(questionnaireSource, /aria-live="polite"/);
   assert.match(questionnaireSource, /scrollIntoView/);
   assert.doesNotMatch(questionnaireSource, /← Back/);
-  assert.match(questionnaireSource, /if \(checked\) onChange\(item\.value\)/);
+  // Single-select options render as an accessible radiogroup of buttons
+  // (matching the approved Sites visual design's pill/list/grid styles —
+  // see FieldControl's display prop), not native radio inputs.
+  assert.match(questionnaireSource, /role="radiogroup"/);
+  assert.match(questionnaireSource, /onClick={\(\) => onChange\(item\.value\)}/);
   // The UK "postcode" field type/normalisation is gone from the engine —
   // Hong Kong has no postcode (see the address-step tests above).
   assert.doesNotMatch(questionnaireSource, /Confirm postcode|normaliseUkPostcode/);

@@ -33,6 +33,7 @@ const select = (
   options: QuestionnaireOption[],
   required = true,
   safetyRule?: SafetyRule,
+  display: "pill" | "list" | "grid" = "list",
 ): QuestionnaireField => ({
   id,
   type: "single_select",
@@ -40,6 +41,7 @@ const select = (
   options,
   required,
   safetyRule,
+  display,
 });
 
 const text = (
@@ -263,9 +265,9 @@ const timelineStep = step(
   "個問題持續咗幾耐，同埋點樣出現？",
   "How long has this been happening, and how does it behave?",
   [
-    select("duration", "幾時開始？", "When did it begin?", durationOptions),
-    select("frequency", "幾常出現？", "How often?", frequencyOptions),
-    select("worsening", "有冇惡化？", "Is it getting worse?", worseningOptions),
+    select("duration", "幾時開始？", "When did it begin?", durationOptions, true, undefined, "pill"),
+    select("frequency", "幾常出現？", "How often?", frequencyOptions, true, undefined, "pill"),
+    select("worsening", "有冇惡化？", "Is it getting worse?", worseningOptions, true, undefined, "pill"),
   ],
   "三個簡短答案可以幫師傅理解情況，唔使估原因。",
   "Three short facts help a contractor understand the situation without guessing the cause.",
@@ -845,7 +847,7 @@ function branchSteps(category: string): QuestionnaireStep[] {
       "WHAT IS AFFECTED",
       branch.affected.titleZh,
       branch.affected.titleEn,
-      [select("affected", branch.affected.titleZh, branch.affected.titleEn, branch.affected.options)],
+      [select("affected", branch.affected.titleZh, branch.affected.titleEn, branch.affected.options, true, undefined, "grid")],
       "揀你實際見到嘅一項，唔使推斷問題源頭。",
       "Choose what you can actually see. You do not need to infer the source.",
     ),
@@ -856,9 +858,9 @@ function branchSteps(category: string): QuestionnaireStep[] {
       "再講三個簡單情況。",
       "Three quick facts about the problem.",
       [
-        select("branchFirst", branch.first.titleZh, branch.first.titleEn, branch.first.options, true, branch.first.safetyRule),
-        select("branchSecond", branch.second.titleZh, branch.second.titleEn, branch.second.options),
-        select("branchThird", branch.third.titleZh, branch.third.titleEn, branch.third.options),
+        select("branchFirst", branch.first.titleZh, branch.first.titleEn, branch.first.options, true, branch.first.safetyRule, "pill"),
+        select("branchSecond", branch.second.titleZh, branch.second.titleEn, branch.second.options, true, undefined, "pill"),
+        select("branchThird", branch.third.titleZh, branch.third.titleEn, branch.third.options, true, undefined, "pill"),
       ],
       "每題揀一項；「唔肯定」都係有效答案。",
       "Choose one answer for each. “Not sure” is a valid answer.",
