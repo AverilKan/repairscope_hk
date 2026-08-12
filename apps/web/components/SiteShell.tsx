@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useLanguage } from "./LanguageContext";
 
 type Surface = "public" | "landlord" | "contractor" | "operator";
@@ -15,13 +15,28 @@ export function SiteShell({
   surface?: Surface;
   compact?: boolean;
 }) {
-  // SiteShell renders for every surface, but only "landlord" is ever
-  // reached inside LanguageProvider (see LandlordApp) — public/contractor/
-  // operator stay English-only for now (full marketing/legal-page
-  // bilingual coverage is explicitly out of scope for this rework; only
-  // the shell pieces the questionnaire itself sits inside are localised
-  // here).
+  // One shared LanguageProvider (mounted at the app root, see
+  // app/layout.tsx) covers every surface now — public, landlord,
+  // contractor and operator nav/footer all read the same lang state.
+  // Full marketing/legal-page COPY bilingual coverage (the actual privacy/
+  // terms body text, contractor/operator screens) remains its own,
+  // separate workstream — this only makes the shared shell chrome
+  // consistent.
   const { lang } = useLanguage();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const publicCopy = lang === "zh"
+    ? {
+        how: "服務流程", repairs: "適合邊類維修", faq: "常見問題", cta: "開始維修申請",
+        descriptor: "整理維修 · 物色師傅 · 比較報價 · 由你決定", menu: "開啟選單",
+        pilot: "創始試用", privacy: "私隱政策", terms: "使用條款",
+        footer: "為香港物業業主整理較大型、非緊急住宅維修。",
+      }
+    : {
+        how: "How it works", repairs: "Repairs", faq: "FAQ", cta: "Start a repair",
+        descriptor: "Organise · Source · Compare · You choose", menu: "Open menu",
+        pilot: "Founding pilot", privacy: "Privacy", terms: "Terms",
+        footer: "Helping Hong Kong property owners organise significant, non-emergency home repairs.",
+      };
   return (
     <div className={`site-shell ${compact ? "site-shell--compact" : ""}`}>
       <header className="site-header">
@@ -34,46 +49,53 @@ export function SiteShell({
         <div className="surface-label" aria-label={`Current area: ${surface}`}>
           <span className="surface-label__dot" aria-hidden="true" />
           {surface === "public"
-            ? "Describe · Source · Compare · Choose"
+            ? publicCopy.descriptor
             : surface === "landlord"
               ? (lang === "zh" ? "業主檢視" : "Landlord view")
               : `${surface} view`}
         </div>
-        <nav className="site-nav" aria-label="Primary navigation">
+        {surface === "public" && (
+          <button
+            className="mobile-menu-button"
+            type="button"
+            aria-expanded={menuOpen}
+            aria-controls="public-navigation"
+            aria-label={publicCopy.menu}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span />
+            <span />
+          </button>
+        )}
+        {/* Founding-pilot public/owner navigation deliberately has no path
+            into the deferred Gate-B procurement flow (the "My repairs"
+            list and everything downstream of it) or the contractor
+            demo-token invitation — see components/LandlordApp.tsx's
+            LandlordHome for the equivalent entry-screen change. Neither
+            link is reintroduced here for "operator"/"contractor" surfaces
+            either, since a real HK owner never reaches those surfaces from
+            this shell. */}
+        <nav
+          id={surface === "public" ? "public-navigation" : undefined}
+          className={`site-nav ${menuOpen ? "site-nav--open" : ""}`}
+          aria-label="Primary navigation"
+        >
           {surface === "public" && (
             <>
-              <Link href="/#how-it-works">How it works</Link>
-              <Link href="/#for-landlords">For landlords</Link>
-              <Link href="/#for-contractors">For contractors</Link>
-              <Link href="/#faqs">FAQs</Link>
+              <Link onClick={() => setMenuOpen(false)} href="/#how-it-works">{publicCopy.how}</Link>
+              <Link onClick={() => setMenuOpen(false)} href="/#repairs">{publicCopy.repairs}</Link>
+              <Link onClick={() => setMenuOpen(false)} href="/#faq">{publicCopy.faq}</Link>
             </>
-          )}
-          {surface === "landlord" && (
-            <Link href="/landlord/repairs">{lang === "zh" ? "我嘅維修" : "My repairs"}</Link>
-          )}
-          {surface !== "public" && surface !== "contractor" && surface !== "landlord" && (
-            <Link href="/landlord/repairs">Repair workspace</Link>
-          )}
-          {surface !== "public" && (
-            <Link href="/contractor/respond/demo-token">
-              {surface === "landlord" ? (lang === "zh" ? "師傅邀請（示範）" : "Contractor invitation") : "Contractor invitation"}
-            </Link>
           )}
           {surface === "public" && (
             <Link className="button button--small" href="/landlord/repairs/new">
-              Submit a repair
+              {publicCopy.cta}
             </Link>
           )}
-          {surface === "landlord" && <LanguageToggle />}
+          {(surface === "public" || surface === "landlord") && <LanguageToggle />}
         </nav>
       </header>
       {children}
-      {/* The UK-reference marketing tagline and "in England" pilot note are
-          never appropriate inside the HK owner-facing journey — this
-          rework's bounded Chinese-intake-cleanup requirement is to hide
-          this legacy footer there entirely (not invent new HK marketing
-          copy, which is out of scope), rather than leave it visible under
-          the questionnaire/brief/submission screens. */}
       {surface !== "landlord" && (
         <footer className="site-footer">
           <div>
@@ -83,17 +105,15 @@ export function SiteShell({
               </span>
               <span>RepairScope</span>
             </span>
-            <p>
-              One clear brief. Selected contractors. Comparable proposals. You
-              choose.
-            </p>
+            <p>{publicCopy.footer}</p>
           </div>
           <nav className="site-footer__links" aria-label="Legal">
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/terms">Terms</Link>
+            <Link href="/privacy">{publicCopy.privacy}</Link>
+            <Link href="/terms">{publicCopy.terms}</Link>
+            <LanguageToggle />
           </nav>
           <p className="site-footer__note">
-            Founding pilot · Significant, non-emergency repairs in England
+            {publicCopy.pilot} · {lang === "zh" ? "香港" : "Hong Kong"}
           </p>
         </footer>
       )}

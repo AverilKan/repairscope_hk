@@ -43,7 +43,7 @@ import { IntakeStageProgress } from "./IntakeStageProgress";
 import { GeneratedBriefDocument } from "./GeneratedBriefDocument";
 import { ResponseComparisonPage } from "./ResponseComparisonPage";
 import { BackLink, PageIntro, SiteShell, StatusPill } from "./SiteShell";
-import { LanguageProvider, useLanguage } from "./LanguageContext";
+import { useLanguage } from "./LanguageContext";
 import {
   AwaitingConfirmationPage,
   LandlordRepairsPage,
@@ -90,7 +90,10 @@ function LandlordHome() {
     <main>
       <section className="landlord-welcome">
         <div className="landlord-welcome__copy">
-          <p className="eyebrow">{lang === "zh" ? "業主工作區" : "Landlord workspace"}</p>
+          {/* Neutral owner-facing framing, not "Landlord workspace" — the
+              HK pilot also serves owner-occupiers and people managing a
+              repair on behalf of an owner, not landlords exclusively. */}
+          <p className="eyebrow">{lang === "zh" ? "維修申請" : "Repair submission"}</p>
           <h1>{lang === "zh" ? "你見到咩問題？" : "What problem are you seeing?"}</h1>
           <p>
             {lang === "zh"
@@ -98,20 +101,16 @@ function LandlordHome() {
               : "Choose the closest option and we'll organise it into a brief a contractor can understand. Nothing is shared until you consent."}
           </p>
         </div>
+        {/* Only the founding-pilot entry action — no card promoting the
+            legacy "existing repairs"/procurement list (LandlordRepairsPage
+            and everything downstream of it remain Gate-B/deferred, not
+            part of this entry experience). */}
         <div className="start-choices">
           <Link className="start-choice" href="/landlord/repairs/new">
             <span className="start-choice__number">01</span>
             <span>
               <strong>{lang === "zh" ? "講低發生咩事" : "Report a new repair"}</strong>
               <small>{lang === "zh" ? "揀問題，幾分鐘內整理成簡報" : "Choose a problem and build a brief in minutes"}</small>
-            </span>
-            <span aria-hidden="true">→</span>
-          </Link>
-          <Link className="start-choice" href="/landlord/repairs">
-            <span className="start-choice__number">02</span>
-            <span>
-              <strong>{lang === "zh" ? "檢視已有嘅維修" : "Review an existing repair"}</strong>
-              <small>{lang === "zh" ? "比較回應或匯入現有報價" : "Compare responses or import an existing quote"}</small>
             </span>
             <span aria-hidden="true">→</span>
           </Link>
@@ -857,9 +856,9 @@ function LandlordAppInner({ path }: { path: string[] }) {
 }
 
 export function LandlordApp({ path }: { path: string[] }) {
-  return (
-    <LanguageProvider>
-      <LandlordAppInner path={path} />
-    </LanguageProvider>
-  );
+  // LanguageProvider is mounted once, at the app root (app/layout.tsx) —
+  // this used to wrap itself here too, which meant switching language
+  // inside /landlord only ever updated the INNER provider's independent
+  // state, never the one the public homepage/shell actually read from.
+  return <LandlordAppInner path={path} />;
 }

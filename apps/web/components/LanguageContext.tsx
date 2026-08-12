@@ -63,6 +63,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Keeps the document's own announced language in sync with the active
+  // toggle state — there is no server-side locale routing (no i18n config
+  // in next.config.ts), so the <html lang> the server renders is only ever
+  // a static default; this is the smallest way to stop the page announcing
+  // itself as Chinese after the visitor switches to English. Runs on the
+  // initial render (the static SSR default already matches "zh") and again
+  // whenever lang changes, including the post-mount localStorage restore.
+  useEffect(() => {
+    document.documentElement.lang = lang === "zh" ? "zh-Hant-HK" : "en-HK";
+  }, [lang]);
+
   const value = useMemo<LanguageContextValue>(
     () => ({ lang, setLang, t: (text) => localize(text, lang) }),
     [lang, setLang],
