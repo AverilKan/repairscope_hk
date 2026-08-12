@@ -2092,6 +2092,34 @@ select:focus {
   color: var(--danger);
 }
 
+.repair-submission-panel__pics {
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  background: var(--paper-light);
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.repair-submission-panel__pics-heading {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.repair-submission-panel__pics ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+
+.repair-submission-panel__pics li {
+  margin-bottom: 6px;
+}
+
+.repair-submission-panel__pics p:last-child {
+  margin: 0;
+}
+
 .repair-submission-confirmation__brief {
   margin-top: 24px;
   padding-top: 20px;

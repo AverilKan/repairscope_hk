@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { summariseObservedFacts } from "@/domain/brief";
 import type { ProblemBrief } from "@/domain/types";
 import {
@@ -80,6 +81,42 @@ export function RepairSubmissionPanel({
 
   const hasSafetyFlags = safetyFlags.length > 0;
   const propertyAddress = prefill.propertyAddress ?? "";
+
+  // Personal Information Collection Statement (PICS) — the submit button
+  // below is the ONLY point in the whole flow where personal data ever
+  // leaves the browser (services/api.ts's ApiRepairSubmissionService.submit
+  // is the sole call that sends questionnaire answers + contact details to
+  // a server; the questionnaire's own "saveDraft" is a stub that never
+  // reaches a real endpoint, and everything before this screen lives only
+  // in localStorage — see domain/journey.ts). Presenting the PICS here,
+  // before that click, is therefore the correct timing, not merely the
+  // most convenient screen. This is a static disclosure, not a new
+  // checkbox — the existing consent checkbox above is unchanged.
+  const pics = lang === "zh"
+    ? {
+        heading: "私隱及資料收集",
+        bullets: [
+          "你喺呢度提供嘅資料，RepairScope 會用嚟審閱同整理呢單申請、聯絡你，以及評估個案是否適合創始試用；如個案獲接納，亦會用嚟協助跟進下一步。",
+          "姓名、聯絡方式同維修相關資料係處理申請所需，如果無提供，我哋可能無法處理你嘅申請；其他資料你可以選擇唔填。",
+          "呢啲資料可能會由協助營運呢個服務嘅技術服務供應商處理；如果個案需要將資料交俾師傅，我哋會先同你確認先至分享。",
+          "你可以要求查閱或更正 RepairScope 持有關於你嘅個人資料。",
+        ],
+        linkPrefix: "詳情請參閱",
+        linkText: "私隱政策",
+        linkSuffix: "。",
+      }
+    : {
+        heading: "Privacy and data collection",
+        bullets: [
+          "Information you provide here is used by RepairScope to review and organise this request, contact you, and assess whether the case is suitable for the founding pilot; if accepted, it also helps us coordinate next steps.",
+          "Your name, contact details and repair information are needed to process this request — if not provided, we may be unable to process it. Other information can be left blank.",
+          "This information may be handled by technical service providers who help operate the service. If the case needs to be shared with a contractor, we will confirm this with you first.",
+          "You may ask to access or correct the personal data RepairScope holds about you.",
+        ],
+        linkPrefix: "See our",
+        linkText: "Privacy Notice",
+        linkSuffix: "for details.",
+      };
 
   const update = <K extends keyof ContactFormState>(key: K, value: ContactFormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -251,6 +288,18 @@ export function RepairSubmissionPanel({
           </label>
         </div>
 
+        <div className="repair-submission-panel__pics">
+          <p className="repair-submission-panel__pics-heading">{pics.heading}</p>
+          <ul>
+            {pics.bullets.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+          <p>
+            {pics.linkPrefix} <Link href="/privacy">{pics.linkText}</Link> {pics.linkSuffix}
+          </p>
+        </div>
+
         {submissionBlocked && submissionBlockReason && (
           <p className="repair-submission-panel__blocked" role="status">
             {submissionBlockReason}
@@ -267,9 +316,6 @@ export function RepairSubmissionPanel({
             ? (lang === "zh" ? "安全提交中…" : "Submitting securely…")
             : (lang === "zh" ? "提交俾 RepairScope 人手檢視" : "Submit for manual review")}
         </button>
-        <p className="privacy-note">
-          {lang === "zh" ? "聯絡資料只用作處理今次維修查詢。" : "Contact details are used only to handle this repair enquiry."}
-        </p>
       </form>
     </section>
   );
