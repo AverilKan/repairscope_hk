@@ -96,6 +96,75 @@ test("buildRepairBrief is grounded in the draft and never invents diagnosis or p
   }
 });
 
+// Regression coverage for a CRITICAL defect: a standard-category (non
+// other/unsure) journey with every question answered used to produce
+// reportedFacts: [] in the generated brief, because reportedFacts is only
+// ever built from originalReport/extractedSymptoms — both empty for the
+// HK flow's category-first standard categories, which have no free-text
+// "story" step. The real answers live in affected/branchFirst/Second/Third
+// plus the shared timeline questions, so buildRepairBrief must surface them
+// via observedFacts instead. Uses a real "leak" draft with every branch and
+// timeline field answered — not a legacy other/unsure-style fixture with
+// originalReport populated, which would not exercise the bug at all.
+test("buildRepairBrief retains every observation from a fully answered standard-category draft", () => {
+  const draft: RepairIntakeDraft = {
+    id: "draft-leak-full",
+    category: "leak",
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: {
+      affected: "ceiling",
+      branchFirst: "rain",
+      branchSecond: "mark",
+      branchThird: "large",
+      duration: "week",
+      frequency: "occasional",
+      worsening: "yes",
+      safety: "none",
+      prior: "quote",
+      priorDetail: "A contractor quoted $2,000 last month but we did not proceed.",
+      management: "yes",
+      sharedArea: "unsure",
+      district: "eastern",
+      building: "Kornhill",
+      floor: "12",
+      unit: "A",
+      accessBy: "owner",
+      availability: "Weekday evenings after 7pm",
+      relationship: "owner-occupier",
+      hasEvidence: "yes",
+      evidenceKind: "photo",
+    },
+    safetyAcknowledgements: [],
+    status: "draft",
+    updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+
+  const brief = buildRepairBrief(draft);
+
+  // The bug: this used to be [] despite every question being answered.
+  assert.equal(brief.reportedFacts.length, 0);
+  assert.ok(brief.observedFacts, "observedFacts must be populated for a standard category");
+  assert.deepEqual(brief.observedFacts, {
+    affected: "ceiling",
+    branchFirst: "rain",
+    branchSecond: "mark",
+    branchThird: "large",
+    duration: "week",
+    frequency: "occasional",
+    worsening: "yes",
+  });
+  assert.deepEqual(brief.priorAction, {
+    status: "quote",
+    detail: "A contractor quoted $2,000 last month but we did not proceed.",
+  });
+  assert.deepEqual(brief.buildingContext, { managementContacted: "yes", sharedAreaInvolved: "unsure" });
+  assert.equal(brief.propertyDetails?.district, "eastern");
+  assert.equal(brief.propertyDetails?.building, "Kornhill");
+  assert.equal(brief.hasEvidence, "yes");
+  assert.equal(brief.evidenceKind, "photo");
+});
+
 test("buildRepairBrief and the mock contractorBriefs.generate agree", async () => {
   const draft: RepairIntakeDraft = {
     id: "draft-electrical",
@@ -149,7 +218,10 @@ test("applyBriefCorrection never depends on a backend service and is what the pu
     "The staining is in the front bedroom, not the back bedroom.",
   );
   assert.equal(result.brief.version, ceilingBrief.version + 1);
-  assert.match(result.brief.reportedFacts.at(-1) ?? "", /front bedroom/);
+  // The raw correction text lives in landlordCorrections, not baked into
+  // reportedFacts with a hardcoded English prefix — see domain/brief.ts's
+  // summariseObservedFacts, which applies a localised label at render time.
+  assert.match(result.brief.landlordCorrections?.at(-1) ?? "", /front bedroom/);
   // Correcting a brief must not silently fail and must not invent a new
   // diagnosis or price — only the factual correction is appended.
   assert.equal(result.brief.originalReport, ceilingBrief.originalReport);

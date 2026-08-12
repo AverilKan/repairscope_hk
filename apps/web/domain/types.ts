@@ -66,9 +66,10 @@ export interface QuestionnaireField {
    * — affected-area). Defaults to "list" when unset.
    */
   display?: "pill" | "list" | "grid";
+  /** Conditional visibility — hidden (and, per QuestionnaireEngine's changeResponse, cleared from responses) unless the named field's current answer matches equals (a single value, or any value in the array). */
   showWhen?: {
     fieldId: string;
-    equals: string;
+    equals: string | string[];
   };
 }
 
@@ -145,18 +146,44 @@ export interface ProblemBrief {
     | "vacant"
     | "other";
   accessOverview: string;
+  // Stable keys (e.g. "not-independently-confirmed"), not pre-baked English
+  // sentences — GeneratedBriefDocument resolves each to a bilingual label at
+  // render time via domain/brief.ts's resolveConfirmedUnknown/
+  // resolveContractorRequest, the same store-raw/resolve-at-render pattern
+  // as observedFacts. A value that isn't a recognised key is still rendered
+  // as-is (a defensive fallback for older persisted submissions that stored
+  // a plain English sentence directly, before this change).
   confirmedUnknowns: string[];
   contractorRequests: string[];
-  landlordCorrections?: string;
+  /** Raw correction text as typed by the owner, oldest to newest — never a pre-localized "Landlord correction: …" string, since the label is applied at render time (see resolveObservedFactsWithCorrections). */
+  landlordCorrections?: string[];
   version: number;
 
   // Hong Kong review-section fields (raw values — GeneratedBriefDocument
   // resolves each to a bilingual label at render time via
-  // data/questionnaires.ts's option lists, so the same stored brief renders
-  // correctly in either language without regenerating). Optional so
-  // BriefReviewRoute's unrelated fetched-brief path (no HK draft behind it)
-  // keeps working without them.
+  // data/questionnaires.ts's resolveAnswerLabel, so the same stored brief
+  // renders correctly in either language without regenerating). Optional
+  // so BriefReviewRoute's unrelated fetched-brief path (no HK draft behind
+  // it) keeps working without them.
   category?: RepairCategoryId;
+
+  /**
+   * The actual observations captured by the category's affected-area and
+   * three branch questions, plus the shared timeline questions — this is
+   * what "02 Reported / observed facts" is built from for a standard
+   * category (reportedFacts/originalReport are empty there, since the HK
+   * flow is category-first, not free-text-first).
+   */
+  observedFacts?: {
+    affected?: string;
+    branchFirst?: string;
+    branchSecond?: string;
+    branchThird?: string;
+    duration?: string;
+    frequency?: string;
+    worsening?: string;
+  };
+
   priorAction?: {
     status: string;
     detail?: string;
@@ -165,7 +192,18 @@ export interface ProblemBrief {
     managementContacted: string;
     sharedAreaInvolved: string;
   };
-  propertyLine?: string;
+
+  /** Raw values — GeneratedBriefDocument resolves district via resolveAnswerLabel; building/block/floor/unit are free text, already language-neutral. */
+  propertyDetails?: {
+    district?: string;
+    building?: string;
+    block?: string;
+    floor?: string;
+    unit?: string;
+    accessBy?: string;
+    availability?: string;
+  };
+
   relationship?: string;
   additionalContext?: string;
   hasEvidence?: string;

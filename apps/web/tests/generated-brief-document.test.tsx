@@ -27,6 +27,8 @@ const { cleanup, render, screen } = await import("@testing-library/react");
 const { GeneratedBriefDocument } = await import(
   "../components/GeneratedBriefDocument"
 );
+const { buildRepairBrief } = await import("../domain/brief");
+const { LanguageProvider } = await import("../components/LanguageContext");
 
 afterEach(() => {
   cleanup();
@@ -46,10 +48,10 @@ const fullBrief = {
 
 test("renders every labelled section from real brief data", () => {
   render(React.createElement(GeneratedBriefDocument, { brief: fullBrief }));
-  assert.ok(screen.getByText("Reported facts"));
+  assert.ok(screen.getByText("Reported / observed facts"));
   assert.ok(screen.getByText("Tap in the kitchen has been dripping for two weeks."));
   assert.ok(screen.getByText("What remains unconfirmed"));
-  assert.ok(screen.getByText("Evidence supplied"));
+  assert.ok(screen.getByText("Evidence you have"));
   assert.ok(screen.getByText("kitchen-tap.jpg"));
   assert.ok(screen.getByText("Weekday evenings after 7pm."));
   assert.ok(screen.getByText("What contractors must provide"));
@@ -63,10 +65,13 @@ test("a brief with only some fields populated (as real staging data has) does no
     }),
   );
   assert.ok(screen.getByText("Kitchen tap leaking heavily, floor is wet."));
-  // Every section still renders with a safe fallback rather than crashing
-  // or rendering an empty list.
+  // Sections that always show (observed facts, property/access, unconfirmed,
+  // contractor requests) still render with a safe fallback rather than
+  // crashing or rendering an empty list; sections with no underlying answer
+  // at all (e.g. evidence, when hasEvidence was never answered) are omitted
+  // entirely rather than padded with a placeholder.
   assert.ok(screen.getAllByText("Not recorded").length > 0);
-  assert.ok(screen.getByText("No uploaded evidence"));
+  assert.equal(screen.queryByText("Evidence you have"), null);
 });
 
 test("a missing brief renders a fallback instead of crashing", () => {
@@ -128,8 +133,116 @@ test("missing category and missing original report render safely, not the old fi
     }),
   );
   assert.ok(screen.getByText("Repair brief"));
-  assert.ok(screen.getByText(/No original report text was recorded for this submission\./));
+  // No invented placeholder text stands in for a missing original report —
+  // the lead paragraph shows only the fixed disclaimer sentence.
+  assert.ok(
+    screen.getByText(
+      /RepairScope has not independently confirmed the cause or responsibility\./,
+    ),
+  );
   assert.equal(screen.queryByText("Intermittent bedroom ceiling water ingress"), null);
+});
+
+// Regression coverage for the CRITICAL data-loss defect (rework item 2):
+// a fully answered standard-category ("leak") journey used to render an
+// empty "Reported / observed facts" section because reportedFacts is
+// intentionally empty for standard categories (see domain/brief.ts). This
+// renders GeneratedBriefDocument against buildRepairBrief's real output —
+// not a hand-authored fixture — and checks the resolved bilingual labels
+// (never the raw stored codes) appear.
+test("a fully answered standard-category journey shows its real observations, not an empty section", () => {
+  const draft = {
+    id: "draft-leak-render",
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: {
+      affected: "ceiling",
+      branchFirst: "rain",
+      branchSecond: "mark",
+      branchThird: "large",
+      duration: "week",
+      frequency: "occasional",
+      worsening: "yes",
+      district: "eastern",
+    },
+    safetyAcknowledgements: [],
+    status: "draft" as const,
+    updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  const brief = buildRepairBrief(draft);
+
+  render(React.createElement(GeneratedBriefDocument, { brief }));
+
+  assert.equal(screen.queryByText("Not recorded"), null);
+  // Resolved English labels for the raw stored codes, not the codes themselves.
+  assert.ok(screen.getByText("Ceiling"));
+  assert.ok(screen.getByText("During / after rain"));
+  assert.ok(screen.getByText("Water mark / damp patch"));
+  assert.ok(screen.getByText("A large area"));
+  assert.ok(screen.getByText("Within a week"));
+  assert.ok(screen.getByText("Occasionally"));
+  assert.ok(screen.getByText("Getting worse"));
+  assert.equal(screen.queryByText("ceiling"), null);
+  assert.equal(screen.queryByText("rain"), null);
+});
+
+// Regression coverage for rework item 3 (bilingual brief correctness):
+// confirmedUnknowns/contractorRequests used to be pre-baked English
+// sentences stored directly on the brief — buildRepairBrief now stores
+// stable keys instead, resolved to the current language by
+// resolveConfirmedUnknown/resolveContractorRequest at render time.
+test("confirmedUnknowns and contractorRequests render in Chinese for the Chinese journey, not the stored English key", () => {
+  const draft = {
+    id: "draft-leak-zh",
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: { affected: "ceiling", district: "eastern" },
+    safetyAcknowledgements: [],
+    status: "draft" as const,
+    updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  const brief = buildRepairBrief(draft);
+
+  render(
+    React.createElement(LanguageProvider, null, React.createElement(GeneratedBriefDocument, { brief })),
+  );
+
+  assert.ok(screen.getByText("RepairScope 未有獨立確認成因或責任。"));
+  assert.ok(screen.getByText("講低自己嘅判斷同信心程度。"));
+  assert.equal(
+    screen.queryByText("RepairScope has not independently confirmed the cause or responsibility."),
+    null,
+  );
+  assert.equal(screen.queryByText("not-independently-confirmed"), null);
+});
+
+// Regression coverage: applyBriefCorrection stores the correction in
+// landlordCorrections (raw text), and summariseObservedFacts must still
+// surface it in "02 Reported / observed facts" even for a standard
+// category with observedFacts already populated — otherwise a correction
+// to a fully answered "leak" journey would silently vanish (it used to be
+// appended to reportedFacts, which summariseObservedFacts only fell back to
+// when observedFacts was empty).
+test("a correction on a standard-category brief remains visible, with a localised label", () => {
+  const draft = {
+    id: "draft-leak-correction",
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: { affected: "ceiling", district: "eastern" },
+    safetyAcknowledgements: [],
+    status: "draft" as const,
+    updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  const generated = buildRepairBrief(draft);
+  const corrected = { ...generated, landlordCorrections: ["Actually the wall, not the ceiling."] };
+
+  render(React.createElement(GeneratedBriefDocument, { brief: corrected }));
+
+  assert.ok(screen.getByText("Ceiling"));
+  assert.ok(screen.getByText(/Owner correction:.*Actually the wall, not the ceiling\./));
 });
 
 test("bare mode omits the outer .brief-document wrapper (for the landlord screen's own card)", () => {
