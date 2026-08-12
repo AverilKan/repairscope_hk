@@ -9,7 +9,10 @@ import { trackPageErrors } from "./helpers";
 // genuine `next start` in turn — see docs/FRONTEND_RUNTIME_MIGRATION.md.
 
 const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
-  { path: "/", identifyingText: "Got a significant repair at your rental property?" },
+  // Traditional Chinese is the default language for the public homepage
+  // too (see components/LanguageContext.tsx) — the HK public-shell
+  // redesign's approved proposition, not the old English-only UK copy.
+  { path: "/", identifyingText: /屋企有維修/ },
   { path: "/sign-in", identifyingText: "Landlord account access" },
   { path: "/sign-up", identifyingText: "Landlord account access" },
   { path: "/contractor", identifyingText: "CONTRACTOR RESPONSE PORTAL" },
@@ -19,8 +22,10 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
   { path: "/operator", identifyingText: "Review submitted repair briefs." },
   // Traditional Chinese is the default language for the landlord surface
-  // (see components/LanguageContext.tsx) — not English.
-  { path: "/landlord", identifyingText: "業主工作區" },
+  // (see components/LanguageContext.tsx) — not English. Neutral
+  // "維修申請" framing, not "Landlord workspace" — the HK pilot also
+  // serves owner-occupiers, not landlords exclusively.
+  { path: "/landlord", identifyingText: "維修申請" },
   { path: "/landlord/repairs/new/leak", identifyingText: "滲水／漏水" },
   { path: "/landlord/repairs/rs-1047/responses", identifyingText: "Contractor responses" },
   { path: "/landlord/repairs/rs-1047/progress", identifyingText: "Repair progress" },

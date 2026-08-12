@@ -12,6 +12,14 @@ test("operator detail shows the readable brief above intake details, with raw an
   page,
 }) => {
   await page.goto("/operator");
+  // The HK public-shell redesign consolidated language state to a single
+  // root-level provider (see app/layout.tsx) — /operator now inherits the
+  // same "zh" default as every other surface instead of always rendering
+  // English (it previously had no LanguageProvider ancestor at all). It
+  // also gained a working language toggle in its footer as a result,
+  // which it never had before — switch to English here to keep this
+  // test's own assertions about the English-labelled section titles.
+  await page.getByRole("button", { name: "EN", exact: true }).click();
   await page.getByRole("button", { name: /RS-MOCK01/ }).click();
 
   // The readable brief renders with its labelled sections (see

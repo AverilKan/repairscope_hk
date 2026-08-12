@@ -1266,9 +1266,9 @@ test("contractor confirmation and shared auth shell keep invitation access separ
 });
 
 test("mobile comparison, loading, empty and error states are present", async () => {
-  const [css, homeSource, landlordSource, questionnaireSource] = await Promise.all([
+  const [css, publicHomeSource, landlordSource, questionnaireSource] = await Promise.all([
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/PublicHome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/LandlordApp.tsx", import.meta.url), "utf8"),
     readFile(
       new URL("../components/QuestionnaireEngine.tsx", import.meta.url),
@@ -1277,9 +1277,12 @@ test("mobile comparison, loading, empty and error states are present", async () 
   ]);
 
   assert.match(css, /@media \(max-width: 840px\)[\s\S]*\.clean-response-card/);
+  // The homepage CTA now lives in PublicHome.tsx (app/page.tsx is a thin
+  // re-export, see the HK public-shell integration) and its label is
+  // bilingual (c.cta), not the old hardcoded "Submit a repair" string.
   assert.match(
-    homeSource,
-    /href="\/landlord\/repairs\/new"[\s\S]*Submit a repair/,
+    publicHomeSource,
+    /href="\/landlord\/repairs\/new"[\s\S]*\{c\.cta\}/,
   );
   // Category-first entry (HK-A0 rework): no more free-text-first
   // "startFresh ? describe : start" phase machine — CategoryPickerScreen
@@ -1307,6 +1310,25 @@ test("mobile comparison, loading, empty and error states are present", async () 
   assert.doesNotMatch(questionnaireSource, /Confirm postcode|normaliseUkPostcode/);
   assert.doesNotMatch(questionnaireSource, /field\.type === "email"/);
   assert.doesNotMatch(questionnaireSource, /field\.type === "phone"/);
+});
+
+// Regression coverage for the HK public-shell integration: LandlordApp used
+// to mount its own <LanguageProvider>, independent of the one now mounted
+// once at the app root (app/layout.tsx). A duplicate provider is a
+// structural regression a DOM assertion alone would likely miss — both
+// providers default to the same "zh" state on a fresh load, so the bug
+// only becomes externally visible when a visitor switches language on one
+// surface and it silently fails to affect another (see
+// tests/e2e/public-shell.spec.ts's cross-surface language test for the
+// behavioural half of this coverage).
+test("LandlordApp does not mount its own LanguageProvider — app/layout.tsx is the single authoritative one", async () => {
+  const [layoutSource, landlordSource] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/LandlordApp.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(layoutSource, /<LanguageProvider>/);
+  assert.doesNotMatch(landlordSource, /<LanguageProvider>/);
+  assert.doesNotMatch(landlordSource, /import \{[^}]*LanguageProvider[^}]*\} from "\.\/LanguageContext"/);
 });
 
 test("submitted repair quote freezes its accepted total and cost snapshot", () => {

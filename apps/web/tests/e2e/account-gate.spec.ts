@@ -38,8 +38,10 @@ test("anonymous repair intake stays reachable without signing in", async ({ page
   await page.goto("/landlord");
   await expect(page).toHaveURL(/\/landlord$/);
   // Traditional Chinese is the default language for the landlord surface
-  // (see components/LanguageContext.tsx) — not English.
-  await expect(page.getByText("業主工作區", { exact: true })).toBeVisible();
+  // (see components/LanguageContext.tsx) — not English. Neutral "維修申請"
+  // framing (not "Landlord workspace"/"業主工作區" — see the HK public-shell
+  // redesign integration), since the pilot also serves owner-occupiers.
+  await expect(page.getByText("維修申請", { exact: true })).toBeVisible();
 });
 
 test("anonymous questionnaire flow for a new repair stays reachable without signing in", async ({

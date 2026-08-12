@@ -15,7 +15,10 @@ test("client-side navigation from the main page does not full-reload", async ({ 
     (window as unknown as { __navMarker: string }).__navMarker = "still-here";
   });
 
-  await page.getByRole("link", { name: "Submit a repair", exact: true }).click();
+  // The homepage CTA is bilingual now (HK public-shell redesign) —
+  // Traditional Chinese is the default language, so its label reads
+  // "開始維修申請", not the old hardcoded "Submit a repair".
+  await page.getByRole("link", { name: "開始維修申請", exact: true }).first().click();
   // NewRepairFlow mints a route-carried journey id and replaces the URL
   // with it (see domain/journey.ts) — no bare /new with no query string.
   await expect(page).toHaveURL(/\/landlord\/repairs\/new\?journey=/);
@@ -44,9 +47,11 @@ test("sign-in shell's back link navigates client-side to the home route", async 
   await page.getByRole("link", { name: "Back to RepairScope" }).click();
   await expect(page).toHaveURL(/\/$/);
   // Next.js's own accessibility route-announcer also carries this text, so
-  // scope to the actual page heading rather than a bare text match.
+  // scope to the actual page heading rather than a bare text match. The
+  // homepage heading is now the HK public-shell redesign's bilingual
+  // proposition (Traditional Chinese by default), not the old English copy.
   await expect(
-    page.getByRole("heading", { name: "Got a significant repair at your rental property?" }),
+    page.getByRole("heading", { name: /屋企有維修/ }),
   ).toBeVisible();
 
   const markerSurvived = await page.evaluate(
