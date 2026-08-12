@@ -15,6 +15,13 @@ export function SiteShell({
   surface?: Surface;
   compact?: boolean;
 }) {
+  // SiteShell renders for every surface, but only "landlord" is ever
+  // reached inside LanguageProvider (see LandlordApp) — public/contractor/
+  // operator stay English-only for now (full marketing/legal-page
+  // bilingual coverage is explicitly out of scope for this rework; only
+  // the shell pieces the questionnaire itself sits inside are localised
+  // here).
+  const { lang } = useLanguage();
   return (
     <div className={`site-shell ${compact ? "site-shell--compact" : ""}`}>
       <header className="site-header">
@@ -28,7 +35,9 @@ export function SiteShell({
           <span className="surface-label__dot" aria-hidden="true" />
           {surface === "public"
             ? "Describe · Source · Compare · Choose"
-            : `${surface} view`}
+            : surface === "landlord"
+              ? (lang === "zh" ? "業主檢視" : "Landlord view")
+              : `${surface} view`}
         </div>
         <nav className="site-nav" aria-label="Primary navigation">
           {surface === "public" && (
@@ -40,9 +49,9 @@ export function SiteShell({
             </>
           )}
           {surface === "landlord" && (
-            <Link href="/landlord/repairs">My repairs</Link>
+            <Link href="/landlord/repairs">{lang === "zh" ? "我嘅維修" : "My repairs"}</Link>
           )}
-          {surface !== "public" && surface !== "contractor" && (
+          {surface !== "public" && surface !== "contractor" && surface !== "landlord" && (
             <Link href="/landlord/repairs">Repair workspace</Link>
           )}
           {surface !== "public" && (

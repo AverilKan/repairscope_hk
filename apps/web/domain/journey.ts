@@ -1,4 +1,121 @@
-import type { ProblemBrief, RepairCategoryId, RepairIntakeDraft } from "./types";
+import { questionnaireByCategory } from "@/data/questionnaires";
+import type {
+  ProblemBrief,
+  QuestionnaireField,
+  QuestionnaireSchema,
+  RepairCategoryId,
+  RepairIntakeDraft,
+} from "./types";
+
+// ---------------------------------------------------------------------------
+// Schema-aware validation shared by readJourneyDraft/readJourneyBrief. A
+// malformed or corrupted localStorage record (hand-edited, from a stale
+// schema version, or from a different browser tab's storage bleeding
+// through some bug) must fail closed — the caller falls back to a fresh
+// draft — rather than the app applying a mismatched shape into the current
+// questionnaire. See the HK-A0 rework's "journey storage hardening"
+// requirement.
+// ---------------------------------------------------------------------------
+
+function allFieldsOf(schema: QuestionnaireSchema): QuestionnaireField[] {
+  return schema.steps.flatMap((step) => step.fields);
+}
+
+function isValidResponseValue(field: QuestionnaireField, value: unknown): boolean {
+  switch (field.type) {
+    case "checkbox":
+      return typeof value === "boolean";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "single_select":
+      if (typeof value !== "string") return false;
+      // Every single_select field in the HK schema carries its own option
+      // list — a value that is not one of them is not a value the current
+      // questionnaire could have produced.
+      return !field.options?.length || field.options.some((option) => option.value === value);
+    case "grouped_select":
+      if (typeof value !== "string") return false;
+      return (
+        !field.groups?.length ||
+        field.groups.some((group) => group.options.some((option) => option.value === value))
+      );
+    case "short_text":
+    case "long_text":
+    case "name":
+    case "email":
+    case "phone":
+    case "postcode":
+      return typeof value === "string";
+    default:
+      return false;
+  }
+}
+
+/**
+ * Validates a restored responses object against the schema it claims to
+ * belong to — drops (does not merely warn about) any entry whose key is not
+ * a real field on this schema, or whose value shape/option value the
+ * schema's own field definition does not recognise. Returns null if the
+ * input is not a plain object at all (fail closed at the top level too).
+ */
+function sanitiseResponses(
+  schema: QuestionnaireSchema,
+  value: unknown,
+): RepairIntakeDraft["responses"] | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const fieldsById = new Map(allFieldsOf(schema).map((field) => [field.id, field]));
+  const sanitised: RepairIntakeDraft["responses"] = {};
+  for (const [fieldId, fieldValue] of Object.entries(value as Record<string, unknown>)) {
+    const field = fieldsById.get(fieldId);
+    if (!field) continue; // not a field on this schema — drop, do not restore
+    if (!isValidResponseValue(field, fieldValue)) continue; // wrong shape/unrecognised option — drop
+    sanitised[fieldId] = fieldValue as RepairIntakeDraft["responses"][string];
+  }
+  return sanitised;
+}
+
+/**
+ * Validates a restored completedStepIds array against the schema — any id
+ * that is not a real step on this schema is dropped rather than restored,
+ * since it cannot correspond to any step the current questionnaire could
+ * render.
+ */
+function sanitiseCompletedStepIds(schema: QuestionnaireSchema, value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const validStepIds = new Set(schema.steps.map((step) => step.id));
+  return [...new Set(value.filter((id): id is string => typeof id === "string" && validStepIds.has(id)))];
+}
+
+/**
+ * Validates a restored activeIndex — must be a whole number that indexes an
+ * actual step on this schema. A negative, fractional, or out-of-range index
+ * (e.g. from a hand-edited or stale-schema record) falls back to 0 rather
+ * than being applied as-is, which would otherwise crash or silently render
+ * the wrong step (schema.steps[activeIndex] would be undefined).
+ */
+function sanitiseActiveIndex(schema: QuestionnaireSchema, value: unknown): number {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 0 &&
+    value < schema.steps.length
+    ? value
+    : 0;
+}
+
+/**
+ * Validates restored safety acknowledgements — must be a plain object
+ * mapping string keys to string values. (In the current HK flow a
+ * safety-triggering answer is always a full-screen exit — see
+ * components/LandlordApp.tsx's SafetyExit — so this is always {} in
+ * practice; validated defensively in case that changes.)
+ */
+function sanitiseAcknowledgements(value: unknown): Record<string, string> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+  return Object.fromEntries(entries);
+}
 
 // A per-repair anonymous journey id: identifies "one attempt at reporting
 // one repair". Carried explicitly in the URL (?journey=<uuid>) — the URL is
@@ -46,6 +163,10 @@ export function isPlausibleJourneyId(value: string | null | undefined): value is
   return typeof value === "string" && safeId(value) !== null && value.length >= 8;
 }
 
+function isValidCategory(value: unknown): value is RepairCategoryId {
+  return typeof value === "string" && value in questionnaireByCategory;
+}
+
 function journeyStorageKey(journeyId: string, part: "draft" | "brief"): string | null {
   const id = safeId(journeyId);
   if (!id) return null;
@@ -69,10 +190,22 @@ export interface StoredDraftState {
   completedStepIds: string[];
 }
 
+/**
+ * Reads and fully validates a journey's in-progress draft against the
+ * schema currently active for it — takes the whole QuestionnaireSchema
+ * (not just category/version) so it can also validate activeIndex's range,
+ * that completedStepIds are real steps on this schema, and that every
+ * response key/value/option is one this schema could actually have
+ * produced. A malformed or corrupted record — wrong journey/category/
+ * version, a negative or fractional activeIndex, an unknown step or field
+ * id, an unrecognised option value, wrong JSON — is never partially
+ * trusted: on any such mismatch this returns null and the caller starts
+ * from a fresh draft, rather than applying a mismatched shape into the
+ * current questionnaire.
+ */
 export function readJourneyDraft(
   journeyId: string,
-  category: RepairCategoryId,
-  schemaVersion: number,
+  schema: QuestionnaireSchema,
 ): StoredDraftState | null {
   const key = journeyStorageKey(journeyId, "draft");
   if (!key) return null;
@@ -80,12 +213,12 @@ export function readJourneyDraft(
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StoredDraftState>;
+    const responses = sanitiseResponses(schema, parsed.responses);
     if (
       parsed.journeyId !== journeyId ||
-      parsed.category !== category ||
-      parsed.schemaVersion !== schemaVersion ||
-      typeof parsed.responses !== "object" ||
-      parsed.responses === null
+      parsed.category !== schema.category ||
+      parsed.schemaVersion !== schema.version ||
+      responses === null
     ) {
       // Stale or incompatible — fail safely rather than applying a
       // mismatched shape into the current schema.
@@ -93,17 +226,12 @@ export function readJourneyDraft(
     }
     return {
       journeyId,
-      category,
-      schemaVersion,
-      activeIndex: typeof parsed.activeIndex === "number" ? parsed.activeIndex : 0,
-      responses: parsed.responses,
-      acknowledgements:
-        typeof parsed.acknowledgements === "object" && parsed.acknowledgements !== null
-          ? parsed.acknowledgements
-          : {},
-      completedStepIds: Array.isArray(parsed.completedStepIds)
-        ? parsed.completedStepIds
-        : [],
+      category: schema.category,
+      schemaVersion: schema.version,
+      activeIndex: sanitiseActiveIndex(schema, parsed.activeIndex),
+      responses,
+      acknowledgements: sanitiseAcknowledgements(parsed.acknowledgements),
+      completedStepIds: sanitiseCompletedStepIds(schema, parsed.completedStepIds),
     };
   } catch {
     return null;
@@ -126,9 +254,7 @@ export function peekJourneyDraftCategory(journeyId: string): RepairCategoryId | 
     const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StoredDraftState>;
-    return parsed.journeyId === journeyId && typeof parsed.category === "string"
-      ? (parsed.category as RepairCategoryId)
-      : null;
+    return parsed.journeyId === journeyId && isValidCategory(parsed.category) ? parsed.category : null;
   } catch {
     return null;
   }
@@ -200,6 +326,35 @@ export interface StoredBriefState {
   brief: ProblemBrief;
 }
 
+/**
+ * Structural check for a restored ProblemBrief — not a full schema-level
+ * validation (a generated brief is display content, not raw questionnaire
+ * answers, and GeneratedBriefDocument already reads it defensively field by
+ * field for exactly this reason — see its own GeneratedBriefLike comment).
+ * This still fails closed on the shapes that would otherwise crash or
+ * silently misrender: the array fields every render path assumes are
+ * arrays, and the identifying string/number fields.
+ */
+function isPlausibleBrief(value: unknown): value is ProblemBrief {
+  if (typeof value !== "object" || value === null) return false;
+  const brief = value as Partial<ProblemBrief>;
+  return (
+    typeof brief.id === "string" &&
+    typeof brief.repairId === "string" &&
+    typeof brief.version === "number" &&
+    Array.isArray(brief.reportedFacts) &&
+    Array.isArray(brief.confirmedUnknowns) &&
+    Array.isArray(brief.contractorRequests)
+  );
+}
+
+/**
+ * Reads and validates a journey's generated (and possibly corrected) brief.
+ * Fails closed — returns null — on a journey/category mismatch, an invalid
+ * category, a draft whose responses do not sanitise cleanly against that
+ * category's schema, or a brief missing the structural shape every render
+ * path assumes (see isPlausibleBrief).
+ */
 export function readJourneyBrief(
   journeyId: string,
   category: RepairCategoryId,
@@ -213,14 +368,22 @@ export function readJourneyBrief(
     if (
       parsed.journeyId !== journeyId ||
       parsed.category !== category ||
+      !isValidCategory(parsed.category) ||
       typeof parsed.draft !== "object" ||
       parsed.draft === null ||
-      typeof parsed.brief !== "object" ||
-      parsed.brief === null
+      !isPlausibleBrief(parsed.brief)
     ) {
       return null;
     }
-    return parsed as StoredBriefState;
+    const schema = questionnaireByCategory[category];
+    const draftResponses = sanitiseResponses(schema, (parsed.draft as Partial<RepairIntakeDraft>).responses);
+    if (draftResponses === null) return null;
+    return {
+      journeyId,
+      category,
+      draft: { ...(parsed.draft as RepairIntakeDraft), category, responses: draftResponses },
+      brief: parsed.brief,
+    };
   } catch {
     return null;
   }
@@ -267,8 +430,8 @@ export function peekJourneyCategory(journeyId: string): RepairCategoryId | null 
       const raw = window.localStorage.getItem(briefKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<StoredBriefState>;
-        if (parsed.journeyId === journeyId && typeof parsed.category === "string") {
-          return parsed.category as RepairCategoryId;
+        if (parsed.journeyId === journeyId && isValidCategory(parsed.category)) {
+          return parsed.category;
         }
       }
     } catch {
@@ -309,5 +472,22 @@ export function forgetLastActiveJourney() {
     window.localStorage.removeItem(LAST_ACTIVE_JOURNEY_KEY);
   } catch {
     // ignore
+  }
+}
+
+/**
+ * Called after a journey's own storage is cleared (see clearJourney) —
+ * e.g. on successful submission. Only forgets the last-active pointer if it
+ * still names THIS journey: if the owner has since started a second
+ * journey (J2) in the same browser, the pointer already names J2, and
+ * clearing J1 must not remove it — otherwise the home screen would lose
+ * the "continue your in-progress repair" prompt for J2, a journey that is
+ * still genuinely in progress. Without this check at all, the home screen
+ * would instead keep offering to "continue" a journey that was already
+ * submitted and cleared (see readLastActiveJourney's caller).
+ */
+export function forgetLastActiveJourneyIfCurrent(journeyId: string) {
+  if (readLastActiveJourney() === journeyId) {
+    forgetLastActiveJourney();
   }
 }

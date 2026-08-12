@@ -7,17 +7,18 @@ import {
   categoryOptions,
   questionnaireByCategory,
   questionnaireVersionLabel,
-  resolveAnswerLabel,
   sharedTailFieldIds,
 } from "@/data/questionnaires";
 import { correctionMeetsMinimumWords } from "@/domain/rules";
-import { applyBriefCorrection, buildRepairBrief } from "@/domain/brief";
+import { applyBriefCorrection, buildCanonicalPropertyAddress, buildRepairBrief } from "@/domain/brief";
 import {
   clearJourney,
   createJourneyId,
+  forgetLastActiveJourneyIfCurrent,
   isPlausibleJourneyId,
   peekJourneyCategory,
   readJourneyBrief,
+  readJourneyDraft,
   readLastActiveJourney,
   rebuildDraftForCategoryChange,
   rememberLastActiveJourney,
@@ -38,6 +39,7 @@ import {
   type RepairSubmissionPanelPrefill,
 } from "./RepairSubmissionPanel";
 import { QuestionnaireEngine } from "./QuestionnaireEngine";
+import { IntakeStageProgress } from "./IntakeStageProgress";
 import { GeneratedBriefDocument } from "./GeneratedBriefDocument";
 import { ResponseComparisonPage } from "./ResponseComparisonPage";
 import { BackLink, PageIntro, SiteShell, StatusPill } from "./SiteShell";
@@ -72,7 +74,14 @@ function LandlordHome() {
     // restore).
     const timer = window.setTimeout(() => {
       const last = readLastActiveJourney();
-      if (last) setResumeHref(`/landlord/repairs/new?journey=${last}`);
+      // Defence in depth alongside forgetLastActiveJourneyIfCurrent: even
+      // if the pointer were ever stale for some other reason, never offer
+      // to "continue" a journey whose own storage no longer exists (e.g.
+      // already submitted and cleared) — peekJourneyCategory returns null
+      // once clearJourney has run.
+      if (last && peekJourneyCategory(last)) {
+        setResumeHref(`/landlord/repairs/new?journey=${last}`);
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -193,6 +202,7 @@ function SafetyExit({ rule, onBack }: { rule: SafetyRule; onBack: () => void }) 
 // ---------------------------------------------------------------------------
 
 function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }) {
+  const { lang } = useLanguage();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -234,6 +244,10 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   const [safetyExitRule, setSafetyExitRule] = useState<SafetyRule | null>(null);
   const [briefDraft, setBriefDraft] = useState<RepairIntakeDraft | null>(null);
   const [resumeDraft, setResumeDraft] = useState<RepairIntakeDraft | null>(null);
+  // Whether the "Change problem type" picker is open mid-questionnaire —
+  // see changeCategory below and the "更改問題類型" control rendered next to
+  // BackLink.
+  const [changingCategory, setChangingCategory] = useState(false);
 
   // Bootstrap which category this journey is already in progress for, on
   // reload/navigation — otherwise there is no way to know which category's
@@ -272,6 +286,17 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   const changeCategory = (nextCategory: RepairCategoryId) => {
     if (selectedCategory && selectedCategory !== nextCategory) {
       const nextSchema = questionnaireByCategory[nextCategory];
+      // Live current answers, not just resumeDraft (which is only set on
+      // the "edit answers" path back from a generated brief and is stale
+      // — or entirely empty — while the owner is still actively
+      // answering the questionnaire). QuestionnaireEngine persists to
+      // journey storage on every change (debounced ~220ms), so reading it
+      // here reflects what the owner has actually answered so far, not
+      // just what happened to be resumed from.
+      const liveResponses =
+        readJourneyDraft(journeyId, questionnaireByCategory[selectedCategory])?.responses ??
+        resumeDraft?.responses ??
+        {};
       // Category change discards the abandoned category's own answers and
       // rebuilds fresh navigation state for the new schema — never reuses
       // the old numeric step index, completed-step list or safety
@@ -281,13 +306,15 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
           journeyId,
           nextCategory,
           nextSchema.version,
-          resumeDraft?.responses ?? {},
+          liveResponses,
           sharedTailFieldIds,
         ),
       );
     }
     setResumeDraft(null);
     setSafetyExitRule(null);
+    setChangingCategory(false);
+    setBriefDraft(null);
     setSelectedCategory(nextCategory);
   };
 
@@ -311,15 +338,41 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   if (!selectedCategory || !selectedSchema) {
     return (
       <main className="intake-stage progressive-intake">
-        <BackLink href="/landlord" label="Landlord home" />
+        <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
         <CategoryPickerScreen onSelect={changeCategory} />
+      </main>
+    );
+  }
+
+  // A real, visible path to change category mid-questionnaire — before
+  // this, rebuildDraftForCategoryChange existed but was only reachable via
+  // the initial CategoryPickerScreen, so an owner who realised partway
+  // through (e.g. picked "leak" but the branch questions revealed it is
+  // actually a drainage problem) had no way back to the category grid
+  // short of abandoning the journey (?journey= id and all) entirely.
+  if (changingCategory) {
+    return (
+      <main className="intake-stage progressive-intake">
+        <button type="button" className="text-button back-link" onClick={() => setChangingCategory(false)}>
+          <span aria-hidden="true">←</span> {lang === "zh" ? "返回問題" : "Back to your questions"}
+        </button>
+        <CategoryChangeScreen currentCategory={selectedCategory} onSelect={changeCategory} />
       </main>
     );
   }
 
   return (
     <main className="intake-stage progressive-intake">
-      <BackLink href="/landlord" label="Landlord home" />
+      <div className="intake-stage__top">
+        <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
+        <button
+          type="button"
+          className="text-button intake-stage__change-category"
+          onClick={() => setChangingCategory(true)}
+        >
+          {lang === "zh" ? "更改問題類型" : "Change problem type"}
+        </button>
+      </div>
       <QuestionnaireEngine
         key={selectedCategory}
         schema={selectedSchema}
@@ -337,6 +390,32 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
         }}
       />
     </main>
+  );
+}
+
+function CategoryChangeScreen({
+  currentCategory,
+  onSelect,
+}: {
+  currentCategory: RepairCategoryId;
+  onSelect: (category: RepairCategoryId) => void;
+}) {
+  const { lang } = useLanguage();
+  return (
+    <section className="intake-sequence intake-sequence--current">
+      <div className="intake-sequence__body category-suggestion">
+        <p className="eyebrow">{lang === "zh" ? "更改問題類型" : "CHANGE PROBLEM TYPE"}</p>
+        <h1 tabIndex={-1} data-category-heading>
+          {lang === "zh" ? "你想改揀邊個問題？" : "Which problem would you like instead?"}
+        </h1>
+        <p>
+          {lang === "zh"
+            ? "轉咗類型之後，同呢個類型無關嘅答案會清空；地區、身份等共用資料會保留。"
+            : "Switching clears answers specific to your current problem type; shared details like district and your relationship to the property are kept."}
+        </p>
+        <CategoryGrid onSelect={onSelect} selected={currentCategory} />
+      </div>
+    </section>
   );
 }
 
@@ -456,7 +535,7 @@ function BriefReview({
       // Correction is a pure local transformation (domain/brief.ts) — never
       // calls the deferred repairScopeServices.contractorBriefs API
       // capability, so this works the same in mock and hosted API mode.
-      const result = applyBriefCorrection(currentBrief, correction);
+      const result = applyBriefCorrection(currentBrief, correction, lang);
       setCurrentBrief(result.brief);
       setAppliedCorrection(result);
       setCorrection("");
@@ -476,19 +555,10 @@ function BriefReview({
     }
   };
 
-  const propertyAddress = draft
-    ? [
-        draft.responses.district
-          ? resolveAnswerLabel(draft.category ?? "other", "district", String(draft.responses.district), lang)
-          : undefined,
-        draft.responses.building,
-        draft.responses.block,
-        draft.responses.floor,
-        draft.responses.unit,
-      ]
-        .filter(Boolean)
-        .join(" ")
-    : undefined;
+  // Canonical, language-stable address — not resolveAnswerLabel(lang), which
+  // would make the stored property_address mean something different
+  // depending on which language the UI happened to show at submission time.
+  const propertyAddress = draft ? buildCanonicalPropertyAddress(draft) : undefined;
 
   const contactPrefill: RepairSubmissionPanelPrefill = { propertyAddress };
 
@@ -501,7 +571,8 @@ function BriefReview({
 
   return (
     <main className="content-page brief-page">
-      <BackLink href="/landlord" label="Landlord home" />
+      <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
+      <IntakeStageProgress activeStage={2} />
       <PageIntro
         eyebrow={lang === "zh" ? "維修簡報 · 分享之前先審閱" : "Contractor brief · Review before sharing"}
         title={lang === "zh" ? "我哋將你講嘅事實整理好喇。" : "Check the facts. Keep the diagnosis open."}
@@ -600,7 +671,15 @@ function BriefReview({
           // callback never fires) must not clear the journey — only a
           // successful submission does, and only this journey's own
           // storage, never another journey's.
-          if (journeyId) clearJourney(journeyId);
+          if (journeyId) {
+            clearJourney(journeyId);
+            // The home screen's "continue your in-progress repair" prompt
+            // must never point at a journey that was just submitted and
+            // cleared — but must not be cleared if it has since moved on
+            // to a second, still-in-progress journey (see
+            // forgetLastActiveJourneyIfCurrent).
+            forgetLastActiveJourneyIfCurrent(journeyId);
+          }
         }}
       />
     </main>

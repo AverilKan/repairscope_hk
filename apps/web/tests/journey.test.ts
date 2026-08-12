@@ -106,12 +106,13 @@ test("readJourneyDraft/writeJourneyDraft round-trip and are isolated per journey
     completedStepIds: [],
   });
 
-  const j1Draft = readJourneyDraft(j1, "leak", 1);
-  const j2Draft = readJourneyDraft(j2, "electrical", 1);
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const j1Draft = readJourneyDraft(j1, questionnaireByCategory.leak);
+  const j2Draft = readJourneyDraft(j2, questionnaireByCategory.electrical);
   assert.equal(j1Draft?.responses.affected, "ceiling");
   assert.equal(j2Draft?.responses.affected, "one-fitting");
   // Opening/writing j2 must not have touched j1's own storage.
-  assert.equal(readJourneyDraft(j1, "leak", 1)?.responses.affected, "ceiling");
+  assert.equal(readJourneyDraft(j1, questionnaireByCategory.leak)?.responses.affected, "ceiling");
 });
 
 // Regression coverage for a defect found during manual verification of
@@ -195,19 +196,198 @@ test("peekJourneyCategory never leaks one journey's category into another journe
 
 test("readJourneyDraft fails safely (returns null) for a mismatched category or schema version rather than applying stale data", async () => {
   const { readJourneyDraft, writeJourneyDraft, createJourneyId } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
   const journeyId = createJourneyId();
   writeJourneyDraft({
     journeyId,
     category: "leak",
-    schemaVersion: 1,
+    schemaVersion: questionnaireByCategory.leak.version,
     activeIndex: 1,
     responses: { affected: "ceiling" },
     acknowledgements: {},
     completedStepIds: [],
   });
-  assert.equal(readJourneyDraft(journeyId, "electrical", 1), null);
-  assert.equal(readJourneyDraft(journeyId, "leak", 2), null);
-  assert.ok(readJourneyDraft(journeyId, "leak", 1));
+  assert.equal(readJourneyDraft(journeyId, questionnaireByCategory.electrical), null);
+  assert.equal(
+    readJourneyDraft(journeyId, { ...questionnaireByCategory.leak, version: questionnaireByCategory.leak.version + 1 }),
+    null,
+  );
+  assert.ok(readJourneyDraft(journeyId, questionnaireByCategory.leak));
+});
+
+// Regression coverage for the "journey storage hardening" requirement:
+// readJourneyDraft/readJourneyBrief used to accept malformed state too
+// easily (only shallow type checks) — a hand-edited or corrupted
+// localStorage record must be rejected outright (fail closed to a fresh
+// draft), never partially trusted.
+test("readJourneyDraft rejects a negative or fractional activeIndex, falling back to 0 rather than an invalid step", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "malformed-index-journey";
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: -3,
+      responses: {},
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  assert.equal(readJourneyDraft(journeyId, questionnaireByCategory.leak)?.activeIndex, 0);
+
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 2.5,
+      responses: {},
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  assert.equal(readJourneyDraft(journeyId, questionnaireByCategory.leak)?.activeIndex, 0);
+
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 999,
+      responses: {},
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  assert.equal(readJourneyDraft(journeyId, questionnaireByCategory.leak)?.activeIndex, 0);
+});
+
+test("readJourneyDraft drops an unknown completed step id rather than restoring it", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "malformed-step-journey";
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 0,
+      responses: {},
+      acknowledgements: {},
+      completedStepIds: ["affected", "not-a-real-step"],
+    }),
+  );
+  assert.deepEqual(readJourneyDraft(journeyId, questionnaireByCategory.leak)?.completedStepIds, ["affected"]);
+});
+
+test("readJourneyDraft drops an unknown response field id and an unrecognised option value rather than restoring them", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "malformed-response-journey";
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 0,
+      responses: {
+        affected: "ceiling", // valid field, valid option
+        affected2: "ceiling", // not a real field on this schema
+        district: "not-a-real-district", // real field, unrecognised option value
+      },
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  assert.deepEqual(readJourneyDraft(journeyId, questionnaireByCategory.leak)?.responses, {
+    affected: "ceiling",
+  });
+});
+
+test("readJourneyDraft fails closed (returns null) for an invalid category or corrupted JSON, rather than throwing or partially restoring", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "malformed-category-journey";
+
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "not-a-real-category",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 0,
+      responses: {},
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  assert.equal(readJourneyDraft(journeyId, questionnaireByCategory.leak), null);
+
+  window.localStorage.setItem(`repairscope:journey:${journeyId}:draft`, "{not valid json");
+  assert.equal(readJourneyDraft(journeyId, questionnaireByCategory.leak), null);
+});
+
+test("readJourneyBrief fails closed for a wrong journey id, malformed brief array fields, or a corrupted record", async () => {
+  const { readJourneyBrief, writeJourneyBrief } = await import("../domain/journey");
+  const journeyId = "malformed-brief-journey";
+  const validDraft = {
+    id: journeyId,
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: { affected: "ceiling" },
+    safetyAcknowledgements: [],
+    status: "brief_ready" as const,
+    updatedAt: new Date(0).toISOString(),
+  };
+  writeJourneyBrief({
+    journeyId,
+    category: "leak",
+    draft: validDraft,
+    brief: {
+      id: `brief-${journeyId}`,
+      repairId: journeyId,
+      originalReport: "",
+      reportedFacts: [],
+      structuredSymptoms: [],
+      affectedArea: "",
+      onsetAndTriggers: [],
+      evidence: [],
+      urgency: "routine",
+      occupancy: "other",
+      accessOverview: "",
+      confirmedUnknowns: [],
+      contractorRequests: [],
+      version: 1,
+    },
+  });
+  // Wrong journey id must never read another journey's brief.
+  assert.equal(readJourneyBrief("a-different-journey-id", "leak"), null);
+  assert.ok(readJourneyBrief(journeyId, "leak"));
+
+  // A brief whose array fields are not actually arrays must be rejected —
+  // every render path assumes reportedFacts/confirmedUnknowns/
+  // contractorRequests are arrays.
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:brief`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      draft: validDraft,
+      brief: { id: "brief-x", repairId: journeyId, version: 1, reportedFacts: "not-an-array" },
+    }),
+  );
+  assert.equal(readJourneyBrief(journeyId, "leak"), null);
+
+  window.localStorage.setItem(`repairscope:journey:${journeyId}:brief`, "{not valid json");
+  assert.equal(readJourneyBrief(journeyId, "leak"), null);
 });
 
 test("clearJourney removes only that journey's draft and brief storage, never another journey's", async () => {
@@ -219,12 +399,13 @@ test("clearJourney removes only that journey's draft and brief storage, never an
     readJourneyBrief,
     clearJourney,
   } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
   const j1 = createJourneyId();
   const j2 = createJourneyId();
   const draftFor = (journeyId: string) => ({
     journeyId,
     category: "leak" as const,
-    schemaVersion: 1,
+    schemaVersion: questionnaireByCategory.leak.version,
     activeIndex: 0,
     responses: {},
     acknowledgements: {},
@@ -268,9 +449,9 @@ test("clearJourney removes only that journey's draft and brief storage, never an
 
   clearJourney(j1);
 
-  assert.equal(readJourneyDraft(j1, "leak", 1), null);
+  assert.equal(readJourneyDraft(j1, questionnaireByCategory.leak), null);
   assert.equal(readJourneyBrief(j1, "leak"), null);
-  assert.ok(readJourneyDraft(j2, "leak", 1), "clearing j1 must not clear j2's draft");
+  assert.ok(readJourneyDraft(j2, questionnaireByCategory.leak), "clearing j1 must not clear j2's draft");
   assert.ok(readJourneyBrief(j2, "leak"), "clearing j1 must not clear j2's brief");
 });
 
@@ -311,6 +492,45 @@ test("last-active-journey convenience pointer is a pure UX hint, separate from p
   assert.equal(readLastActiveJourney(), id);
   forgetLastActiveJourney();
   assert.equal(readLastActiveJourney(), null);
+});
+
+// Regression coverage for rework item 6 (last-active journey pointer):
+// a successful submission cleared the submitted journey's own draft/brief
+// storage (clearJourney) but never touched the last-active pointer, so the
+// home screen's "continue your in-progress repair" prompt kept pointing at
+// an already-submitted-and-cleared journey. forgetLastActiveJourneyIfCurrent
+// must clear the pointer only when it still names the journey just
+// submitted — not when the owner has since started a second, genuinely
+// still-in-progress journey.
+
+test("forgetLastActiveJourneyIfCurrent clears the pointer when J1 submits and the pointer still names J1", async () => {
+  const { rememberLastActiveJourney, readLastActiveJourney, forgetLastActiveJourneyIfCurrent, createJourneyId } =
+    await import("../domain/journey");
+  const j1 = createJourneyId();
+  rememberLastActiveJourney(j1);
+  assert.equal(readLastActiveJourney(), j1);
+
+  forgetLastActiveJourneyIfCurrent(j1);
+
+  assert.equal(readLastActiveJourney(), null);
+});
+
+test("forgetLastActiveJourneyIfCurrent does not clear the pointer for J1 once the owner has started J2", async () => {
+  const { rememberLastActiveJourney, readLastActiveJourney, forgetLastActiveJourneyIfCurrent, createJourneyId } =
+    await import("../domain/journey");
+  const j1 = createJourneyId();
+  const j2 = createJourneyId();
+  rememberLastActiveJourney(j1);
+  // Owner starts a second, still-in-progress journey — the pointer now
+  // names J2, not J1.
+  rememberLastActiveJourney(j2);
+  assert.equal(readLastActiveJourney(), j2);
+
+  // J1 (an older tab, or a journey abandoned earlier) is submitted —
+  // clearing J1 must not remove J2's still-current pointer.
+  forgetLastActiveJourneyIfCurrent(j1);
+
+  assert.equal(readLastActiveJourney(), j2);
 });
 
 test("sharedTailFieldIds matches the questionnaire's actual shared step field ids", async () => {
