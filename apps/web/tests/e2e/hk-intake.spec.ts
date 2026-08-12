@@ -221,10 +221,10 @@ test.describe("factual correction", () => {
     const journeyId = await startLeakJourneyThroughBuilding(page);
     await finishLeakJourneyToBrief(page);
 
-    // correctionMeetsMinimumWords counts words by whitespace-splitting, so
-    // the correction needs real spaces between segments (unspaced running
-    // Chinese text would otherwise count as a single "word").
-    const correctionText = "其實 係 牆身，唔係 天花。";
+    // Ordinary unspaced Traditional Chinese/Cantonese — no artificial spaces
+    // between segments — proving correctionMeetsMinimumWords's CJK
+    // character-count rule (domain/rules.ts) actually enables the button.
+    const correctionText = "其實係牆身，唔係天花。";
     await page.getByLabel("有冇資料錯咗或者漏咗？").fill(correctionText);
     await page.getByRole("button", { name: "套用更正" }).click();
     await expect(page.getByText("簡報已更新")).toBeVisible();

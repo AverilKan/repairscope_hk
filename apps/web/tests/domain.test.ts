@@ -502,6 +502,32 @@ test("a safety-triggering answer is a full-screen exit (onSafetyExit), never an 
   assert.doesNotMatch(safetyExitBody, /diagnos/i);
 });
 
+// Regression coverage: correctionMeetsMinimumWords used to split on
+// whitespace only, so unspaced Traditional Chinese/Cantonese correction
+// text (normal for this script — it has no spaces between words) always
+// counted as a single "word" and could never meet the minimum, silently
+// leaving "Apply correction" permanently disabled for Chinese input.
+test("correctionMeetsMinimumWords accepts an ordinary unspaced Traditional Chinese correction", () => {
+  assert.equal(correctionMeetsMinimumWords("其實係牆身，唔係天花。"), true);
+  assert.equal(correctionMeetsMinimumWords("漏水嘅位置其實喺廚房，唔係浴室"), true);
+});
+
+test("correctionMeetsMinimumWords rejects trivial 1-2 character Chinese input", () => {
+  assert.equal(correctionMeetsMinimumWords("係"), false);
+  assert.equal(correctionMeetsMinimumWords("唔啱"), false);
+});
+
+test("correctionMeetsMinimumWords rejects punctuation/whitespace-only input in either script", () => {
+  assert.equal(correctionMeetsMinimumWords("！？。～"), false);
+  assert.equal(correctionMeetsMinimumWords("   "), false);
+  assert.equal(correctionMeetsMinimumWords("!!! ??? ..."), false);
+});
+
+test("correctionMeetsMinimumWords keeps the existing English word-count behaviour", () => {
+  assert.equal(correctionMeetsMinimumWords("wrong room"), false);
+  assert.equal(correctionMeetsMinimumWords("wrong front room"), true);
+});
+
 test("brief correction creates a new brief version without mutating the original", async () => {
   assert.equal(correctionMeetsMinimumWords("wrong room"), false);
   assert.equal(correctionMeetsMinimumWords("wrong front room"), true);

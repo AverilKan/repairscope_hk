@@ -29,8 +29,10 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   await finishLeakJourneyToBrief(page);
 
   // A factual correction applied before submission must be the version
-  // that reaches the backend, not the original generation.
-  const correctionText = "其實 係 牆身，唔係 天花。";
+  // that reaches the backend, not the original generation — ordinary
+  // unspaced Traditional Chinese/Cantonese, proving the correction reaches
+  // the final payload without needing artificial spaces.
+  const correctionText = "其實係牆身，唔係天花。";
   await page.getByLabel("有冇資料錯咗或者漏咗？").fill(correctionText);
   await page.getByRole("button", { name: "套用更正" }).click();
   await expect(page.getByText("簡報已更新")).toBeVisible();

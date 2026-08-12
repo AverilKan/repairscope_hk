@@ -75,11 +75,38 @@ export function questionnaireFieldIsVisible(
   return Array.isArray(equals) ? equals.includes(actual as string) : actual === equals;
 }
 
+// Matches CJK Unified Ideographs (+ extension A, + compatibility) — the
+// script Traditional Chinese/Cantonese correction text is written in.
+const CJK_CHAR_PATTERN = /[一-鿿㐀-䶿豈-﫿]/g;
+
+/**
+ * Whitespace-based word counting only works for space-separated scripts —
+ * ordinary Traditional Chinese/Cantonese text has no spaces between words
+ * at all, so it always counted as a single "word" and could never meet an
+ * English-shaped minimum. Language-agnostic by script, not by detecting a
+ * specific language: any input containing CJK ideographs is judged by its
+ * count of meaningful CJK characters instead (one more than the English
+ * word minimum, so trivial 1-2 character input is still rejected); other
+ * input keeps the original whitespace/word-count rule, now also requiring
+ * each "word" to contain at least one letter or digit so punctuation-only
+ * input (e.g. "!!! ??? ...") can no longer satisfy it either. No language
+ * detection or LLM involved — purely a character-class check.
+ */
 export function correctionMeetsMinimumWords(
   value: string,
   minimumWords = 3,
 ): boolean {
-  const words = value.trim().split(/\s+/).filter(Boolean);
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+
+  const cjkChars = trimmed.match(CJK_CHAR_PATTERN) ?? [];
+  if (cjkChars.length > 0) {
+    return cjkChars.length >= minimumWords + 1;
+  }
+
+  const words = trimmed
+    .split(/\s+/)
+    .filter((word) => /[\p{L}\p{N}]/u.test(word));
   return words.length >= minimumWords;
 }
 
