@@ -7,6 +7,7 @@ Create Date: 2026-08-11 22:00:00.000000
 """
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -26,4 +27,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # A NOT NULL downgrade cannot be applied blindly once a real Hong Kong
+    # row with a NULL property_postcode exists — there is no truthful
+    # postcode to invent for it (HK has no postcode system at all), and
+    # silently backfilling a fake value would corrupt that row's data.
+    # Smallest safe policy: refuse the downgrade with a clear, actionable
+    # error whenever such a row exists; only proceed when every existing
+    # row already has a non-null postcode (e.g. an all-UK dataset, or an
+    # empty table).
+    connection = op.get_bind()
+    null_postcode_count = connection.execute(
+        sa.text("SELECT count(*) FROM repair_submissions WHERE property_postcode IS NULL")
+    ).scalar_one()
+    if null_postcode_count:
+        raise RuntimeError(
+            f"Cannot downgrade: {null_postcode_count} repair_submissions row(s) have a NULL "
+            "property_postcode (Hong Kong submissions have no postcode system, so there is no "
+            "truthful value to backfill). Resolve or remove those rows before downgrading."
+        )
     op.alter_column('repair_submissions', 'property_postcode', nullable=False)
