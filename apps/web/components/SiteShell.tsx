@@ -51,7 +51,7 @@ export function SiteShell({
           {surface === "public"
             ? publicCopy.descriptor
             : surface === "landlord"
-              ? (lang === "zh" ? "業主檢視" : "Landlord view")
+              ? (lang === "zh" ? "業主檢視" : "Owner view")
               : `${surface} view`}
         </div>
         {surface === "public" && (
