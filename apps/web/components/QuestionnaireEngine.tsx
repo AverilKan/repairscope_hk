@@ -41,13 +41,16 @@ interface QuestionnaireEngineProps {
    */
   onSafetyExit?: (rule: SafetyRule) => void;
   /**
-   * Fired synchronously (via a plain effect, not the debounced autosave)
-   * whenever the engine's own live `responses` state changes — lets a
-   * parent that needs the CURRENT answers for an interaction happening
-   * right now (e.g. LandlordApp's category-change control) read them
-   * directly from React state instead of racing the ~220ms debounced
-   * localStorage write, which may not have landed yet, or may never land
-   * at all if localStorage throws.
+   * Fired directly from each of the three places this component's
+   * `responses` state actually changes — the initial (possibly
+   * resumeDraft-seeded) mount, a live answer edit (changeResponse), and
+   * storage restoration — rather than from a generic effect keyed to
+   * `responses`, so the call is genuinely part of the same mutation, not a
+   * later render pass. Lets a parent that needs the CURRENT answers for an
+   * interaction happening right now (e.g. LandlordApp's category-change
+   * control) read them without racing the ~220ms debounced localStorage
+   * write, which may not have landed yet, or may never land at all if
+   * localStorage throws.
    */
   onResponsesChange?: (responses: RepairIntakeDraft["responses"]) => void;
 }
@@ -160,16 +163,16 @@ export function QuestionnaireEngine({
   const currentIndex = editingIndex ?? activeIndex;
   const currentStep = schema.steps[currentIndex];
 
-  // Reports the live responses to the parent synchronously on every commit
-  // — see the prop's own doc comment for why this exists instead of the
-  // parent reading debounced localStorage.
+  // Reports the mount-time responses (including any resumeDraft's own
+  // initial answers) once, so the parent's ref is populated even if a
+  // category change happens before any live edit or storage restore ever
+  // runs. Live edits and storage restoration report themselves directly at
+  // their own mutation sites below (changeResponse, and the restore
+  // effect) — this only covers the one gap neither of those reaches.
   useEffect(() => {
     onResponsesChange?.(responses);
-    // onResponsesChange is expected to be a stable callback (a ref-set
-    // function, not new on every parent render) — omitting it from deps
-    // avoids re-firing this effect for unrelated parent re-renders.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [responses]);
+  }, []);
 
   const safetyAcknowledgementList = useMemo(
     () =>
@@ -201,6 +204,11 @@ export function QuestionnaireEngine({
         );
         setActiveIndex(resolvedIndex);
         setResponses(restoredResponses);
+        // Reported directly here, not left to the mount-only effect above
+        // (which already ran with the pre-restore value) — a category
+        // change right after a reload-triggered restore, before any live
+        // edit, must still see the restored answers, not an empty map.
+        onResponsesChange?.(restoredResponses);
         setAcknowledgements(stored.acknowledgements);
         setCompletedStepIds([...new Set(stored.completedStepIds)]);
         setSavedAt("restored");
@@ -331,6 +339,12 @@ export function QuestionnaireEngine({
       }
     }
     setResponses(nextResponses);
+    // Reported directly here, in the same call as the mutation itself —
+    // not via a separate effect keyed to `responses`, which only runs on
+    // the NEXT render pass. A parent-driven interaction (e.g. a category
+    // change) that reads the parent's ref right after this answer must see
+    // it, not a value from before this click.
+    onResponsesChange?.(nextResponses);
     setErrors((current) => {
       const next = { ...current };
       delete next[fieldId];

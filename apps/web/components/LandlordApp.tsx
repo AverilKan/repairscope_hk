@@ -9,7 +9,7 @@ import {
   questionnaireVersionLabel,
   sharedTailFieldIds,
 } from "@/data/questionnaires";
-import { correctionMeetsMinimumWords } from "@/domain/rules";
+import { correctionMeetsMinimumWords, questionnaireResumeState } from "@/domain/rules";
 import { applyBriefCorrection, buildCanonicalPropertyAddress, buildRepairBrief } from "@/domain/brief";
 import {
   clearJourney,
@@ -249,14 +249,19 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   // BackLink.
   const [changingCategory, setChangingCategory] = useState(false);
   // The QuestionnaireEngine instance's OWN live React response state,
-  // reported synchronously via its onResponsesChange prop — not a read of
-  // the debounced localStorage draft, which may not have landed yet (or
-  // may never land if localStorage throws). This is what changeCategory
-  // below actually reads, so a category change immediately after
-  // answering (before the ~220ms autosave fires) still carries the answer
-  // just given. A ref, not state, because writing it must never itself
-  // trigger a re-render.
-  const liveResponsesRef = useRef<RepairIntakeDraft["responses"]>({});
+  // reported directly via its onResponsesChange prop from each of the
+  // three points that state actually changes (mount, live edit, storage
+  // restore — see QuestionnaireEngine.tsx) — not a read of the debounced
+  // localStorage draft, which may not have landed yet (or may never land
+  // if localStorage throws). This is what changeCategory below actually
+  // reads, so a category change immediately after answering (before the
+  // ~220ms autosave fires) still carries the answer just given. A ref, not
+  // state, because writing it must never itself trigger a re-render.
+  // Starts `undefined` (not `{}`) — a real questionnaire has not reported
+  // anything yet at that point, and an empty object here would make the
+  // `?? resumeDraft?.responses` fallback below permanently unreachable
+  // (`{} ?? x` is always `{}`, never falls through).
+  const liveResponsesRef = useRef<RepairIntakeDraft["responses"] | undefined>(undefined);
 
   // Bootstrap which category this journey is already in progress for, on
   // reload/navigation — otherwise there is no way to know which category's
@@ -343,11 +348,37 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
         draft={briefDraft}
         onEditAnswers={() => {
           // Journey authority: entering Edit Answers makes the
-          // questionnaire draft authoritative again — the existing
-          // generated brief must not be able to override these edits on a
-          // later reload, so it is invalidated immediately rather than
-          // left to go stale. See the "resume brief" effect above, which
-          // will now correctly find nothing to restore.
+          // questionnaire draft authoritative again. Completing the
+          // questionnaire already cleared journey-draft storage (see
+          // QuestionnaireEngine's continueFlow), so briefDraft's answers
+          // otherwise exist ONLY in this component's ephemeral React
+          // state — an immediate reload right after this click would lose
+          // them entirely if the brief were cleared first and QuestionnaireEngine's
+          // own ~220ms debounced autosave had not yet run. Persist an
+          // equivalent, resumable draft to storage FIRST, synchronously in
+          // this same event handler, so a reload can never observe a
+          // window where neither a valid brief nor a resumable draft
+          // exists. See domain/rules.ts's questionnaireResumeState, the
+          // same function QuestionnaireEngine itself uses to resume a
+          // draft — reused here so both compute activeIndex/
+          // completedStepIds the same way.
+          if (briefDraft.category) {
+            const schema = questionnaireByCategory[briefDraft.category];
+            const resumeState = questionnaireResumeState(schema, briefDraft);
+            writeJourneyDraft({
+              journeyId,
+              category: briefDraft.category,
+              schemaVersion: schema.version,
+              activeIndex: resumeState.activeIndex,
+              responses: resumeState.responses,
+              acknowledgements: {},
+              completedStepIds: resumeState.completedStepIds,
+            });
+          }
+          // Only now invalidate the old brief — the existing generated
+          // brief must not be able to override these edits on a later
+          // reload. See the "resume brief" effect above, which will now
+          // correctly find nothing to restore.
           clearJourneyBrief(journeyId);
           setResumeDraft(briefDraft);
           setBriefDraft(null);

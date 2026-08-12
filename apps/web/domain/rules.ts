@@ -232,11 +232,19 @@ export function normalisePhoneNumber(value: string): string {
 /**
  * An ordinary Hong Kong local number is 8 digits (e.g. "9123 4567") with no
  * area code — unlike the UK numbers this validator was originally shaped
- * around, which are never fewer than 10 digits. A minimum of 10 rejected
- * every bare 8-digit HK mobile/landline number outright. +852 remains
- * accepted (8 local digits + 3 country-code digits = 11) but is never
- * required just because the field's placeholder shows it.
+ * around, which are never fewer than 10 digits. Real HK 8-digit landline/
+ * mobile numbers always start with 2, 3, 5, 6, 7, 8 or 9 — never 0, 1 or 4
+ * in current numbering practice. A pragmatic pilot rule for this HK-only
+ * field, not a comprehensive international numbering-plan library: it does
+ * not attempt to validate every other country's numbers, it just refuses to
+ * treat an obviously non-HK-shaped value (a different country code, or an
+ * 8-digit run starting with a digit HK numbers never start with) as a
+ * plausible Hong Kong contact number.
  */
+function isValidHkLocalNumber(digits: string): boolean {
+  return digits.length === 8 && /^[235-9]/.test(digits);
+}
+
 export function isValidPhoneNumber(
   value: RepairIntakeDraft["responses"][string] | undefined,
 ): boolean {
@@ -244,11 +252,16 @@ export function isValidPhoneNumber(
   const phone = normalisePhoneNumber(value);
   if (!/^\+?[\d\s().-]+$/.test(phone)) return false;
   const digits = phone.replace(/\D/g, "");
-  return (
-    digits.length >= 8 &&
-    digits.length <= 15 &&
-    !/^(\d)\1+$/.test(digits)
-  );
+  if (digits.length < 8 || digits.length > 15) return false;
+  if (/^(\d)\1+$/.test(digits)) return false;
+
+  if (phone.trim().startsWith("+")) {
+    // This pilot is Hong Kong only — any other explicit country code
+    // (+1, +44, ...) is rejected outright rather than partially validated.
+    if (!digits.startsWith("852")) return false;
+    return isValidHkLocalNumber(digits.slice(3));
+  }
+  return isValidHkLocalNumber(digits);
 }
 
 function missingFieldMessage(field: QuestionnaireStep["fields"][number], lang: Lang) {

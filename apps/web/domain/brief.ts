@@ -95,24 +95,6 @@ export function resolveContractorRequest(value: string, lang: Lang): string {
 
 const CORRECTION_LABEL = lt("業主更正：", "Owner correction: ");
 
-// branchFirst/Second/Third all share the same raw value namespace across a
-// category's schema, so a raw value alone does not say which of the three
-// fields it came from — try each field id in turn and use whichever
-// resolves it. Returns the matched field id too, so the caller can label
-// the row with that field's own question text (see labelledFact) rather
-// than rendering a bare, potentially ambiguous value like "Yes"/"No".
-function resolveBranchField(
-  category: RepairCategoryId,
-  value: string,
-  lang: "zh" | "en",
-): { fieldId: string; resolved: string } | null {
-  for (const fieldId of ["branchFirst", "branchSecond", "branchThird"]) {
-    const resolved = resolveAnswerLabel(category, fieldId, value, lang);
-    if (resolved !== NOT_SPECIFIED[lang]) return { fieldId, resolved };
-  }
-  return null;
-}
-
 /**
  * Pairs a resolved answer with its own question/field text (e.g. "Can the
  * water be isolated?: Yes") — a bare resolved value on its own can be
@@ -168,14 +150,23 @@ export function summariseObservedFacts(
     hasObservedFacts && category
       ? [
           ...(of!.affected ? [labelledFact(category, "affected", resolve("affected", of!.affected), lang)] : []),
-          ...[of!.branchFirst, of!.branchSecond, of!.branchThird]
-            .filter((v): v is string => Boolean(v))
-            .map((v) => {
-              const branch = resolveBranchField(category, v, lang);
-              return branch
-                ? labelledFact(category, branch.fieldId, branch.resolved, lang)
-                : NOT_SPECIFIED[lang];
-            }),
+          // Each branch answer is rendered against its OWN known field
+          // identity — observedFacts.branchFirst/Second/Third are already
+          // separately named, so there is no need (and it is actively
+          // wrong) to guess which field a value came from by trying field
+          // ids in order and taking the first match: that breaks whenever
+          // two branch fields share the same raw value (e.g. all three
+          // answered "unsure"), silently mislabelling the 2nd/3rd answer
+          // under the 1st question.
+          ...(of!.branchFirst
+            ? [labelledFact(category, "branchFirst", resolve("branchFirst", of!.branchFirst), lang)]
+            : []),
+          ...(of!.branchSecond
+            ? [labelledFact(category, "branchSecond", resolve("branchSecond", of!.branchSecond), lang)]
+            : []),
+          ...(of!.branchThird
+            ? [labelledFact(category, "branchThird", resolve("branchThird", of!.branchThird), lang)]
+            : []),
           ...(of!.duration ? [labelledFact(category, "duration", resolve("duration", of!.duration), lang)] : []),
           ...(of!.frequency
             ? [labelledFact(category, "frequency", resolve("frequency", of!.frequency), lang)]

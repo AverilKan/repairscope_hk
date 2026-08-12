@@ -35,6 +35,7 @@ import {
   validateQuestionnaireSchemas,
 } from "../domain/rules";
 import { rebuildDraftForCategoryChange } from "../domain/journey";
+import { summariseObservedFacts } from "../domain/brief";
 import {
   calculateContractorQuote,
   contractorMaterialsTotal,
@@ -341,6 +342,53 @@ test("isValidPhoneNumber still rejects malformed or repeated-digit input", () =>
   assert.equal(isValidPhoneNumber("abc12345"), false);
   assert.equal(isValidPhoneNumber(""), false);
   assert.equal(isValidPhoneNumber(undefined), false);
+});
+
+// Regression coverage (third Codex audit): the digit-count-only rule above
+// also accepted values that are obviously not a Hong Kong number for a
+// field explicitly presented as one — an 8-digit run starting with a digit
+// HK numbers never start with, or a non-HK country code entirely.
+test("isValidPhoneNumber rejects an 8-digit run starting with a digit no real HK number uses", () => {
+  assert.equal(isValidPhoneNumber("12345678"), false, "no real HK local number starts with 1");
+  assert.equal(isValidPhoneNumber("41234567"), false, "no real HK local number starts with 4");
+});
+
+test("isValidPhoneNumber rejects an explicit non-Hong-Kong country code", () => {
+  assert.equal(isValidPhoneNumber("+1 234 5678"), false, "this pilot is Hong Kong only");
+  assert.equal(isValidPhoneNumber("+44 7911 123456"), false, "this pilot is Hong Kong only");
+});
+
+// Regression coverage (third Codex audit): summariseObservedFacts used to
+// reverse-search branchFirst/Second/Third's schema fields for whichever one
+// first resolved a given raw value — wrong whenever more than one branch
+// field shares a value, e.g. all three answered "unsure" for the "leak"
+// category. Each branch answer must render under its OWN question, not
+// whichever field happens to come first in the fixed try-order.
+test("summariseObservedFacts renders each branch answer under its own question when all three share the same value", () => {
+  const brief = {
+    category: "leak" as const,
+    observedFacts: {
+      branchFirst: "unsure",
+      branchSecond: "unsure",
+      branchThird: "unsure",
+    },
+    reportedFacts: [],
+    landlordCorrections: undefined,
+  };
+
+  const zh = summariseObservedFacts(brief, "zh");
+  assert.deepEqual(zh, [
+    "通常幾時出現？：唔肯定",
+    "見到嘅情況係點？：唔肯定",
+    "影響範圍有幾大？：唔肯定",
+  ]);
+
+  const en = summariseObservedFacts(brief, "en");
+  assert.deepEqual(en, [
+    "When does it usually happen?: Not sure",
+    "What can you see?: Not sure",
+    "How much is affected?: Not sure",
+  ]);
 });
 
 test("building context and access/relationship steps preserve the approved Sites question set", () => {

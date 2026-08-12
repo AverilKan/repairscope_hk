@@ -579,6 +579,202 @@ test("readJourneyBrief adversarial cases — malformed brief/draft shapes all fa
   // No crash anywhere above — every case returned null rather than throwing.
 });
 
+// Regression coverage (third Codex audit, item 3 — "bind stored brief to
+// the actual journey"): readJourneyBrief previously only checked that
+// draft.id and brief.repairId were consistent WITH EACH OTHER, never that
+// either actually equalled the outer stored/route journey id. Each case
+// below is isolated so a future regression narrows to exactly one of the
+// three checks (draft.id === journeyId, brief.repairId === journeyId,
+// brief.repairId === draft.id) rather than being masked by the others.
+test("readJourneyBrief rejects a draft whose own id does not match the stored journey id, even when the brief's repairId does", async () => {
+  const { readJourneyBrief } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "journey-binding-wrong-draft-id";
+
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:brief`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      draft: {
+        id: "a-foreign-draft-id",
+        category: "leak",
+        originalReport: "",
+        extractedSymptoms: [],
+        responses: {},
+        safetyAcknowledgements: [],
+        status: "brief_ready",
+        updatedAt: new Date(0).toISOString(),
+      },
+      brief: {
+        id: `brief-${journeyId}`,
+        // Matches the OUTER journeyId, not the (wrong) draft id above —
+        // isolates the draft.id check from the repairId check.
+        repairId: journeyId,
+        originalReport: "",
+        reportedFacts: [],
+        structuredSymptoms: [],
+        affectedArea: "",
+        onsetAndTriggers: [],
+        evidence: [],
+        urgency: "routine",
+        occupancy: "other",
+        accessOverview: "",
+        confirmedUnknowns: [],
+        contractorRequests: [],
+        version: 1,
+      },
+    }),
+  );
+
+  assert.equal(readJourneyBrief(journeyId, "leak"), null);
+});
+
+test("readJourneyBrief rejects a brief whose repairId does not match the stored journey id, even when the draft's own id does", async () => {
+  const { readJourneyBrief } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "journey-binding-wrong-repair-id";
+
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:brief`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      draft: {
+        id: journeyId,
+        category: "leak",
+        originalReport: "",
+        extractedSymptoms: [],
+        responses: {},
+        safetyAcknowledgements: [],
+        status: "brief_ready",
+        updatedAt: new Date(0).toISOString(),
+      },
+      brief: {
+        id: `brief-${journeyId}`,
+        repairId: "a-foreign-repair-id",
+        originalReport: "",
+        reportedFacts: [],
+        structuredSymptoms: [],
+        affectedArea: "",
+        onsetAndTriggers: [],
+        evidence: [],
+        urgency: "routine",
+        occupancy: "other",
+        accessOverview: "",
+        confirmedUnknowns: [],
+        contractorRequests: [],
+        version: 1,
+      },
+    }),
+  );
+
+  assert.equal(readJourneyBrief(journeyId, "leak"), null);
+});
+
+test("readJourneyBrief rejects a foreign-but-mutually-consistent draft/brief pair stored under a different journey's key", async () => {
+  const { readJourneyBrief } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "j1-outer-journey";
+  const foreignId = "j2-foreign-journey";
+
+  // draft.id and brief.repairId agree with EACH OTHER (both "j2"), so the
+  // old repairId===draftId-only check alone would have accepted this — the
+  // bug is that neither was ever checked against the actual stored/route
+  // journey id ("j1").
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:brief`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      draft: {
+        id: foreignId,
+        category: "leak",
+        originalReport: "",
+        extractedSymptoms: [],
+        responses: {},
+        safetyAcknowledgements: [],
+        status: "brief_ready",
+        updatedAt: new Date(0).toISOString(),
+      },
+      brief: {
+        id: `brief-${foreignId}`,
+        repairId: foreignId,
+        originalReport: "",
+        reportedFacts: [],
+        structuredSymptoms: [],
+        affectedArea: "",
+        onsetAndTriggers: [],
+        evidence: [],
+        urgency: "routine",
+        occupancy: "other",
+        accessOverview: "",
+        confirmedUnknowns: [],
+        contractorRequests: [],
+        version: 1,
+      },
+    }),
+  );
+
+  assert.equal(readJourneyBrief(journeyId, "leak"), null);
+});
+
+// Regression coverage (third Codex audit, item 4 — "safety acknowledgement
+// validation"): a structurally valid safety-acknowledgement entry (right
+// shape, right types) whose ruleId does not correspond to any real
+// safety-rule-bearing field on this schema is invented and must be
+// rejected, not merely accepted because it "looks like" a real entry.
+test("readJourneyBrief rejects a structurally valid but invented safety-acknowledgement ruleId", async () => {
+  const { readJourneyBrief } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "invented-safety-ack-journey";
+
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:brief`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      draft: {
+        id: journeyId,
+        category: "leak",
+        originalReport: "",
+        extractedSymptoms: [],
+        responses: {},
+        // "definitely-not-a-real-field" is not a field id on the leak
+        // schema at all, let alone one carrying a safetyRule — structurally
+        // valid (right shape, right types), but invented.
+        safetyAcknowledgements: [
+          { ruleId: "definitely-not-a-real-field", acknowledged: true, acknowledgedAt: new Date(0).toISOString() },
+        ],
+        status: "brief_ready",
+        updatedAt: new Date(0).toISOString(),
+      },
+      brief: {
+        id: `brief-${journeyId}`,
+        repairId: journeyId,
+        originalReport: "",
+        reportedFacts: [],
+        structuredSymptoms: [],
+        affectedArea: "",
+        onsetAndTriggers: [],
+        evidence: [],
+        urgency: "routine",
+        occupancy: "other",
+        accessOverview: "",
+        confirmedUnknowns: [],
+        contractorRequests: [],
+        version: 1,
+      },
+    }),
+  );
+
+  assert.equal(readJourneyBrief(journeyId, "leak"), null);
+});
+
 test("clearJourney removes only that journey's draft and brief storage, never another journey's", async () => {
   const {
     createJourneyId,

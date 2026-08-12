@@ -449,16 +449,39 @@ function isValidPropertyDetails(value: unknown): boolean {
   return Object.entries(value).every(([key, entry]) => allowedKeys.has(key) && isOptionalString(entry));
 }
 
-function isValidSafetyAcknowledgementList(value: unknown): value is SafetyAcknowledgement[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (entry) =>
-        isPlainObject(entry) &&
-        typeof entry.ruleId === "string" &&
-        typeof entry.acknowledged === "boolean" &&
-        isOptionalString(entry.acknowledgedAt),
-    )
+/**
+ * Every safety acknowledgement's ruleId must be a real safety-rule-bearing
+ * field id on THIS schema — a structurally valid entry (right shape, right
+ * types) whose ruleId simply does not correspond to any actual safety rule
+ * is still invented and must not be restored. Unlike
+ * sanitiseAcknowledgements (used by readJourneyDraft for a live,
+ * in-progress draft, where dropping just the bad entry and continuing is
+ * appropriate), this rejects the WHOLE draft on any invalid entry: a
+ * brief is an immutable historical record, not something to silently
+ * repair. In the current HK flow a safety-triggering answer is always a
+ * full-screen exit (see components/LandlordApp.tsx's SafetyExit) with no
+ * inline "acknowledge and continue" path, so a genuine brief's own
+ * safetyAcknowledgements is always [] in practice — any non-empty, only
+ * plausible-looking list here is exactly the invented case this guards
+ * against.
+ */
+function isValidSafetyAcknowledgementList(
+  value: unknown,
+  schema: QuestionnaireSchema,
+): value is SafetyAcknowledgement[] {
+  if (!Array.isArray(value)) return false;
+  const validRuleFieldIds = new Set(
+    allFieldsOf(schema)
+      .filter((field) => field.safetyRule)
+      .map((field) => field.id),
+  );
+  return value.every(
+    (entry) =>
+      isPlainObject(entry) &&
+      typeof entry.ruleId === "string" &&
+      validRuleFieldIds.has(entry.ruleId) &&
+      typeof entry.acknowledged === "boolean" &&
+      isOptionalString(entry.acknowledgedAt),
   );
 }
 
@@ -470,18 +493,25 @@ const DRAFT_STATUSES = new Set(["draft", "brief_ready", "submitted"]);
  * separately against the live schema by sanitiseResponses, since that
  * needs the schema's own field list).
  */
-function isValidDraftShape(value: unknown, category: RepairCategoryId): value is RepairIntakeDraft {
+function isValidDraftShape(
+  value: unknown,
+  journeyId: string,
+  schema: QuestionnaireSchema,
+): value is RepairIntakeDraft {
   if (!isPlainObject(value)) return false;
   return (
     typeof value.id === "string" &&
-    // Repair/draft id consistency: a brief's repairId is always the id of
-    // the draft that produced it (see buildRepairBrief) — this is checked
-    // by the caller once both are known, but the draft's own id must at
-    // least be present and well-typed here.
-    value.category === category &&
+    // The draft's own id must equal the OUTER journey it is being read
+    // for — not merely internally consistent with the brief's repairId
+    // (see isPlausibleBrief's draftId check below). Without this, a
+    // foreign-but-mutually-consistent draft/brief pair (draft.id ===
+    // brief.repairId === "J2") stored under journey "J1"'s own key would
+    // pass every other check.
+    value.id === journeyId &&
+    value.category === schema.category &&
     typeof value.originalReport === "string" &&
     isStringArray(value.extractedSymptoms) &&
-    isValidSafetyAcknowledgementList(value.safetyAcknowledgements) &&
+    isValidSafetyAcknowledgementList(value.safetyAcknowledgements, schema) &&
     typeof value.status === "string" &&
     DRAFT_STATUSES.has(value.status) &&
     typeof value.updatedAt === "string"
@@ -546,7 +576,7 @@ export function readJourneyBrief(
       return null;
     }
     const schema = questionnaireByCategory[category];
-    if (!isValidDraftShape(parsed.draft, category)) return null;
+    if (!isValidDraftShape(parsed.draft, journeyId, schema)) return null;
     const draftResponses = sanitiseResponses(schema, (parsed.draft as RepairIntakeDraft).responses);
     if (draftResponses === null) return null;
     const draft: RepairIntakeDraft = { ...(parsed.draft as RepairIntakeDraft), category, responses: draftResponses };

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import {
   RADIOGROUP,
   extractJourneyId,
+  fillAndSubmitContactForm,
   finishLeakJourneyToBrief,
   radio,
   startLeakJourneyThroughBuilding,
@@ -324,6 +325,82 @@ test.describe("generated brief content", () => {
     // genuinely ambiguous without knowing what question it answers.
     await expect(page.getByText(/How often\?.*Occasionally/)).toBeVisible();
   });
+
+  // Regression coverage (third Codex audit, item 2): summariseObservedFacts
+  // used to reverse-search branchFirst/Second/Third's own schema fields for
+  // whichever one first resolved a given raw value, so three branch
+  // answers that share the same value (here, all three "唔肯定"/"Not sure")
+  // all rendered under the FIRST branch question's label. Each of the
+  // three questions ("通常幾時出現？"/"見到嘅情況係點？"/"影響範圍有幾大？")
+  // must appear with its own distinct label, in both languages, and in
+  // both the brief review and the post-submission confirmation screen —
+  // the two render paths sharing summariseObservedFacts (see
+  // components/RepairSubmissionPanel.tsx's SubmissionConfirmation).
+  test("three branch answers sharing the same value each render under their own distinct question, in both languages and on both the brief and confirmation screens", async ({
+    page,
+  }) => {
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+    await radio(page, "affected", "天花").click();
+    await radio(page, "branchFirst", "唔肯定").click();
+    await radio(page, "branchSecond", "唔肯定").click();
+    await radio(page, "branchThird", "唔肯定").click();
+    await radio(page, "safety", "以上都冇，可以繼續").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "duration", "一星期內").click();
+    await radio(page, "frequency", "間中").click();
+    await radio(page, "worsening", "唔肯定").click();
+    await radio(page, "prior", "冇").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "hasEvidence", "冇").click();
+    await radio(page, "management", "未有聯絡").click();
+    await radio(page, "sharedArea", "唔肯定").click();
+
+    await radio(page, "accessBy", "業主本人").click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "district", "東區").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "relationship", "自住業主").click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+    await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+
+    // Traditional Chinese (default) — brief review.
+    await expect(page.getByText(/通常幾時出現？：唔肯定/)).toBeVisible();
+    await expect(page.getByText(/見到嘅情況係點？：唔肯定/)).toBeVisible();
+    await expect(page.getByText(/影響範圍有幾大？：唔肯定/)).toBeVisible();
+
+    // English — brief review.
+    await page.getByRole("button", { name: "EN", exact: true }).click();
+    await expect(page.getByText(/When does it usually happen\?.*Not sure/)).toBeVisible();
+    await expect(page.getByText(/What can you see\?.*Not sure/)).toBeVisible();
+    await expect(page.getByText(/How much is affected\?.*Not sure/)).toBeVisible();
+    await page.getByRole("button", { name: "繁", exact: true }).click();
+
+    await fillAndSubmitContactForm(page);
+    await expect(page.getByText("資料已安全提交")).toBeVisible();
+
+    // Traditional Chinese — post-submission confirmation screen. Scoped
+    // to the confirmation region specifically: the brief document panel
+    // above it renders the identical labelled facts, so an unscoped
+    // getByText would match both and violate Playwright's strict mode.
+    const confirmation = page.getByRole("region", { name: /submission-confirmation-heading|個案參考編號/ }).or(
+      page.locator(".repair-submission-confirmation"),
+    );
+    await expect(confirmation.getByText(/通常幾時出現？：唔肯定/)).toBeVisible();
+    await expect(confirmation.getByText(/見到嘅情況係點？：唔肯定/)).toBeVisible();
+    await expect(confirmation.getByText(/影響範圍有幾大？：唔肯定/)).toBeVisible();
+
+    // English — post-submission confirmation screen.
+    await page.getByRole("button", { name: "EN", exact: true }).click();
+    await expect(confirmation.getByText(/When does it usually happen\?.*Not sure/)).toBeVisible();
+    await expect(confirmation.getByText(/What can you see\?.*Not sure/)).toBeVisible();
+    await expect(confirmation.getByText(/How much is affected\?.*Not sure/)).toBeVisible();
+  });
 });
 
 test.describe("factual correction", () => {
@@ -398,6 +475,44 @@ test.describe("journey authority", () => {
     await expect(page.getByText("電力／跳掣／冇電").first()).toBeVisible();
     await expect(page.getByText("一個房間").first()).toBeVisible();
     await expect(page.getByText("RepairScope 中立簡報")).not.toBeVisible();
+  });
+
+  // Regression coverage (third Codex audit, item 1): the fix above proved
+  // reload works once the owner has also changed category — but Codex
+  // reproduced data loss on a NARROWER, more severe case: clicking "Edit
+  // Answers" and reloading IMMEDIATELY, before any further click or
+  // answer. clearJourneyBrief ran before an equivalent draft had been
+  // synchronously persisted (the completed questionnaire draft itself was
+  // already cleared on generation — see QuestionnaireEngine's
+  // continueFlow — so the answers existed only in ephemeral React state at
+  // that point), so an immediate reload found neither a valid brief nor a
+  // resumable draft and fell back to the category picker, losing the
+  // entire questionnaire. See components/LandlordApp.tsx's onEditAnswers.
+  test("brief -> Edit Answers -> IMMEDIATE reload (no intermediate click or answer) -> the completed questionnaire is restored, not the category picker", async ({
+    page,
+  }) => {
+    const journeyId = await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+    await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+
+    await page.getByRole("button", { name: "更改問卷答案" }).click();
+    // No intermediate click or answer of any kind — reload immediately.
+    await page.reload();
+
+    await expect(page).toHaveURL(new RegExp(`journey=${journeyId}`));
+    // Must not have fallen back to the category picker.
+    await expect(page.getByRole("heading", { name: "你見到咩問題？" })).not.toBeVisible();
+    // Must not have resurrected the old (pre-edit) brief either.
+    await expect(page.getByText("RepairScope 中立簡報")).not.toBeVisible();
+    // The completed questionnaire's own answers must be genuinely present
+    // — every prior step restored as completed with its own answer summary
+    // (not just re-answerable from scratch), and the actual final step
+    // (the optional "additional context" step) restored as current with
+    // its own "整理維修簡報" action, ready to regenerate the brief.
+    await expect(page.getByRole("heading", { name: "仲有冇其他資料想話俾我哋知？" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "整理維修簡報" })).toBeVisible();
+    await expect(page.getByText("自住業主")).toBeVisible();
+    await expect(page.getByText("東區").first()).toBeVisible();
   });
 });
 
@@ -568,6 +683,29 @@ test.describe("hk phone validation", () => {
     await page.getByRole("radio", { name: "電郵" }).click();
     await page.getByRole("checkbox").check();
 
+    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeEnabled();
+  });
+
+  // Regression coverage (third Codex audit, item 6): the digit-count-only
+  // rule also accepted values that are obviously not a Hong Kong number for
+  // a field explicitly presented as one — an 8-digit run starting with a
+  // digit no real HK number uses, and an explicit non-HK country code.
+  test("an obviously non-Hong-Kong phone number keeps submission disabled with a validation error", async ({
+    page,
+  }) => {
+    await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+
+    await page.getByLabel("姓名").fill("陳大文");
+    await page.getByLabel("香港聯絡電話").fill("+1 234 5678");
+    await page.getByLabel("電郵").fill("test@example.com");
+    await page.getByRole("radio", { name: "電郵" }).click();
+    await page.getByRole("checkbox").check();
+
+    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeDisabled();
+
+    // Correcting to a real HK number enables submission.
+    await page.getByLabel("香港聯絡電話").fill("9123 4567");
     await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeEnabled();
   });
 });

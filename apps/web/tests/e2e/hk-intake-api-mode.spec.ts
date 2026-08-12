@@ -76,7 +76,24 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   // Contractor-sharing consent is never granted at this stage.
   expect(body.consent_to_share_with_contractors).toBe(false);
 
+  // Deep-assert the generated_brief's own observedFacts, not only
+  // landlordCorrections — regression coverage for the branch-question
+  // mapping fix (domain/brief.ts's summariseObservedFacts used to guess
+  // which field a raw value came from by trying branchFirst/Second/Third
+  // in order; asserting the RAW stored values here, keyed by their own
+  // field name, proves the underlying data is intact regardless of how it
+  // is later rendered/labelled).
   const brief = body.generated_brief as Record<string, unknown>;
+  expect(brief.category).toBe("leak");
+  expect(brief.observedFacts).toEqual({
+    affected: "ceiling",
+    branchFirst: "rain",
+    branchSecond: "mark",
+    branchThird: "spot",
+    duration: "week",
+    frequency: "occasional",
+    worsening: "unsure",
+  });
   expect(brief.landlordCorrections).toEqual([correctionText]);
 });
 
