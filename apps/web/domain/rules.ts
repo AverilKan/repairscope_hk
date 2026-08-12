@@ -1,3 +1,4 @@
+import type { Lang } from "./i18n";
 import type {
   QuestionnaireSchema,
   QuestionnaireStep,
@@ -80,34 +81,32 @@ export function questionnaireFieldIsVisible(
 const CJK_CHAR_PATTERN = /[一-鿿㐀-䶿豈-﫿]/g;
 
 /**
- * Whitespace-based word counting only works for space-separated scripts —
- * ordinary Traditional Chinese/Cantonese text has no spaces between words
- * at all, so it always counted as a single "word" and could never meet an
- * English-shaped minimum. Language-agnostic by script, not by detecting a
- * specific language: any input containing CJK ideographs is judged by its
- * count of meaningful CJK characters instead (one more than the English
- * word minimum, so trivial 1-2 character input is still rejected); other
- * input keeps the original whitespace/word-count rule, now also requiring
- * each "word" to contain at least one letter or digit so punctuation-only
- * input (e.g. "!!! ??? ...") can no longer satisfy it either. No language
- * detection or LLM involved — purely a character-class check.
+ * A single "meaningful unit" count, script-agnostic: every CJK ideograph
+ * counts as one unit (Traditional Chinese/Cantonese has no spaces between
+ * words, so counting ideographs is the equivalent of counting words), and
+ * every whitespace-separated run of the remaining (non-CJK) text counts as
+ * one more unit — but only if it actually contains a letter or digit, so
+ * punctuation-only input ("!!! ??? ...", "！？。～") contributes nothing.
+ * One shared threshold (minimumUnits, matching the "at least 3" help text
+ * shown next to the correction field) applies uniformly: 3 English words,
+ * 3 CJK characters, or a mix of both (e.g. "都係 leaking tap" = 2 CJK
+ * ideographs + 2 English words = 4 units, comfortably over 3). No language
+ * detection or LLM involved — purely a character-class count.
  */
 export function correctionMeetsMinimumWords(
   value: string,
-  minimumWords = 3,
+  minimumUnits = 3,
 ): boolean {
   const trimmed = value.trim();
   if (!trimmed) return false;
 
   const cjkChars = trimmed.match(CJK_CHAR_PATTERN) ?? [];
-  if (cjkChars.length > 0) {
-    return cjkChars.length >= minimumWords + 1;
-  }
-
-  const words = trimmed
+  const nonCjkWords = trimmed
+    .replace(CJK_CHAR_PATTERN, " ")
     .split(/\s+/)
     .filter((word) => /[\p{L}\p{N}]/u.test(word));
-  return words.length >= minimumWords;
+
+  return cjkChars.length + nonCjkWords.length >= minimumUnits;
 }
 
 export function questionnaireResumeState(
@@ -230,6 +229,14 @@ export function normalisePhoneNumber(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+/**
+ * An ordinary Hong Kong local number is 8 digits (e.g. "9123 4567") with no
+ * area code — unlike the UK numbers this validator was originally shaped
+ * around, which are never fewer than 10 digits. A minimum of 10 rejected
+ * every bare 8-digit HK mobile/landline number outright. +852 remains
+ * accepted (8 local digits + 3 country-code digits = 11) but is never
+ * required just because the field's placeholder shows it.
+ */
 export function isValidPhoneNumber(
   value: RepairIntakeDraft["responses"][string] | undefined,
 ): boolean {
@@ -238,35 +245,38 @@ export function isValidPhoneNumber(
   if (!/^\+?[\d\s().-]+$/.test(phone)) return false;
   const digits = phone.replace(/\D/g, "");
   return (
-    digits.length >= 10 &&
+    digits.length >= 8 &&
     digits.length <= 15 &&
     !/^(\d)\1+$/.test(digits)
   );
 }
 
-function missingFieldMessage(field: QuestionnaireStep["fields"][number]) {
-  if (field.type === "name") return "Enter your full name.";
-  if (field.type === "email") return "Enter your email address.";
-  if (field.type === "phone") return "Enter your phone number.";
+function missingFieldMessage(field: QuestionnaireStep["fields"][number], lang: Lang) {
+  if (field.type === "name") return lang === "zh" ? "請輸入你嘅全名。" : "Enter your full name.";
+  if (field.type === "email") return lang === "zh" ? "請輸入電郵地址。" : "Enter your email address.";
+  if (field.type === "phone") return lang === "zh" ? "請輸入電話號碼。" : "Enter your phone number.";
   if (field.id === "role") {
-    return "Choose your relationship to the property.";
+    return lang === "zh" ? "請揀你同物業嘅關係。" : "Choose your relationship to the property.";
   }
   if (field.id === "preferredContact") {
-    return "Choose how you prefer to be contacted.";
+    return lang === "zh" ? "請揀你希望嘅聯絡方式。" : "Choose how you prefer to be contacted.";
   }
   if (field.id === "accountRoleExplanation") {
-    return "Briefly explain how you are authorised to manage this repair.";
+    return lang === "zh"
+      ? "請簡單講低你有咩身份處理呢次維修。"
+      : "Briefly explain how you are authorised to manage this repair.";
   }
   if (field.id === "repairResponsibility") {
-    return "Record the current understanding of repair responsibility.";
+    return lang === "zh" ? "請記低而家對維修責任嘅了解。" : "Record the current understanding of repair responsibility.";
   }
-  return "Add an answer before continuing.";
+  return lang === "zh" ? "請先回答呢題先可以繼續。" : "Add an answer before continuing.";
 }
 
 export function questionnaireStepValidationErrors(
   schema: QuestionnaireSchema,
   stepIndex: number,
   responses: RepairIntakeDraft["responses"],
+  lang: Lang = "en",
 ): Record<string, string> {
   const step = schema.steps[stepIndex];
   if (!step) return {};
@@ -275,7 +285,7 @@ export function questionnaireStepValidationErrors(
   const errors = Object.fromEntries(
     step.fields
       .filter((field) => missing.has(field.id))
-      .map((field) => [field.id, missingFieldMessage(field)]),
+      .map((field) => [field.id, missingFieldMessage(field, lang)]),
   );
 
   for (const field of step.fields) {
@@ -286,7 +296,9 @@ export function questionnaireStepValidationErrors(
       !isValidUkPostcode(responses[field.id])
     ) {
       errors[field.id] =
-        "Enter a full UK postcode, including the final three characters, for example WD17 1AA.";
+        lang === "zh"
+          ? "請輸入完整郵政編碼。"
+          : "Enter a full UK postcode, including the final three characters, for example WD17 1AA.";
     }
     if (
       field.type === "name" &&
@@ -294,7 +306,9 @@ export function questionnaireStepValidationErrors(
       !isValidContactName(responses[field.id])
     ) {
       errors[field.id] =
-        "Enter a valid name using letters, spaces, apostrophes or hyphens.";
+        lang === "zh"
+          ? "請輸入有效嘅姓名（可包含空格、撇號或連字號）。"
+          : "Enter a valid name using letters, spaces, apostrophes or hyphens.";
     }
     if (
       field.type === "email" &&
@@ -302,7 +316,9 @@ export function questionnaireStepValidationErrors(
       !isValidEmailAddress(responses[field.id])
     ) {
       errors[field.id] =
-        "Enter a valid email address, for example alex@example.com.";
+        lang === "zh"
+          ? "請輸入有效嘅電郵地址，例如 alex@example.com。"
+          : "Enter a valid email address, for example alex@example.com.";
     }
     if (
       field.type === "phone" &&
@@ -310,7 +326,9 @@ export function questionnaireStepValidationErrors(
       !isValidPhoneNumber(responses[field.id])
     ) {
       errors[field.id] =
-        "Enter a valid phone number, including the area or mobile code.";
+        lang === "zh"
+          ? "請輸入有效嘅電話號碼。"
+          : "Enter a valid phone number, including the area or mobile code.";
     }
   }
 

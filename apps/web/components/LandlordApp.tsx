@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   categoryOptions,
   questionnaireByCategory,
@@ -13,12 +13,12 @@ import { correctionMeetsMinimumWords } from "@/domain/rules";
 import { applyBriefCorrection, buildCanonicalPropertyAddress, buildRepairBrief } from "@/domain/brief";
 import {
   clearJourney,
+  clearJourneyBrief,
   createJourneyId,
   forgetLastActiveJourneyIfCurrent,
   isPlausibleJourneyId,
   peekJourneyCategory,
   readJourneyBrief,
-  readJourneyDraft,
   readLastActiveJourney,
   rebuildDraftForCategoryChange,
   rememberLastActiveJourney,
@@ -248,6 +248,15 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   // see changeCategory below and the "更改問題類型" control rendered next to
   // BackLink.
   const [changingCategory, setChangingCategory] = useState(false);
+  // The QuestionnaireEngine instance's OWN live React response state,
+  // reported synchronously via its onResponsesChange prop — not a read of
+  // the debounced localStorage draft, which may not have landed yet (or
+  // may never land if localStorage throws). This is what changeCategory
+  // below actually reads, so a category change immediately after
+  // answering (before the ~220ms autosave fires) still carries the answer
+  // just given. A ref, not state, because writing it must never itself
+  // trigger a re-render.
+  const liveResponsesRef = useRef<RepairIntakeDraft["responses"]>({});
 
   // Bootstrap which category this journey is already in progress for, on
   // reload/navigation — otherwise there is no way to know which category's
@@ -267,7 +276,12 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
 
   // Resume a previously generated (and possibly corrected) brief for this
   // journey once its id is known — so reload/navigation does not silently
-  // regenerate and lose a correction.
+  // regenerate and lose a correction. Journey authority: this must only
+  // ever resurrect a brief that is still the OWNER'S most recent
+  // intentional action — see onEditAnswers/changeCategory below, both of
+  // which clear the stored brief immediately (clearJourneyBrief) the
+  // moment the owner supersedes it, so this effect finds nothing to
+  // restore and the questionnaire draft remains authoritative instead.
   useEffect(() => {
     if (!journeyId || !selectedCategory) return;
     const timer = window.setTimeout(() => {
@@ -286,17 +300,11 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   const changeCategory = (nextCategory: RepairCategoryId) => {
     if (selectedCategory && selectedCategory !== nextCategory) {
       const nextSchema = questionnaireByCategory[nextCategory];
-      // Live current answers, not just resumeDraft (which is only set on
-      // the "edit answers" path back from a generated brief and is stale
-      // — or entirely empty — while the owner is still actively
-      // answering the questionnaire). QuestionnaireEngine persists to
-      // journey storage on every change (debounced ~220ms), so reading it
-      // here reflects what the owner has actually answered so far, not
-      // just what happened to be resumed from.
-      const liveResponses =
-        readJourneyDraft(journeyId, questionnaireByCategory[selectedCategory])?.responses ??
-        resumeDraft?.responses ??
-        {};
+      // Live current answers from the questionnaire engine's own React
+      // state (see liveResponsesRef above) — correct even immediately
+      // after answering, before any debounce, and never dependent on
+      // localStorage succeeding at all.
+      const liveResponses = liveResponsesRef.current ?? resumeDraft?.responses ?? {};
       // Category change discards the abandoned category's own answers and
       // rebuilds fresh navigation state for the new schema — never reuses
       // the old numeric step index, completed-step list or safety
@@ -310,6 +318,12 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
           sharedTailFieldIds,
         ),
       );
+      // Journey authority: a brief generated for the OLD category can
+      // never remain authoritative once the category itself has changed —
+      // clear it immediately so a reload resumes the new category's draft
+      // rather than resurrecting the old category's stale brief (there is
+      // only one stored-brief slot per journey, not one per category).
+      clearJourneyBrief(journeyId);
     }
     setResumeDraft(null);
     setSafetyExitRule(null);
@@ -328,6 +342,13 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
         journeyId={journeyId}
         draft={briefDraft}
         onEditAnswers={() => {
+          // Journey authority: entering Edit Answers makes the
+          // questionnaire draft authoritative again — the existing
+          // generated brief must not be able to override these edits on a
+          // later reload, so it is invalidated immediately rather than
+          // left to go stale. See the "resume brief" effect above, which
+          // will now correctly find nothing to restore.
+          clearJourneyBrief(journeyId);
           setResumeDraft(briefDraft);
           setBriefDraft(null);
         }}
@@ -339,6 +360,7 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
     return (
       <main className="intake-stage progressive-intake">
         <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
+        <IntakeStageProgress activeStage={0} />
         <CategoryPickerScreen onSelect={changeCategory} />
       </main>
     );
@@ -356,6 +378,7 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
         <button type="button" className="text-button back-link" onClick={() => setChangingCategory(false)}>
           <span aria-hidden="true">←</span> {lang === "zh" ? "返回問題" : "Back to your questions"}
         </button>
+        <IntakeStageProgress activeStage={0} />
         <CategoryChangeScreen currentCategory={selectedCategory} onSelect={changeCategory} />
       </main>
     );
@@ -379,12 +402,23 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
         resumeDraft={resumeDraft ?? undefined}
         journeyId={journeyId}
         onSafetyExit={setSafetyExitRule}
+        onResponsesChange={(responses) => {
+          liveResponsesRef.current = responses;
+        }}
         onComplete={(draft) => {
           // A fresh generation always replaces whatever was previously
           // stored for this journey (including any prior correction) — the
           // replacement is explicit, not an accidental loss from remounting.
+          // Journey authority: this is the one case where a brief SHOULD
+          // become authoritative again — a newly generated/reviewed brief.
           const brief = buildRepairBrief(draft);
-          writeJourneyBrief({ journeyId, category: draft.category!, draft, brief });
+          writeJourneyBrief({
+            journeyId,
+            category: draft.category!,
+            schemaVersion: questionnaireByCategory[draft.category!].version,
+            draft,
+            brief,
+          });
           setResumeDraft(null);
           setBriefDraft(draft);
         }}
@@ -543,7 +577,13 @@ function BriefReview({
       if (journeyId && draft?.category) {
         // Persisted immediately so the correction survives reload/
         // navigation within this journey, not only in React state.
-        writeJourneyBrief({ journeyId, category: draft.category, draft, brief: result.brief });
+        writeJourneyBrief({
+          journeyId,
+          category: draft.category,
+          schemaVersion: questionnaireByCategory[draft.category].version,
+          draft,
+          brief: result.brief,
+        });
       }
     } catch {
       setCorrectionStatus("error");

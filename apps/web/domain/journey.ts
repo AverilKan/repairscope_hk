@@ -1,10 +1,12 @@
 import { questionnaireByCategory } from "@/data/questionnaires";
+import { questionnaireFieldIsVisible } from "./rules";
 import type {
   ProblemBrief,
   QuestionnaireField,
   QuestionnaireSchema,
   RepairCategoryId,
   RepairIntakeDraft,
+  SafetyAcknowledgement,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -52,11 +54,45 @@ function isValidResponseValue(field: QuestionnaireField, value: unknown): boolea
 }
 
 /**
+ * Removes responses whose field is currently hidden by showWhen given the
+ * REST of the response map — e.g. hasEvidence="no" with a stale
+ * evidenceKind still present, or prior="no" with a stale priorDetail still
+ * present. QuestionnaireEngine's own changeResponse already does this at
+ * the moment a parent answer changes (see its own dependent-field loop),
+ * but that only protects live edits — a value shaped exactly like this can
+ * still arrive here directly from a restored (or hand-edited/injected)
+ * localStorage record that never went through changeResponse at all, so
+ * restoration must enforce the same rule independently. Loops to a fixed
+ * point rather than a single pass, so a chain (A hides B hides C) is fully
+ * resolved even though today's schema has no such chain.
+ */
+function stripHiddenResponses(
+  schema: QuestionnaireSchema,
+  responses: RepairIntakeDraft["responses"],
+): RepairIntakeDraft["responses"] {
+  const fields = allFieldsOf(schema);
+  const current: RepairIntakeDraft["responses"] = { ...responses };
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const field of fields) {
+      if (field.id in current && !questionnaireFieldIsVisible(field, current)) {
+        delete current[field.id];
+        changed = true;
+      }
+    }
+  }
+  return current;
+}
+
+/**
  * Validates a restored responses object against the schema it claims to
  * belong to — drops (does not merely warn about) any entry whose key is not
  * a real field on this schema, or whose value shape/option value the
- * schema's own field definition does not recognise. Returns null if the
- * input is not a plain object at all (fail closed at the top level too).
+ * schema's own field definition does not recognise, then strips any
+ * remaining entry whose field is hidden given the rest of the (now
+ * type-valid) map — see stripHiddenResponses. Returns null if the input is
+ * not a plain object at all (fail closed at the top level too).
  */
 function sanitiseResponses(
   schema: QuestionnaireSchema,
@@ -71,7 +107,7 @@ function sanitiseResponses(
     if (!isValidResponseValue(field, fieldValue)) continue; // wrong shape/unrecognised option — drop
     sanitised[fieldId] = fieldValue as RepairIntakeDraft["responses"][string];
   }
-  return sanitised;
+  return stripHiddenResponses(schema, sanitised);
 }
 
 /**
@@ -103,16 +139,28 @@ function sanitiseActiveIndex(schema: QuestionnaireSchema, value: unknown): numbe
 }
 
 /**
- * Validates restored safety acknowledgements — must be a plain object
- * mapping string keys to string values. (In the current HK flow a
- * safety-triggering answer is always a full-screen exit — see
+ * Restored safety acknowledgements must be a plain object mapping string
+ * keys to string values, where each key is a real field id on this schema
+ * that actually carries a safety rule — SafetyRule itself has no separate
+ * "id", so the field id it is attached to is the only real identifier this
+ * schema exposes for it. Any other key (e.g. one from a different
+ * category's schema, or hand-injected) is dropped. (In the current HK flow
+ * a safety-triggering answer is always a full-screen exit — see
  * components/LandlordApp.tsx's SafetyExit — so this is always {} in
  * practice; validated defensively in case that changes.)
  */
-function sanitiseAcknowledgements(value: unknown): Record<string, string> {
+function sanitiseAcknowledgements(
+  schema: QuestionnaireSchema,
+  value: unknown,
+): Record<string, string> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
+  const validRuleFieldIds = new Set(
+    allFieldsOf(schema)
+      .filter((field) => field.safetyRule)
+      .map((field) => field.id),
+  );
   const entries = Object.entries(value as Record<string, unknown>).filter(
-    (entry): entry is [string, string] => typeof entry[1] === "string",
+    (entry): entry is [string, string] => validRuleFieldIds.has(entry[0]) && typeof entry[1] === "string",
   );
   return Object.fromEntries(entries);
 }
@@ -230,7 +278,7 @@ export function readJourneyDraft(
       schemaVersion: schema.version,
       activeIndex: sanitiseActiveIndex(schema, parsed.activeIndex),
       responses,
-      acknowledgements: sanitiseAcknowledgements(parsed.acknowledgements),
+      acknowledgements: sanitiseAcknowledgements(schema, parsed.acknowledgements),
       completedStepIds: sanitiseCompletedStepIds(schema, parsed.completedStepIds),
     };
   } catch {
@@ -322,38 +370,162 @@ export function rebuildDraftForCategoryChange(
 export interface StoredBriefState {
   journeyId: string;
   category: RepairCategoryId;
+  /** The schema version the brief was generated against — a restored brief for a schema version this build no longer recognises fails closed rather than being applied. */
+  schemaVersion: number;
   draft: RepairIntakeDraft;
   brief: ProblemBrief;
 }
 
-/**
- * Structural check for a restored ProblemBrief — not a full schema-level
- * validation (a generated brief is display content, not raw questionnaire
- * answers, and GeneratedBriefDocument already reads it defensively field by
- * field for exactly this reason — see its own GeneratedBriefLike comment).
- * This still fails closed on the shapes that would otherwise crash or
- * silently misrender: the array fields every render path assumes are
- * arrays, and the identifying string/number fields.
- */
-function isPlausibleBrief(value: unknown): value is ProblemBrief {
-  if (typeof value !== "object" || value === null) return false;
-  const brief = value as Partial<ProblemBrief>;
+// ---------------------------------------------------------------------------
+// Full structural validation for a restored ProblemBrief. A generated brief
+// is display content (GeneratedBriefDocument already reads it defensively
+// field by field for older/differently-shaped records arriving from the
+// API — see its own GeneratedBriefLike comment), but a value restored from
+// THIS app's own localStorage claims to be a real, freshly-generated
+// ProblemBrief, and every array/object field here is something a render
+// path iterates or destructures without a further guard — a malformed one
+// (landlordCorrections: "not-an-array", a string where propertyDetails
+// should be an object, etc.) must fail closed here, not surface as a
+// customer-visible crash in GeneratedBriefDocument or the confirmation
+// screen.
+// ---------------------------------------------------------------------------
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === "string";
+}
+
+function isValidSourceDocument(value: unknown): boolean {
   return (
-    typeof brief.id === "string" &&
-    typeof brief.repairId === "string" &&
-    typeof brief.version === "number" &&
-    Array.isArray(brief.reportedFacts) &&
-    Array.isArray(brief.confirmedUnknowns) &&
-    Array.isArray(brief.contractorRequests)
+    isPlainObject(value) &&
+    typeof value.id === "string" &&
+    typeof value.name === "string" &&
+    typeof value.mimeType === "string" &&
+    typeof value.uploadedAt === "string" &&
+    typeof value.source === "string"
+  );
+}
+
+function isValidObservedFacts(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isPlainObject(value)) return false;
+  const allowedKeys = new Set([
+    "affected",
+    "branchFirst",
+    "branchSecond",
+    "branchThird",
+    "duration",
+    "frequency",
+    "worsening",
+  ]);
+  return Object.entries(value).every(([key, entry]) => allowedKeys.has(key) && isOptionalString(entry));
+}
+
+function isValidPriorAction(value: unknown): boolean {
+  if (value === undefined) return true;
+  return isPlainObject(value) && typeof value.status === "string" && isOptionalString(value.detail);
+}
+
+function isValidBuildingContext(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    isPlainObject(value) &&
+    typeof value.managementContacted === "string" &&
+    typeof value.sharedAreaInvolved === "string"
+  );
+}
+
+function isValidPropertyDetails(value: unknown): boolean {
+  if (value === undefined) return true;
+  if (!isPlainObject(value)) return false;
+  const allowedKeys = new Set(["district", "building", "block", "floor", "unit", "accessBy", "availability"]);
+  return Object.entries(value).every(([key, entry]) => allowedKeys.has(key) && isOptionalString(entry));
+}
+
+function isValidSafetyAcknowledgementList(value: unknown): value is SafetyAcknowledgement[] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (entry) =>
+        isPlainObject(entry) &&
+        typeof entry.ruleId === "string" &&
+        typeof entry.acknowledged === "boolean" &&
+        isOptionalString(entry.acknowledgedAt),
+    )
+  );
+}
+
+const DRAFT_STATUSES = new Set(["draft", "brief_ready", "submitted"]);
+
+/**
+ * Nested-draft structure — everything StoredBriefState.draft must have to
+ * be a real RepairIntakeDraft, other than `responses` (validated
+ * separately against the live schema by sanitiseResponses, since that
+ * needs the schema's own field list).
+ */
+function isValidDraftShape(value: unknown, category: RepairCategoryId): value is RepairIntakeDraft {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    // Repair/draft id consistency: a brief's repairId is always the id of
+    // the draft that produced it (see buildRepairBrief) — this is checked
+    // by the caller once both are known, but the draft's own id must at
+    // least be present and well-typed here.
+    value.category === category &&
+    typeof value.originalReport === "string" &&
+    isStringArray(value.extractedSymptoms) &&
+    isValidSafetyAcknowledgementList(value.safetyAcknowledgements) &&
+    typeof value.status === "string" &&
+    DRAFT_STATUSES.has(value.status) &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+function isPlausibleBrief(value: unknown, draftId: string, category: RepairCategoryId): value is ProblemBrief {
+  if (!isPlainObject(value)) return false;
+  return (
+    typeof value.id === "string" &&
+    typeof value.repairId === "string" &&
+    // Repair/draft id consistency — a brief not generated from this
+    // journey's own draft cannot be trusted to describe it.
+    value.repairId === draftId &&
+    typeof value.version === "number" &&
+    isStringArray(value.reportedFacts) &&
+    isStringArray(value.confirmedUnknowns) &&
+    isStringArray(value.contractorRequests) &&
+    (value.landlordCorrections === undefined || isStringArray(value.landlordCorrections)) &&
+    Array.isArray(value.evidence) &&
+    value.evidence.every(isValidSourceDocument) &&
+    // Category consistency — when present, a brief's own category field
+    // must agree with the journey's actual category rather than silently
+    // describing a different one.
+    (value.category === undefined || value.category === category) &&
+    isValidObservedFacts(value.observedFacts) &&
+    isValidPriorAction(value.priorAction) &&
+    isValidBuildingContext(value.buildingContext) &&
+    isValidPropertyDetails(value.propertyDetails) &&
+    isOptionalString(value.relationship) &&
+    isOptionalString(value.additionalContext) &&
+    isOptionalString(value.hasEvidence) &&
+    isOptionalString(value.evidenceKind)
   );
 }
 
 /**
  * Reads and validates a journey's generated (and possibly corrected) brief.
  * Fails closed — returns null — on a journey/category mismatch, an invalid
- * category, a draft whose responses do not sanitise cleanly against that
- * category's schema, or a brief missing the structural shape every render
- * path assumes (see isPlausibleBrief).
+ * category, a schema-version mismatch, a draft whose shape or responses do
+ * not sanitise cleanly against that category's schema, or a brief missing
+ * any part of the structural shape every render path assumes (see
+ * isPlausibleBrief and its helpers above). A malformed stored record must
+ * never reach GeneratedBriefDocument or the confirmation screen.
  */
 export function readJourneyBrief(
   journeyId: string,
@@ -369,19 +541,21 @@ export function readJourneyBrief(
       parsed.journeyId !== journeyId ||
       parsed.category !== category ||
       !isValidCategory(parsed.category) ||
-      typeof parsed.draft !== "object" ||
-      parsed.draft === null ||
-      !isPlausibleBrief(parsed.brief)
+      parsed.schemaVersion !== questionnaireByCategory[category].version
     ) {
       return null;
     }
     const schema = questionnaireByCategory[category];
-    const draftResponses = sanitiseResponses(schema, (parsed.draft as Partial<RepairIntakeDraft>).responses);
+    if (!isValidDraftShape(parsed.draft, category)) return null;
+    const draftResponses = sanitiseResponses(schema, (parsed.draft as RepairIntakeDraft).responses);
     if (draftResponses === null) return null;
+    const draft: RepairIntakeDraft = { ...(parsed.draft as RepairIntakeDraft), category, responses: draftResponses };
+    if (!isPlausibleBrief(parsed.brief, draft.id, category)) return null;
     return {
       journeyId,
       category,
-      draft: { ...(parsed.draft as RepairIntakeDraft), category, responses: draftResponses },
+      schemaVersion: schema.version,
+      draft,
       brief: parsed.brief,
     };
   } catch {

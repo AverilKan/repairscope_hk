@@ -40,6 +40,16 @@ interface QuestionnaireEngineProps {
    * into the normal flow). See components/LandlordApp.tsx's SafetyExit.
    */
   onSafetyExit?: (rule: SafetyRule) => void;
+  /**
+   * Fired synchronously (via a plain effect, not the debounced autosave)
+   * whenever the engine's own live `responses` state changes — lets a
+   * parent that needs the CURRENT answers for an interaction happening
+   * right now (e.g. LandlordApp's category-change control) read them
+   * directly from React state instead of racing the ~220ms debounced
+   * localStorage write, which may not have landed yet, or may never land
+   * at all if localStorage throws.
+   */
+  onResponsesChange?: (responses: RepairIntakeDraft["responses"]) => void;
 }
 
 type SafetyAcknowledgements = Record<string, string>;
@@ -77,6 +87,7 @@ export function QuestionnaireEngine({
   journeyId,
   onComplete,
   onSafetyExit,
+  onResponsesChange,
 }: QuestionnaireEngineProps) {
   const { lang, t } = useLanguage();
 
@@ -148,6 +159,17 @@ export function QuestionnaireEngine({
 
   const currentIndex = editingIndex ?? activeIndex;
   const currentStep = schema.steps[currentIndex];
+
+  // Reports the live responses to the parent synchronously on every commit
+  // — see the prop's own doc comment for why this exists instead of the
+  // parent reading debounced localStorage.
+  useEffect(() => {
+    onResponsesChange?.(responses);
+    // onResponsesChange is expected to be a stable callback (a ref-set
+    // function, not new on every parent render) — omitting it from deps
+    // avoids re-firing this effect for unrelated parent re-renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [responses]);
 
   const safetyAcknowledgementList = useMemo(
     () =>
@@ -325,7 +347,7 @@ export function QuestionnaireEngine({
 
   const continueFlow = async () => {
     if (submitting.current || busy || activeSafetyRule) return;
-    const validationErrors = questionnaireStepValidationErrors(schema, currentIndex, responses);
+    const validationErrors = questionnaireStepValidationErrors(schema, currentIndex, responses, lang);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;

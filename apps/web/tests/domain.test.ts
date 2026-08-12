@@ -29,6 +29,7 @@ import {
   isValidPhoneNumber,
   questionnaireFieldIsVisible,
   questionnaireStepUsesAutomaticProgression,
+  questionnaireStepValidationErrors,
   requiredFieldsMissing,
   safetyAnswersAreUnprefilled,
   validateQuestionnaireSchemas,
@@ -202,6 +203,22 @@ test("required fields block continuation and answers remain reusable when naviga
   assert.deepEqual(responses, preserved);
 });
 
+// Regression coverage: questionnaireStepValidationErrors always returned
+// hardcoded English messages, so a missing-required-field error rendered
+// in English even for an owner using the Chinese journey — a visible
+// bilingual gap inside the questionnaire itself, not the surrounding shell.
+test("questionnaireStepValidationErrors renders Chinese messages for the Chinese journey", () => {
+  const schema = questionnaireByCategory.leak;
+  const affectedIndex = schema.steps.findIndex((step) => step.id === "affected");
+  const errorsZh = questionnaireStepValidationErrors(schema, affectedIndex, {}, "zh");
+  const errorsEn = questionnaireStepValidationErrors(schema, affectedIndex, {}, "en");
+  assert.equal(errorsZh.affected, "請先回答呢題先可以繼續。");
+  assert.equal(errorsEn.affected, "Add an answer before continuing.");
+  assert.notEqual(errorsZh.affected, errorsEn.affected);
+  // Omitting lang must still default sensibly (English) rather than throw.
+  assert.equal(questionnaireStepValidationErrors(schema, affectedIndex, {}).affected, "Add an answer before continuing.");
+});
+
 // Regression coverage for rework item 5 (conditional question display):
 // evidenceKind and priorDetail used to have no showWhen at all, so they
 // stayed visible (and their stale answers persisted) regardless of the
@@ -304,6 +321,26 @@ test("Hong Kong address step asks district/estate/block/floor/unit — no UK pos
   assert.equal(isValidContactName("Alex Chan"), true);
   assert.equal(isValidEmailAddress("alex@example.com"), true);
   assert.equal(isValidPhoneNumber("+852 9123 4567"), true);
+});
+
+// Regression coverage: isValidPhoneNumber required at least 10 digits,
+// rejecting every ordinary 8-digit Hong Kong local number outright (HK has
+// no area code — unlike the UK numbers this validator was originally
+// shaped around). +852 remains accepted but must never be required just
+// because the phone field's placeholder shows it.
+test("isValidPhoneNumber accepts an ordinary 8-digit Hong Kong local number, with or without +852", () => {
+  assert.equal(isValidPhoneNumber("9123 4567"), true);
+  assert.equal(isValidPhoneNumber("91234567"), true);
+  assert.equal(isValidPhoneNumber("+852 9123 4567"), true);
+  assert.equal(isValidPhoneNumber("+85291234567"), true);
+});
+
+test("isValidPhoneNumber still rejects malformed or repeated-digit input", () => {
+  assert.equal(isValidPhoneNumber("1234567"), false, "7 digits is too short even for a bare HK number");
+  assert.equal(isValidPhoneNumber("11111111"), false, "8 repeated digits is not a real number");
+  assert.equal(isValidPhoneNumber("abc12345"), false);
+  assert.equal(isValidPhoneNumber(""), false);
+  assert.equal(isValidPhoneNumber(undefined), false);
 });
 
 test("building context and access/relationship steps preserve the approved Sites question set", () => {
@@ -526,6 +563,18 @@ test("correctionMeetsMinimumWords rejects punctuation/whitespace-only input in e
 test("correctionMeetsMinimumWords keeps the existing English word-count behaviour", () => {
   assert.equal(correctionMeetsMinimumWords("wrong room"), false);
   assert.equal(correctionMeetsMinimumWords("wrong front room"), true);
+});
+
+// Regression coverage: the rule previously switched entirely to CJK-only
+// counting whenever ANY CJK character was present, ignoring English words
+// mixed in alongside it — so e.g. "都係 leaking tap" (2 CJK ideographs + 2
+// English words) could be wrongly rejected despite being clearly
+// meaningful. One shared threshold now counts both kinds of unit together.
+test("correctionMeetsMinimumWords counts mixed English/Chinese input reasonably rather than rejecting it", () => {
+  assert.equal(correctionMeetsMinimumWords("都係 leaking tap"), true);
+  assert.equal(correctionMeetsMinimumWords("1 個 leaking tap"), true);
+  // Still rejects if the combined count is genuinely trivial.
+  assert.equal(correctionMeetsMinimumWords("係 no"), false);
 });
 
 test("brief correction creates a new brief version without mutating the original", async () => {

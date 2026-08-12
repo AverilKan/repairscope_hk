@@ -143,10 +143,12 @@ test("peekJourneyCategory recovers the category from a completed brief once the 
     "../domain/journey"
   );
   const journeyId = createJourneyId();
+  const { questionnaireByCategory } = await import("../data/questionnaires");
   clearJourneyDraft(journeyId);
   writeJourneyBrief({
     journeyId,
     category: "leak",
+    schemaVersion: questionnaireByCategory.leak.version,
     draft: {
       id: journeyId,
       category: "leak",
@@ -311,6 +313,79 @@ test("readJourneyDraft drops an unknown response field id and an unrecognised op
   });
 });
 
+// Regression coverage for rework item "conditional restoration must remove
+// hidden values": restoration used to validate each response's own
+// key/value shape but never re-checked showWhen against the REST of the
+// response map, so a hand-edited or otherwise corrupted record could carry
+// a hidden child answer (e.g. evidenceKind after hasEvidence="no", or
+// priorDetail after prior="no") straight through into questionnaire_answers
+// — contradictory state QuestionnaireEngine's own live editing could never
+// produce, but restoration alone did not defend against.
+
+test("readJourneyDraft strips evidenceKind from injected contradictory stored state where hasEvidence is \"no\"", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "contradictory-evidence-journey";
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 0,
+      responses: { hasEvidence: "no", evidenceKind: "quotation" },
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.leak);
+  assert.deepEqual(restored?.responses, { hasEvidence: "no" });
+});
+
+test("readJourneyDraft strips priorDetail from injected contradictory stored state where prior is \"no\"", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "contradictory-prior-journey";
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 0,
+      responses: { prior: "no", priorDetail: "stale detail from before the answer changed" },
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.leak);
+  assert.deepEqual(restored?.responses, { prior: "no" });
+});
+
+test("readJourneyDraft drops a safety-acknowledgement key that is not a real safety-rule-bearing field on this schema", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "malformed-acknowledgement-journey";
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
+      activeIndex: 0,
+      responses: {},
+      acknowledgements: {
+        safety: "2026-08-12T00:00:00.000Z", // "safety" carries a real safety rule — kept
+        "not-a-real-field": "2026-08-12T00:00:00.000Z", // dropped
+        affected: "2026-08-12T00:00:00.000Z", // a real field, but has no safetyRule — dropped
+      },
+      completedStepIds: [],
+    }),
+  );
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.leak);
+  assert.deepEqual(restored?.acknowledgements, { safety: "2026-08-12T00:00:00.000Z" });
+});
+
 test("readJourneyDraft fails closed (returns null) for an invalid category or corrupted JSON, rather than throwing or partially restoring", async () => {
   const { readJourneyDraft } = await import("../domain/journey");
   const { questionnaireByCategory } = await import("../data/questionnaires");
@@ -336,6 +411,7 @@ test("readJourneyDraft fails closed (returns null) for an invalid category or co
 
 test("readJourneyBrief fails closed for a wrong journey id, malformed brief array fields, or a corrupted record", async () => {
   const { readJourneyBrief, writeJourneyBrief } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
   const journeyId = "malformed-brief-journey";
   const validDraft = {
     id: journeyId,
@@ -350,6 +426,7 @@ test("readJourneyBrief fails closed for a wrong journey id, malformed brief arra
   writeJourneyBrief({
     journeyId,
     category: "leak",
+    schemaVersion: questionnaireByCategory.leak.version,
     draft: validDraft,
     brief: {
       id: `brief-${journeyId}`,
@@ -380,6 +457,7 @@ test("readJourneyBrief fails closed for a wrong journey id, malformed brief arra
     JSON.stringify({
       journeyId,
       category: "leak",
+      schemaVersion: questionnaireByCategory.leak.version,
       draft: validDraft,
       brief: { id: "brief-x", repairId: journeyId, version: 1, reportedFacts: "not-an-array" },
     }),
@@ -388,6 +466,117 @@ test("readJourneyBrief fails closed for a wrong journey id, malformed brief arra
 
   window.localStorage.setItem(`repairscope:journey:${journeyId}:brief`, "{not valid json");
   assert.equal(readJourneyBrief(journeyId, "leak"), null);
+});
+
+// Regression coverage for rework item "fully validate stored brief":
+// readJourneyBrief previously checked only journey/category/draft-presence
+// and a handful of top-level array fields on the brief — a malformed
+// record could still slip through and later crash GeneratedBriefDocument
+// or the confirmation screen. Each adversarial case below must fail closed
+// (return null), never partially restore.
+
+test("readJourneyBrief adversarial cases — malformed brief/draft shapes all fail closed to null", async () => {
+  const { readJourneyBrief } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+
+  const validDraft = {
+    id: "adversarial-journey",
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: {},
+    safetyAcknowledgements: [],
+    status: "brief_ready" as const,
+    updatedAt: new Date(0).toISOString(),
+  };
+  const validBrief = {
+    id: "brief-adversarial-journey",
+    repairId: "adversarial-journey",
+    originalReport: "",
+    reportedFacts: [],
+    structuredSymptoms: [],
+    affectedArea: "",
+    onsetAndTriggers: [],
+    evidence: [],
+    urgency: "routine",
+    occupancy: "other",
+    accessOverview: "",
+    confirmedUnknowns: [],
+    contractorRequests: [],
+    version: 1,
+  };
+  const write = (overrides: {
+    journeyId?: string;
+    category?: unknown;
+    draft?: unknown;
+    brief?: unknown;
+  }) => {
+    const journeyId = overrides.journeyId ?? "adversarial-journey";
+    window.localStorage.setItem(
+      `repairscope:journey:${journeyId}:brief`,
+      JSON.stringify({
+        journeyId,
+        category: overrides.category ?? "leak",
+        schemaVersion: questionnaireByCategory.leak.version,
+        draft: overrides.draft ?? validDraft,
+        brief: overrides.brief ?? validBrief,
+      }),
+    );
+  };
+
+  // Sanity check: the valid baseline actually round-trips.
+  write({});
+  assert.ok(readJourneyBrief("adversarial-journey", "leak"), "the valid baseline must itself succeed");
+
+  // landlordCorrections must be an array when present, not a bare string.
+  write({ brief: { ...validBrief, landlordCorrections: "not-an-array" } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // Wrong journey id — never read another journey's brief.
+  write({ journeyId: "adversarial-journey" });
+  assert.equal(readJourneyBrief("a-completely-different-journey-id", "leak"), null);
+
+  // Wrong category — the caller's known category must match the stored one.
+  write({});
+  assert.equal(readJourneyBrief("adversarial-journey", "electrical"), null);
+  // ...and the brief's own (optional) category field must agree too.
+  write({ brief: { ...validBrief, category: "electrical" } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // Malformed nested draft structure — a string where an object is expected.
+  write({ draft: "not-an-object" });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+  // ...and a draft whose safetyAcknowledgements is malformed.
+  write({ draft: { ...validDraft, safetyAcknowledgements: [{ ruleId: "safety" }] } }); // missing `acknowledged`
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+  // ...and a draft id that does not match the brief's own repairId (repair/draft id consistency).
+  write({ draft: { ...validDraft, id: "a-different-draft-id" } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // Invalid observedFacts — an unrecognised key.
+  write({ brief: { ...validBrief, observedFacts: { notARealField: "value" } } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+  // ...and a non-string value for a real observedFacts key.
+  write({ brief: { ...validBrief, observedFacts: { affected: 123 } } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // Invalid priorAction/buildingContext/propertyDetails structure.
+  write({ brief: { ...validBrief, priorAction: { detail: "no status at all" } } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+  write({ brief: { ...validBrief, buildingContext: { managementContacted: "yes" } } }); // missing sharedAreaInvolved
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+  write({ brief: { ...validBrief, propertyDetails: { district: 42 } } });
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // Malformed evidence entries.
+  write({ brief: { ...validBrief, evidence: [{ name: "photo.jpg" }] } }); // missing id/mimeType/uploadedAt/source
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // Corrupted JSON.
+  window.localStorage.setItem("repairscope:journey:adversarial-journey:brief", "{not valid json");
+  assert.equal(readJourneyBrief("adversarial-journey", "leak"), null);
+
+  // No crash anywhere above — every case returned null rather than throwing.
 });
 
 test("clearJourney removes only that journey's draft and brief storage, never another journey's", async () => {
@@ -414,6 +603,7 @@ test("clearJourney removes only that journey's draft and brief storage, never an
   const briefFor = (journeyId: string) => ({
     journeyId,
     category: "leak" as const,
+    schemaVersion: questionnaireByCategory.leak.version,
     draft: {
       id: journeyId,
       category: "leak" as const,
