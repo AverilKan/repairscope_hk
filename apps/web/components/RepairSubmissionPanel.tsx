@@ -1,16 +1,19 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { summariseObservedFacts } from "@/domain/brief";
 import type { ProblemBrief } from "@/domain/types";
 import {
   canSubmitRepairSubmissionForm,
   RepairSubmissionNetworkError,
   RepairSubmissionServerError,
   RepairSubmissionValidationError,
+  type PreferredContactMethod,
   type RepairSubmissionResult,
 } from "@/domain/submission";
 import { repairScopeServices } from "@/services";
 import { StatusPill } from "./SiteShell";
+import { IntakeStageProgress } from "./IntakeStageProgress";
 import { useLanguage } from "./LanguageContext";
 
 export interface RepairSubmissionPanelPrefill {
@@ -22,6 +25,11 @@ interface ContactFormState {
   landlordName: string;
   landlordEmail: string;
   landlordPhone: string;
+  // An explicit owner choice between the two channels RepairScope can
+  // actually operate for this pilot (email/phone) — never silently assumed.
+  // Pre-selects "email" as a sensible starting point, but the control below
+  // is a real, visible, changeable radio choice, not a hidden default.
+  preferredContactMethod: PreferredContactMethod;
   // Single consent checkbox (approved Sites copy): covers RepairScope
   // manually reviewing this submission and contacting the owner about it.
   // It deliberately does NOT grant contractor-sharing consent — that stays
@@ -31,7 +39,13 @@ interface ContactFormState {
 }
 
 function initialFormState(): ContactFormState {
-  return { landlordName: "", landlordEmail: "", landlordPhone: "", consentToContact: false };
+  return {
+    landlordName: "",
+    landlordEmail: "",
+    landlordPhone: "",
+    preferredContactMethod: "email",
+    consentToContact: false,
+  };
 }
 
 export function RepairSubmissionPanel({
@@ -93,7 +107,7 @@ export function RepairSubmissionPanel({
           landlordEmail: form.landlordEmail.trim(),
           landlordPhone: form.landlordPhone.trim(),
           propertyAddress: propertyAddress.trim() || undefined,
-          preferredContactMethod: "email",
+          preferredContactMethod: form.preferredContactMethod,
         },
         consent: {
           consentToContact: form.consentToContact,
@@ -135,6 +149,7 @@ export function RepairSubmissionPanel({
 
   return (
     <section className="repair-submission-panel" aria-labelledby="repair-submission-heading">
+      <IntakeStageProgress activeStage={3} />
       <p className="eyebrow">{lang === "zh" ? "最後一步" : "FINAL STEP"}</p>
       <h2 id="repair-submission-heading">
         {lang === "zh" ? "等我哋人手檢視同聯絡你。" : "Let us manually review the case and contact you."}
@@ -192,6 +207,31 @@ export function RepairSubmissionPanel({
           </label>
         </div>
 
+        <fieldset className="repair-submission-panel__contact-method">
+          <legend>{lang === "zh" ? "邊種方式搵你最方便？" : "Which way should we contact you?"}</legend>
+          <div className="pill-row" role="radiogroup" aria-label={lang === "zh" ? "邊種方式搵你最方便？" : "Which way should we contact you?"}>
+            {(["email", "phone"] as const).map((method) => {
+              const checked = form.preferredContactMethod === method;
+              return (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  className={checked ? "selected" : ""}
+                  key={method}
+                  onClick={() => update("preferredContactMethod", method)}
+                >
+                  <strong>
+                    {method === "email"
+                      ? (lang === "zh" ? "電郵" : "Email")
+                      : (lang === "zh" ? "電話" : "Phone")}
+                  </strong>
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
         <div className="repair-submission-panel__consent">
           <label>
             <input
@@ -242,6 +282,11 @@ function SubmissionConfirmation({
   hasSafetyFlags: boolean;
 }) {
   const { lang } = useLanguage();
+  // reportedFacts is intentionally empty for a standard-category journey
+  // (its real answers live in brief.observedFacts — see domain/brief.ts),
+  // so the confirmation screen must summarise observedFacts the same way
+  // the "Check the facts" brief document does, or it would show nothing.
+  const submittedFacts = summariseObservedFacts(brief, lang);
   return (
     <section className="repair-submission-confirmation" aria-labelledby="submission-confirmation-heading">
       <StatusPill tone="good">{lang === "zh" ? "資料已安全提交" : "SUBMISSION RECEIVED"}</StatusPill>
@@ -267,7 +312,7 @@ function SubmissionConfirmation({
       <div className="repair-submission-confirmation__brief">
         <p className="eyebrow">{lang === "zh" ? "你提交嘅簡報" : "Your submitted brief"}</p>
         <ul>
-          {brief.reportedFacts.map((fact) => (
+          {submittedFacts.map((fact) => (
             <li key={fact}>{fact}</li>
           ))}
         </ul>

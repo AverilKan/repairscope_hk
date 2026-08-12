@@ -1,3 +1,5 @@
+import { isValidContactName, isValidEmailAddress, isValidPhoneNumber } from "./rules";
+
 export type PreferredContactMethod = "email" | "phone";
 
 export interface RepairSubmissionContactDetails {
@@ -44,6 +46,8 @@ export interface RepairSubmissionFormFields {
   landlordPhone: string;
   propertyAddress: string;
   consentToContact: boolean;
+  /** Which of the two pilot-supported channels (email/phone) RepairScope should use — an explicit owner choice, not a silently assumed default. See RepairSubmissionPanel's contact-method control. */
+  preferredContactMethod: PreferredContactMethod | "";
 }
 
 /**
@@ -51,7 +55,10 @@ export interface RepairSubmissionFormFields {
  * Mirrors (but does not replace) the backend's own validation in
  * apps/api/app/schemas/repair_submissions.py — this only gates the submit
  * button so a landlord doesn't send an obviously-incomplete request; the
- * API remains the authority on what's actually accepted.
+ * API remains the authority on what's actually accepted. Uses the same
+ * name/email/phone validators as the questionnaire's own contact fields
+ * (domain/rules.ts) rather than a bare non-empty check, so an obviously
+ * malformed email/phone cannot reach submission either.
  */
 export function canSubmitRepairSubmissionForm(
   form: RepairSubmissionFormFields,
@@ -60,11 +67,12 @@ export function canSubmitRepairSubmissionForm(
   return (
     !options.submissionBlocked &&
     !options.submitting &&
-    form.landlordName.trim().length > 0 &&
-    form.landlordEmail.trim().length > 0 &&
-    form.landlordPhone.trim().length > 0 &&
+    isValidContactName(form.landlordName) &&
+    isValidEmailAddress(form.landlordEmail) &&
+    isValidPhoneNumber(form.landlordPhone) &&
     form.propertyAddress.trim().length > 0 &&
-    form.consentToContact
+    form.consentToContact &&
+    (form.preferredContactMethod === "email" || form.preferredContactMethod === "phone")
   );
 }
 

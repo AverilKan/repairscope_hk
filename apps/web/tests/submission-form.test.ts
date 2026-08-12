@@ -11,6 +11,7 @@ const VALID_FORM = {
   // locates the property instead. See domain/submission.ts.
   propertyAddress: "Eastern Kornhill 12 A",
   consentToContact: true,
+  preferredContactMethod: "email" as const,
 };
 
 test("canSubmitRepairSubmissionForm accepts a fully completed, consented form", () => {
@@ -38,6 +39,31 @@ test("canSubmitRepairSubmissionForm rejects a blank phone number", () => {
 
 test("canSubmitRepairSubmissionForm rejects a blank property address", () => {
   assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, propertyAddress: "" }), false);
+});
+
+// Regression coverage for rework item 12: preferredContactMethod used to
+// be silently hard-coded to "email" in RepairSubmissionPanel regardless of
+// what the form actually collected — canSubmitRepairSubmissionForm now
+// requires a real, explicit choice between the two pilot-supported
+// channels rather than accepting an unset value.
+test("canSubmitRepairSubmissionForm rejects an unset preferred contact method", () => {
+  assert.equal(
+    canSubmitRepairSubmissionForm({ ...VALID_FORM, preferredContactMethod: "" }),
+    false,
+  );
+});
+
+test("canSubmitRepairSubmissionForm accepts either pilot-supported contact method", () => {
+  assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, preferredContactMethod: "email" }), true);
+  assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, preferredContactMethod: "phone" }), true);
+});
+
+// Regression coverage: canSubmitRepairSubmissionForm used to only check
+// non-empty length for name/email/phone, not actual validity — now uses
+// the same validators as the questionnaire's own contact fields.
+test("canSubmitRepairSubmissionForm rejects an obviously malformed email or phone number", () => {
+  assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, landlordEmail: "not-an-email" }), false);
+  assert.equal(canSubmitRepairSubmissionForm({ ...VALID_FORM, landlordPhone: "abc" }), false);
 });
 
 test("canSubmitRepairSubmissionForm rejects while submissionBlocked (e.g. a pending brief correction)", () => {

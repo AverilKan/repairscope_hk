@@ -79,7 +79,7 @@ export function OperatorSubmissionReview() {
             <div>
               <strong>{submission.publicReference}</strong>
               <span>{submission.landlordName}</span>
-              <span>{submission.propertyPostcode}</span>
+              {submission.propertyPostcode && <span>{submission.propertyPostcode}</span>}
             </div>
             <div>
               {submission.safetyFlags.length > 0 && <StatusPill tone="attention">Safety flagged</StatusPill>}
@@ -188,7 +188,7 @@ function SubmissionDetailPanel({ id, onUpdated }: { id: string; onUpdated: () =>
         </div>
         <div>
           <dt>Postcode</dt>
-          <dd>{detail.propertyPostcode}</dd>
+          <dd>{detail.propertyPostcode ?? "Not applicable"}</dd>
         </div>
         <div>
           <dt>Address</dt>

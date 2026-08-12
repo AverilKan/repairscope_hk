@@ -19,7 +19,11 @@ export interface OperatorSubmissionSummary {
   status: SubmissionStatus;
   issueCategory: string;
   landlordName: string;
-  propertyPostcode: string;
+  // Nullable — Hong Kong submissions have no postcode system and instead
+  // carry propertyAddress on the detail record (see addressStep in
+  // data/questionnaires.ts and the backend's nullable property_postcode
+  // migration).
+  propertyPostcode: string | null;
   safetyFlags: string[];
   createdAt: string;
 }

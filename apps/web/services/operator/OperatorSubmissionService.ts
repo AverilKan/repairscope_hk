@@ -25,7 +25,7 @@ type SummaryApiResponse = {
   status: string;
   issue_category: string;
   landlord_name: string;
-  property_postcode: string;
+  property_postcode: string | null;
   safety_flags: string[];
   created_at: string;
 };
