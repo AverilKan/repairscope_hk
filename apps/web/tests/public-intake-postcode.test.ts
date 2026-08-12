@@ -13,11 +13,14 @@ import { canContinueQuestionnaireStep, requiredFieldsMissing } from "../domain/r
 const schema = questionnaireByCategory.leak;
 const addressIndex = schema.steps.findIndex((step) => step.id === "address");
 
-test("district, estate/building, floor and unit are required; block is optional (not every HK building has a block/tower)", () => {
-  assert.deepEqual(
-    requiredFieldsMissing(schema, addressIndex, {}).sort(),
-    ["building", "district", "floor", "unit"].sort(),
-  );
+// Only district is required — a common-area issue, village house, whole
+// building problem, or a case where the owner is not certain of the exact
+// unit are all legitimate Hong Kong submissions that should not be blocked
+// by requiring every address component (see data/questionnaires.ts's
+// addressStep).
+test("only district is required; estate, block, floor and unit are all optional", () => {
+  assert.deepEqual(requiredFieldsMissing(schema, addressIndex, {}), ["district"]);
+  assert.deepEqual(requiredFieldsMissing(schema, addressIndex, { district: "eastern" }), []);
   assert.deepEqual(
     requiredFieldsMissing(schema, addressIndex, {
       district: "eastern",
@@ -29,18 +32,13 @@ test("district, estate/building, floor and unit are required; block is optional 
   );
 });
 
-test("cannot continue past the address step without district/estate/floor/unit, but block alone is not blocking", () => {
+test("cannot continue past the address step without a district, but district alone is enough", () => {
   assert.equal(
     canContinueQuestionnaireStep(schema, addressIndex, { block: "Tower 3" }, false),
     false,
   );
   assert.equal(
-    canContinueQuestionnaireStep(
-      schema,
-      addressIndex,
-      { district: "eastern", building: "Kornhill", floor: "12", unit: "A" },
-      false,
-    ),
+    canContinueQuestionnaireStep(schema, addressIndex, { district: "eastern" }, false),
     true,
   );
 });

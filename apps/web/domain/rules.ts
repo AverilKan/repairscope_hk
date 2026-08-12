@@ -70,7 +70,9 @@ export function questionnaireFieldIsVisible(
   responses: RepairIntakeDraft["responses"],
 ): boolean {
   if (!field.showWhen) return true;
-  return responses[field.showWhen.fieldId] === field.showWhen.equals;
+  const { equals, fieldId } = field.showWhen;
+  const actual = responses[fieldId];
+  return Array.isArray(equals) ? equals.includes(actual as string) : actual === equals;
 }
 
 export function correctionMeetsMinimumWords(

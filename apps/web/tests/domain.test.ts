@@ -14,6 +14,8 @@ import {
 } from "../domain/contractorAuth";
 import { mockServices } from "../services/mock";
 import {
+  intakeStageForStep,
+  intakeStages,
   questionnaireByCategory,
   questionnaireSchemas,
   sharedTailFieldIds,
@@ -25,6 +27,7 @@ import {
   isValidContactName,
   isValidEmailAddress,
   isValidPhoneNumber,
+  questionnaireFieldIsVisible,
   questionnaireStepUsesAutomaticProgression,
   requiredFieldsMissing,
   safetyAnswersAreUnprefilled,
@@ -197,6 +200,77 @@ test("required fields block continuation and answers remain reusable when naviga
   const preserved = structuredClone(responses);
   assert.deepEqual(requiredFieldsMissing(schema, affectedIndex, responses), []);
   assert.deepEqual(responses, preserved);
+});
+
+// Regression coverage for rework item 5 (conditional question display):
+// evidenceKind and priorDetail used to have no showWhen at all, so they
+// stayed visible (and their stale answers persisted) regardless of the
+// parent answer — e.g. evidenceKind remained on screen and in
+// questionnaire_answers after switching hasEvidence to "no".
+test("evidenceKind is only visible when hasEvidence is \"yes\"", () => {
+  const schema = questionnaireByCategory.leak;
+  const evidenceIndex = schema.steps.findIndex((step) => step.id === "evidence");
+  const evidenceKindField = schema.steps[evidenceIndex].fields.find((field) => field.id === "evidenceKind")!;
+
+  assert.equal(questionnaireFieldIsVisible(evidenceKindField, { hasEvidence: "yes" }), true);
+  assert.equal(questionnaireFieldIsVisible(evidenceKindField, { hasEvidence: "no" }), false);
+  assert.equal(questionnaireFieldIsVisible(evidenceKindField, {}), false);
+
+  // requiredFieldsMissing/canContinueQuestionnaireStep already filter by
+  // visibility (domain/rules.ts) — a hidden, non-required field is never
+  // itself blocking either way, but this exercises the same visibility
+  // gate the questionnaire step's required-field check depends on.
+  assert.deepEqual(requiredFieldsMissing(schema, evidenceIndex, { hasEvidence: "no", evidenceKind: "photo" }), []);
+});
+
+test("priorDetail is only visible when prior indicates something already happened, not \"no\" or \"unsure\"", () => {
+  const schema = questionnaireByCategory.leak;
+  const priorIndex = schema.steps.findIndex((step) => step.id === "prior");
+  const priorDetailField = schema.steps[priorIndex].fields.find((field) => field.id === "priorDetail")!;
+
+  for (const value of ["inspected", "quote", "attempted"]) {
+    assert.equal(
+      questionnaireFieldIsVisible(priorDetailField, { prior: value }),
+      true,
+      `priorDetail should be visible when prior is "${value}"`,
+    );
+  }
+  for (const value of ["no", "unsure"]) {
+    assert.equal(
+      questionnaireFieldIsVisible(priorDetailField, { prior: value }),
+      false,
+      `priorDetail should be hidden when prior is "${value}"`,
+    );
+  }
+  assert.equal(questionnaireFieldIsVisible(priorDetailField, {}), false);
+});
+
+// Regression coverage for rework item 7 (visible four-stage UX): the
+// customer-facing macro experience must read as "which of 4 stages am I
+// in" (see components/IntakeStageProgress.tsx), not the engine's own
+// internal N-of-11 step counter — this covers the pure mapping every
+// category's step order is checked against, so a stage can never appear to
+// go backwards as the owner progresses through a real schema.
+test("intakeStageForStep never decreases across any category's actual step order, and there are exactly 4 stages", () => {
+  assert.equal(intakeStages.length, 4);
+  for (const schema of questionnaireSchemas) {
+    let previousStage = 0;
+    for (const step of schema.steps) {
+      const stage = intakeStageForStep(step.id);
+      assert.ok(stage >= 0 && stage < intakeStages.length, `${schema.category}/${step.id} has an out-of-range stage`);
+      assert.ok(
+        stage >= previousStage,
+        `${schema.category}/${step.id} maps to stage ${stage}, which is earlier than the previous step's stage ${previousStage}`,
+      );
+      previousStage = stage;
+    }
+    // Every real category's questionnaire must reach stage 3 (index 2,
+    // "Property details & review") by its last step — address/access/
+    // relationship are always last (see data/questionnaires.ts's
+    // sharedTail) — so the indicator never gets stuck short of the final
+    // in-questionnaire stage.
+    assert.equal(previousStage, 2, `${schema.category}'s last step should map to stage index 2`);
+  }
 });
 
 test("progressive questionnaire auto-advances ordinary single-choice steps but not the safety step", () => {
@@ -440,7 +514,11 @@ test("brief correction creates a new brief version without mutating the original
 
   assert.equal(result.brief.version, ceilingBrief.version + 1);
   assert.deepEqual(ceilingBrief.reportedFacts, originalFacts);
-  assert.match(result.brief.reportedFacts.at(-1) ?? "", /front bedroom/);
+  // The correction is tracked in landlordCorrections (raw text, oldest to
+  // newest) rather than baked into reportedFacts with an English prefix —
+  // domain/brief.ts's summariseObservedFacts applies a localised label at
+  // render time instead.
+  assert.match(result.brief.landlordCorrections?.at(-1) ?? "", /front bedroom/);
   assert.deepEqual(result.changedSections, [
     "Reported facts",
     "Landlord correction",

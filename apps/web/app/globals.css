@@ -357,6 +357,23 @@ h3 {
   color: var(--coral);
 }
 
+.intake-stage__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.intake-stage__top .back-link {
+  margin-bottom: 0;
+}
+
+.intake-stage__change-category {
+  margin-bottom: 34px;
+  font-size: 0.8rem;
+}
+
 .home-hero {
   display: grid;
   min-height: 720px;
@@ -2039,6 +2056,18 @@ select:focus {
 
 .repair-submission-panel__wide {
   grid-column: 1 / -1;
+}
+
+.repair-submission-panel__contact-method {
+  border: 0;
+  padding: 0;
+  margin: 0 0 20px;
+}
+
+.repair-submission-panel__contact-method legend {
+  padding: 0;
+  margin-bottom: 10px;
+  font-weight: 700;
 }
 
 .repair-submission-panel__consent {
@@ -4163,6 +4192,81 @@ select:focus {
 .progressive-questionnaire {
   width: min(820px, 100%);
   margin: 0 auto;
+}
+
+/* Four-stage macro progress — shared by QuestionnaireEngine, BriefReview
+   and RepairSubmissionPanel (see components/IntakeStageProgress.tsx) so the
+   whole owner-facing journey reads as "which of 4 stages am I in", not the
+   engine's own internal per-question counter. */
+.intake-stage-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: min(820px, 100%);
+  margin: 0 auto 32px;
+  padding: 0;
+  list-style: none;
+}
+
+.intake-stage-progress__item {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.intake-stage-progress__marker {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.intake-stage-progress__item--done .intake-stage-progress__marker {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: white;
+}
+
+.intake-stage-progress__item--current .intake-stage-progress__marker {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.intake-stage-progress__label {
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intake-stage-progress__item--current .intake-stage-progress__label {
+  color: var(--ink);
+}
+
+.intake-stage-progress__item:not(:last-child)::after {
+  content: "";
+  flex: 1 1 auto;
+  height: 1px;
+  margin: 0 2px;
+  background: var(--line);
+  align-self: center;
+}
+
+@media (max-width: 640px) {
+  .intake-stage-progress__label {
+    display: none;
+  }
 }
 
 .questionnaire-toolbar {

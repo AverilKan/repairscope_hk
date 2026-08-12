@@ -10,6 +10,7 @@ import {
   questionnaireStepUsesAutomaticProgression,
   questionnaireStepValidationErrors,
 } from "@/domain/rules";
+import { intakeStageForStep } from "@/data/questionnaires";
 import type {
   QuestionnaireField,
   QuestionnaireResponseValue,
@@ -20,6 +21,7 @@ import type {
 } from "@/domain/types";
 import { repairScopeServices } from "@/services";
 import { readJourneyDraft, writeJourneyDraft, clearJourneyDraft } from "@/domain/journey";
+import { IntakeStageProgress } from "./IntakeStageProgress";
 import { useLanguage } from "./LanguageContext";
 
 interface QuestionnaireEngineProps {
@@ -146,7 +148,6 @@ export function QuestionnaireEngine({
 
   const currentIndex = editingIndex ?? activeIndex;
   const currentStep = schema.steps[currentIndex];
-  const answeredCount = completedStepIds.length;
 
   const safetyAcknowledgementList = useMemo(
     () =>
@@ -168,7 +169,7 @@ export function QuestionnaireEngine({
         setHydrated(true);
         return;
       }
-      const stored = readJourneyDraft(journeyId, schema.category, schema.version);
+      const stored = readJourneyDraft(journeyId, schema);
       if (stored) {
         const restoredResponses = { ...initialQuestionnaireState.responses, ...stored.responses };
         const resolvedIndex = questionnaireNextVisibleStepIndex(
@@ -386,6 +387,7 @@ export function QuestionnaireEngine({
 
   return (
     <section className="progressive-questionnaire" aria-label={`${t(schema.label)} questions`}>
+      <IntakeStageProgress activeStage={intakeStageForStep(currentStep.id)} />
       <div className="questionnaire-toolbar">
         <div>
           <span className="questionnaire-toolbar__label">{lang === "zh" ? "新維修個案" : "New repair"}</span>
@@ -401,9 +403,6 @@ export function QuestionnaireEngine({
                 : savedAt
                   ? `${lang === "zh" ? "已儲存" : "Saved"} ${savedAt}`
                   : (lang === "zh" ? "自動儲存中" : "Saving automatically")}
-          </span>
-          <span>
-            {answeredCount} / {schema.steps.length}
           </span>
         </div>
       </div>
@@ -519,12 +518,6 @@ export function QuestionnaireEngine({
         })}
       </form>
 
-      <div className="questionnaire-footer-count">
-        <span>{lang === "zh" ? "已回答問題" : "Questions completed"}</span>
-        <strong>
-          {answeredCount} / {schema.steps.length}
-        </strong>
-      </div>
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}
       </div>

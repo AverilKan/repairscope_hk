@@ -1,4 +1,5 @@
 import { lt } from "@/domain/i18n";
+import type { LocalizedText } from "@/domain/i18n";
 import type {
   QuestionnaireField,
   QuestionnaireOption,
@@ -281,15 +282,22 @@ const priorStep = step(
   "Has anyone inspected the problem or provided a quotation?",
   [
     select("prior", "之前處理", "Previous action", priorOptions),
-    text(
-      "priorDetail",
-      "之前有人點樣講？（可選填）",
-      "What were you told? (optional)",
-      "照對方原本講法寫就可以，唔代表已證實。",
-      "Use their original explanation. It will not be treated as confirmed.",
-      false,
-      true,
-    ),
+    // Only relevant once the owner has said something already happened —
+    // hidden (and cleared from responses by QuestionnaireEngine's
+    // changeResponse) when prior is "no" or "unsure", so a stale answer
+    // typed before switching to "no" can never survive into the brief.
+    {
+      ...text(
+        "priorDetail",
+        "之前有人點樣講？（可選填）",
+        "What were you told? (optional)",
+        "照對方原本講法寫就可以，唔代表已證實。",
+        "Use their original explanation. It will not be treated as confirmed.",
+        false,
+        true,
+      ),
+      showWhen: { fieldId: "prior", equals: ["inspected", "quote", "attempted"] },
+    },
   ],
   "我哋會分開記低檢查、報價同已做工程，避免將意見當成已證實成因。",
   "We keep inspection, quotation and attempted work separate, so an opinion is not treated as a confirmed cause.",
@@ -315,14 +323,20 @@ const evidenceStep = step(
         option("no", "冇", "No"),
       ],
     ),
-    select(
-      "evidenceKind",
-      "主要係邊類資料？",
-      "What kind, mainly?",
-      evidenceKindOptions,
-      false,
-      undefined,
-    ),
+    // Only relevant once the owner has said evidence exists — hidden (and
+    // cleared from responses) when hasEvidence is "no", so answering "No
+    // evidence" cannot leave a stale evidenceKind in the brief.
+    {
+      ...select(
+        "evidenceKind",
+        "主要係邊類資料？",
+        "What kind, mainly?",
+        evidenceKindOptions,
+        false,
+        undefined,
+      ),
+      showWhen: { fieldId: "hasEvidence", equals: "yes" },
+    },
   ],
   "檔案上載暫時未開放；RepairScope 會喺人手檢視之後另外聯絡你補交。",
   "File upload is not yet available — RepairScope will contact you separately to collect this after manual review.",
@@ -386,13 +400,17 @@ const addressStep = step(
       required: true,
       options: districtOptions,
     },
-    text("building", "屋苑／大廈", "Estate / Building", "", "", true),
-    text("block", "座數", "Block / Tower", "", "", false),
-    text("floor", "樓層", "Floor", "", "", true),
-    text("unit", "單位", "Flat / Unit", "", "", true),
+    // Only district is required — a common-area issue, village house,
+    // whole-building problem, or a case where the owner is not certain of
+    // the exact unit are all legitimate Hong Kong submissions that should
+    // not be blocked by requiring every address component.
+    text("building", "屋苑／大廈（如適用）", "Estate / Building (if applicable)", "", "", false),
+    text("block", "座數（如適用）", "Block / Tower (if applicable)", "", "", false),
+    text("floor", "樓層（如適用）", "Floor (if applicable)", "", "", false),
+    text("unit", "單位（如適用）", "Flat / Unit (if applicable)", "", "", false),
   ],
-  "詳細地址只會用作人手檢視同合適跟進，唔會自動公開。",
-  "The detailed address is used for manual review and appropriate follow-up. It is not automatically published.",
+  "詳細地址只會用作人手檢視同合適跟進，唔會自動公開。如果係公用地方、村屋、成幢大廈或者未肯定確實單位，可以留空相關欄位。",
+  "The detailed address is used for manual review and appropriate follow-up. It is not automatically published. Leave a field blank if it does not apply — for example a common-area issue, a village house, a whole-building problem, or an uncertain exact unit.",
 );
 
 const relationshipStep = step(
@@ -930,6 +948,51 @@ export function questionnaireVersionLabel(category: RepairCategoryId): string {
   return `v${questionnaireByCategory[category].version}`;
 }
 
+// ---------------------------------------------------------------------------
+// Four visible macro stages (approved Sites design) spanning the whole
+// intake journey, not just the questionnaire — the owner-facing experience
+// must read as "which of 4 stages am I in", not as the raw N-of-11 step
+// counter QuestionnaireEngine tracks internally for its own progression
+// logic. This is presentation only: QuestionnaireEngine remains the single
+// schema-driven step engine (no second state machine) — intakeStageForStep
+// just labels its existing step ids with which macro stage they belong to.
+// The fourth stage (contact/submit) lives outside QuestionnaireEngine
+// entirely, in RepairSubmissionPanel.
+// ---------------------------------------------------------------------------
+
+export const intakeStages: { label: LocalizedText }[] = [
+  { label: lt("講低情況", "Tell us what happened") },
+  { label: lt("補充資料", "Add useful detail") },
+  { label: lt("物業資料及整理", "Property details & review") },
+  { label: lt("聯絡及提交", "Contact & submit") },
+];
+
+// Fixed shared-tail step ids mapped to their macro stage index (0-based,
+// matching intakeStages). Anything not listed here — the category-specific
+// "affected"/"branch" step(s) for a standard category, or "other-detail"
+// for other/unsure — is the always-first stage-0 step, so it needs no
+// explicit entry.
+const STEP_STAGE_INDEX: Record<string, number> = {
+  safety: 0,
+  timeline: 0,
+  prior: 1,
+  evidence: 1,
+  building: 1,
+  access: 2,
+  address: 2,
+  relationship: 2,
+  // "additional" is the true final step (see sharedTail's own order) — it
+  // must map to the same last in-questionnaire stage as access/address/
+  // relationship, not stage 1, or the indicator would appear to move
+  // backwards on the questionnaire's very last step.
+  additional: 2,
+};
+
+/** 0-indexed macro stage (see intakeStages) that a given step id belongs to. */
+export function intakeStageForStep(stepId: string): number {
+  return STEP_STAGE_INDEX[stepId] ?? 0;
+}
+
 /**
  * Resolves a raw stored answer (e.g. "quote", "ceiling") back to its
  * bilingual label via the category's own schema — used by
@@ -938,19 +1001,29 @@ export function questionnaireVersionLabel(category: RepairCategoryId): string {
  * specified" rather than the raw slug when the field/value cannot be
  * resolved (a genuinely missing answer, not an invented one).
  */
+const NOT_SPECIFIED = { zh: "未提供", en: "Not specified" };
+
+/**
+ * Resolves a raw stored answer (e.g. "quote", "ceiling") back to its
+ * bilingual label. Never falls back to the raw internal value — a value
+ * that cannot be matched against the category's own schema options is
+ * treated the same as a missing value (a truthful "Not specified"), since
+ * an unresolved code (e.g. "owner", "daily") is not something a customer
+ * should ever see.
+ */
 export function resolveAnswerLabel(
   category: RepairCategoryId,
   fieldId: string,
   value: string | undefined,
   lang: "zh" | "en",
 ): string {
-  if (!value) return lang === "zh" ? "未提供" : "Not specified";
+  if (!value) return NOT_SPECIFIED[lang];
   const schema = questionnaireByCategory[category];
   for (const step of schema.steps) {
     const field = step.fields.find((candidate) => candidate.id === fieldId);
     if (!field?.options) continue;
     const match = field.options.find((option) => option.value === value);
-    if (match) return lang === "zh" ? match.label.zh : match.label.en;
+    return match ? (lang === "zh" ? match.label.zh : match.label.en) : NOT_SPECIFIED[lang];
   }
-  return value;
+  return NOT_SPECIFIED[lang];
 }
