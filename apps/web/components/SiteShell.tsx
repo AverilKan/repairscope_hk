@@ -56,7 +56,7 @@ export function SiteShell({
           )}
           {surface !== "public" && (
             <Link href="/contractor/respond/demo-token">
-              Contractor invitation
+              {surface === "landlord" ? (lang === "zh" ? "師傅邀請（示範）" : "Contractor invitation") : "Contractor invitation"}
             </Link>
           )}
           {surface === "public" && (
@@ -68,27 +68,35 @@ export function SiteShell({
         </nav>
       </header>
       {children}
-      <footer className="site-footer">
-        <div>
-          <span className="wordmark wordmark--footer">
-            <span className="wordmark__mark" aria-hidden="true">
-              RS
+      {/* The UK-reference marketing tagline and "in England" pilot note are
+          never appropriate inside the HK owner-facing journey — this
+          rework's bounded Chinese-intake-cleanup requirement is to hide
+          this legacy footer there entirely (not invent new HK marketing
+          copy, which is out of scope), rather than leave it visible under
+          the questionnaire/brief/submission screens. */}
+      {surface !== "landlord" && (
+        <footer className="site-footer">
+          <div>
+            <span className="wordmark wordmark--footer">
+              <span className="wordmark__mark" aria-hidden="true">
+                RS
+              </span>
+              <span>RepairScope</span>
             </span>
-            <span>RepairScope</span>
-          </span>
-          <p>
-            One clear brief. Selected contractors. Comparable proposals. You
-            choose.
+            <p>
+              One clear brief. Selected contractors. Comparable proposals. You
+              choose.
+            </p>
+          </div>
+          <nav className="site-footer__links" aria-label="Legal">
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+          </nav>
+          <p className="site-footer__note">
+            Founding pilot · Significant, non-emergency repairs in England
           </p>
-        </div>
-        <nav className="site-footer__links" aria-label="Legal">
-          <Link href="/privacy">Privacy</Link>
-          <Link href="/terms">Terms</Link>
-        </nav>
-        <p className="site-footer__note">
-          Founding pilot · Significant, non-emergency repairs in England
-        </p>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

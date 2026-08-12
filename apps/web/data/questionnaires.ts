@@ -1027,3 +1027,24 @@ export function resolveAnswerLabel(
   }
   return NOT_SPECIFIED[lang];
 }
+
+/**
+ * The question/field text itself (e.g. "Can the water be isolated?"), not
+ * an answer — used to give a bare resolved value like "Yes"/"No" its
+ * question context in the generated brief (see domain/brief.ts's
+ * summariseObservedFacts), since "Yes" alone is ambiguous but "Can the
+ * water be isolated?: Yes" is not. Returns undefined if this schema has no
+ * field with this id.
+ */
+export function questionnaireFieldLabel(
+  category: RepairCategoryId,
+  fieldId: string,
+  lang: "zh" | "en",
+): string | undefined {
+  const schema = questionnaireByCategory[category];
+  for (const step of schema.steps) {
+    const field = step.fields.find((candidate) => candidate.id === fieldId);
+    if (field) return lang === "zh" ? field.label.zh : field.label.en;
+  }
+  return undefined;
+}

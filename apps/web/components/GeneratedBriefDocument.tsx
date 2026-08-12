@@ -69,7 +69,7 @@ export function GeneratedBriefDocument({
   if (!brief) {
     const empty = (
       <>
-        <p className="eyebrow">RepairScope neutral brief</p>
+        <p className="eyebrow">{lang === "zh" ? "RepairScope 中立簡報" : "RepairScope neutral brief"}</p>
         <p>{lang === "zh" ? "呢個個案未有維修簡報。" : "No brief is available for this submission."}</p>
       </>
     );
@@ -134,7 +134,7 @@ export function GeneratedBriefDocument({
     <>
       <div className="brief-document__masthead">
         <div>
-          <p className="eyebrow">RepairScope neutral brief</p>
+          <p className="eyebrow">{lang === "zh" ? "RepairScope 中立簡報" : "RepairScope neutral brief"}</p>
           <h2>{categoryLabel}</h2>
         </div>
         <div className="brief-ref">

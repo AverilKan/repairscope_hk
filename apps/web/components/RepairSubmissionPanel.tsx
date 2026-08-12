@@ -26,10 +26,11 @@ interface ContactFormState {
   landlordEmail: string;
   landlordPhone: string;
   // An explicit owner choice between the two channels RepairScope can
-  // actually operate for this pilot (email/phone) — never silently assumed.
-  // Pre-selects "email" as a sensible starting point, but the control below
-  // is a real, visible, changeable radio choice, not a hidden default.
-  preferredContactMethod: PreferredContactMethod;
+  // actually operate for this pilot (email/phone) — never silently
+  // assumed. Starts unset ("") — neither radio is preselected — so
+  // submission stays blocked until the owner actually picks one; see
+  // canSubmitRepairSubmissionForm in domain/submission.ts.
+  preferredContactMethod: PreferredContactMethod | "";
   // Single consent checkbox (approved Sites copy): covers RepairScope
   // manually reviewing this submission and contacting the owner about it.
   // It deliberately does NOT grant contractor-sharing consent — that stays
@@ -43,7 +44,7 @@ function initialFormState(): ContactFormState {
     landlordName: "",
     landlordEmail: "",
     landlordPhone: "",
-    preferredContactMethod: "email",
+    preferredContactMethod: "",
     consentToContact: false,
   };
 }
@@ -107,7 +108,9 @@ export function RepairSubmissionPanel({
           landlordEmail: form.landlordEmail.trim(),
           landlordPhone: form.landlordPhone.trim(),
           propertyAddress: propertyAddress.trim() || undefined,
-          preferredContactMethod: form.preferredContactMethod,
+          // canSubmit (checked above) already requires this to be "email"
+          // or "phone", never "" — see canSubmitRepairSubmissionForm.
+          preferredContactMethod: form.preferredContactMethod as PreferredContactMethod,
         },
         consent: {
           consentToContact: form.consentToContact,

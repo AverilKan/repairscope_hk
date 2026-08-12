@@ -4264,8 +4264,18 @@ select:focus {
 }
 
 @media (max-width: 640px) {
-  .intake-stage-progress__label {
+  /* The current stage's own name stays visible on mobile — hiding every
+     label left only "1 2 3 4" with nothing saying which stage that is. */
+  .intake-stage-progress__item:not(.intake-stage-progress__item--current) .intake-stage-progress__label {
     display: none;
+  }
+
+  .intake-stage-progress__item--current {
+    flex-grow: 2;
+  }
+
+  .intake-stage-progress__item--current .intake-stage-progress__label {
+    white-space: normal;
   }
 }
 

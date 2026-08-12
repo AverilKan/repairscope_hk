@@ -175,14 +175,17 @@ test("a fully answered standard-category journey shows its real observations, no
   render(React.createElement(GeneratedBriefDocument, { brief }));
 
   assert.equal(screen.queryByText("Not recorded"), null);
-  // Resolved English labels for the raw stored codes, not the codes themselves.
-  assert.ok(screen.getByText("Ceiling"));
-  assert.ok(screen.getByText("During / after rain"));
-  assert.ok(screen.getByText("Water mark / damp patch"));
-  assert.ok(screen.getByText("A large area"));
-  assert.ok(screen.getByText("Within a week"));
-  assert.ok(screen.getByText("Occasionally"));
-  assert.ok(screen.getByText("Getting worse"));
+  // Resolved English labels for the raw stored codes, not the codes
+  // themselves — each labelled with its own question/field text (rework
+  // item 8: a bare "Yes"/value alone is ambiguous), so these are matched as
+  // substrings of "Question: Answer" rather than exact standalone text.
+  assert.ok(screen.getByText(/Ceiling/));
+  assert.ok(screen.getByText(/During \/ after rain/));
+  assert.ok(screen.getByText(/Water mark \/ damp patch/));
+  assert.ok(screen.getByText(/A large area/));
+  assert.ok(screen.getByText(/Within a week/));
+  assert.ok(screen.getByText(/Occasionally/));
+  assert.ok(screen.getByText(/Getting worse/));
   assert.equal(screen.queryByText("ceiling"), null);
   assert.equal(screen.queryByText("rain"), null);
 });
@@ -241,7 +244,7 @@ test("a correction on a standard-category brief remains visible, with a localise
 
   render(React.createElement(GeneratedBriefDocument, { brief: corrected }));
 
-  assert.ok(screen.getByText("Ceiling"));
+  assert.ok(screen.getByText(/Ceiling/));
   assert.ok(screen.getByText(/Owner correction:.*Actually the wall, not the ceiling\./));
 });
 

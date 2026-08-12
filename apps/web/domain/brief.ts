@@ -1,4 +1,4 @@
-import { districtOptions, resolveAnswerLabel } from "@/data/questionnaires";
+import { districtOptions, questionnaireFieldLabel, resolveAnswerLabel } from "@/data/questionnaires";
 import { lt, type Lang, type LocalizedText } from "./i18n";
 import type {
   ProblemBrief,
@@ -98,14 +98,39 @@ const CORRECTION_LABEL = lt("業主更正：", "Owner correction: ");
 // branchFirst/Second/Third all share the same raw value namespace across a
 // category's schema, so a raw value alone does not say which of the three
 // fields it came from — try each field id in turn and use whichever
-// resolves it. Mirrors GeneratedBriefDocument's own resolveBranchValue so
-// both surfaces describe a standard-category journey identically.
-function resolveBranchValue(category: RepairCategoryId, value: string, lang: "zh" | "en"): string {
+// resolves it. Returns the matched field id too, so the caller can label
+// the row with that field's own question text (see labelledFact) rather
+// than rendering a bare, potentially ambiguous value like "Yes"/"No".
+function resolveBranchField(
+  category: RepairCategoryId,
+  value: string,
+  lang: "zh" | "en",
+): { fieldId: string; resolved: string } | null {
   for (const fieldId of ["branchFirst", "branchSecond", "branchThird"]) {
     const resolved = resolveAnswerLabel(category, fieldId, value, lang);
-    if (resolved !== NOT_SPECIFIED[lang]) return resolved;
+    if (resolved !== NOT_SPECIFIED[lang]) return { fieldId, resolved };
   }
-  return NOT_SPECIFIED[lang];
+  return null;
+}
+
+/**
+ * Pairs a resolved answer with its own question/field text (e.g. "Can the
+ * water be isolated?: Yes") — a bare resolved value on its own can be
+ * ambiguous (a lone "Yes"/"No" in a list says nothing about what it
+ * answers), but repeating the field's own label is not duplicating the
+ * whole questionnaire, just labelling one fact. Falls back to the bare
+ * value if this schema has no label for the field (should not happen for a
+ * real category, but keeps this defensive like the rest of this file).
+ */
+function labelledFact(
+  category: RepairCategoryId,
+  fieldId: string,
+  resolvedValue: string,
+  lang: Lang,
+): string {
+  const question = questionnaireFieldLabel(category, fieldId, lang);
+  if (!question) return resolvedValue;
+  return lang === "zh" ? `${question}：${resolvedValue}` : `${question}: ${resolvedValue}`;
 }
 
 /**
@@ -136,16 +161,28 @@ export function summariseObservedFacts(
   );
   const resolve = (fieldId: string, value: string | undefined) =>
     category ? resolveAnswerLabel(category, fieldId, value, lang) : NOT_SPECIFIED[lang];
+  // Each row is labelled with its own question text — a bare resolved
+  // value like "Yes" is ambiguous on its own (see labelledFact); this is
+  // the only formatting difference from the raw resolved values.
   const observed =
     hasObservedFacts && category
       ? [
-          ...(of!.affected ? [resolve("affected", of!.affected)] : []),
+          ...(of!.affected ? [labelledFact(category, "affected", resolve("affected", of!.affected), lang)] : []),
           ...[of!.branchFirst, of!.branchSecond, of!.branchThird]
             .filter((v): v is string => Boolean(v))
-            .map((v) => resolveBranchValue(category, v, lang)),
-          ...(of!.duration ? [resolve("duration", of!.duration)] : []),
-          ...(of!.frequency ? [resolve("frequency", of!.frequency)] : []),
-          ...(of!.worsening ? [resolve("worsening", of!.worsening)] : []),
+            .map((v) => {
+              const branch = resolveBranchField(category, v, lang);
+              return branch
+                ? labelledFact(category, branch.fieldId, branch.resolved, lang)
+                : NOT_SPECIFIED[lang];
+            }),
+          ...(of!.duration ? [labelledFact(category, "duration", resolve("duration", of!.duration), lang)] : []),
+          ...(of!.frequency
+            ? [labelledFact(category, "frequency", resolve("frequency", of!.frequency), lang)]
+            : []),
+          ...(of!.worsening
+            ? [labelledFact(category, "worsening", resolve("worsening", of!.worsening), lang)]
+            : []),
         ]
       : [];
   const correctionLabel = lang === "zh" ? CORRECTION_LABEL.zh : CORRECTION_LABEL.en;
