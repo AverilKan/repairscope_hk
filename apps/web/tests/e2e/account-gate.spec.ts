@@ -37,13 +37,15 @@ test("signed-out visit to a protected repair-detail route preserves that exact p
 test("anonymous repair intake stays reachable without signing in", async ({ page }) => {
   await page.goto("/landlord");
   await expect(page).toHaveURL(/\/landlord$/);
-  await expect(page.getByText("Landlord workspace", { exact: true })).toBeVisible();
+  // Traditional Chinese is the default language for the landlord surface
+  // (see components/LanguageContext.tsx) — not English.
+  await expect(page.getByText("業主工作區", { exact: true })).toBeVisible();
 });
 
 test("anonymous questionnaire flow for a new repair stays reachable without signing in", async ({
   page,
 }) => {
-  await page.goto("/landlord/repairs/new/roofing");
-  await expect(page).toHaveURL(/\/landlord\/repairs\/new\/roofing$/);
-  await expect(page.getByText("Roofing questions")).toBeVisible();
+  await page.goto("/landlord/repairs/new/leak");
+  await expect(page).toHaveURL(/\/landlord\/repairs\/new\/leak/);
+  await expect(page.getByText("滲水／漏水")).toBeVisible();
 });

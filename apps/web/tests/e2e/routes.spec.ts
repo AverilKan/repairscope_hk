@@ -18,8 +18,10 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/contractor/respond/not-a-real-token", identifyingText: "INVITATION UNAVAILABLE" },
   { path: "/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
   { path: "/operator", identifyingText: "Review submitted repair briefs." },
-  { path: "/landlord", identifyingText: "LANDLORD WORKSPACE" },
-  { path: "/landlord/repairs/new/roofing", identifyingText: "Roofing questions" },
+  // Traditional Chinese is the default language for the landlord surface
+  // (see components/LanguageContext.tsx) — not English.
+  { path: "/landlord", identifyingText: "業主工作區" },
+  { path: "/landlord/repairs/new/leak", identifyingText: "滲水／漏水" },
   { path: "/landlord/repairs/rs-1047/responses", identifyingText: "Contractor responses" },
   { path: "/landlord/repairs/rs-1047/progress", identifyingText: "Repair progress" },
   { path: "/privacy", identifyingText: "How RepairScope handles your information" },

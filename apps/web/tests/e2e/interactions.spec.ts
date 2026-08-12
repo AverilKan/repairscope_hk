@@ -16,14 +16,11 @@ test("client-side navigation from the main page does not full-reload", async ({ 
   });
 
   await page.getByRole("link", { name: "Submit a repair", exact: true }).click();
-  await expect(page).toHaveURL(/\/landlord\/repairs\/new$/);
-  // Exact match on the real (mixed-case) DOM text — the visual all-caps
-  // rendering is CSS text-transform, not the actual text content.
-  // Production `next start` also renders Next's own accessibility
-  // route-announcer (#__next-route-announcer__) with overlapping text on
-  // navigation, which a loose substring match also hits, hence exact here.
+  // NewRepairFlow mints a route-carried journey id and replaces the URL
+  // with it (see domain/journey.ts) — no bare /new with no query string.
+  await expect(page).toHaveURL(/\/landlord\/repairs\/new\?journey=/);
   await expect(
-    page.getByText("Build the repair brief as the facts become clear.", { exact: true }),
+    page.getByRole("heading", { name: "你見到咩問題？", exact: true }),
   ).toBeVisible();
 
   const markerSurvived = await page.evaluate(
@@ -46,8 +43,10 @@ test("sign-in shell's back link navigates client-side to the home route", async 
 
   await page.getByRole("link", { name: "Back to RepairScope" }).click();
   await expect(page).toHaveURL(/\/$/);
+  // Next.js's own accessibility route-announcer also carries this text, so
+  // scope to the actual page heading rather than a bare text match.
   await expect(
-    page.getByText("Got a significant repair at your rental property?"),
+    page.getByRole("heading", { name: "Got a significant repair at your rental property?" }),
   ).toBeVisible();
 
   const markerSurvived = await page.evaluate(
@@ -114,23 +113,25 @@ test("repair-list stage filter narrows the list", async ({ page }) => {
   expect(after).not.toBe(before);
 });
 
+// The Hong Kong questionnaire (QuestionnaireEngine) restores answered-
+// question state from localStorage after mount (see
+// components/QuestionnaireEngine.tsx). Full journey-restore coverage
+// (category, answers, position across reload) lives in
+// tests/e2e/hk-intake.spec.ts's "reload persistence" scenario — this is a
+// narrower migration-style smoke check that the draft's own save/restore
+// round-trip generally works, using the four-stage progress indicator
+// (components/IntakeStageProgress.tsx) rather than a hardcoded step count.
 test("questionnaire draft state survives a reload (localStorage)", async ({ page }) => {
-  // The roofing questionnaire (QuestionnaireEngine) restores answered-question
-  // state from localStorage after mount (see components/QuestionnaireEngine.tsx).
-  // Rather than assert a hardcoded progress count (which depends on this
-  // fixture's seeded demo state), capture whatever progress is showing
-  // before reload and assert it's unchanged after — that's the actual
-  // persistence guarantee under test.
-  await page.goto("/landlord/repairs/new/roofing");
-  await expect(page.getByText("Roofing questions")).toBeVisible();
+  await page.goto("/landlord/repairs/new/leak");
+  await expect(page.getByText("滲水／漏水")).toBeVisible();
+  await page.getByRole("radio", { name: "天花" }).click();
 
-  const progress = page.getByText(/\d+ of \d+ answered/);
-  await expect(progress).toBeVisible();
-  const before = await progress.textContent();
-
+  // Wait for the real debounced-save status before reloading.
+  await expect(page.getByText(/已儲存/)).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Roofing questions")).toBeVisible();
-  await expect(progress).toHaveText(before ?? "");
+
+  await expect(page.getByText("滲水／漏水")).toBeVisible();
+  await expect(page.getByText("天花").first()).toBeVisible();
 });
 
 test("contractor token route renders the task matching its resolved token", async ({ page }) => {

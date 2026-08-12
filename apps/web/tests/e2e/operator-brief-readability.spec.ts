@@ -14,22 +14,21 @@ test("operator detail shows the readable brief above intake details, with raw an
   await page.goto("/operator");
   await page.getByRole("button", { name: /RS-MOCK01/ }).click();
 
-  // The readable brief renders with its labelled sections, matching what
-  // the landlord saw — not a JSON dump.
-  await expect(page.getByRole("heading", { name: "Reported facts" })).toBeVisible();
+  // The readable brief renders with its labelled sections (see
+  // components/GeneratedBriefDocument.tsx), matching what the landlord
+  // saw — not a JSON dump.
+  await expect(page.getByText("Reported / observed facts")).toBeVisible();
   await expect(
     page.getByText("Kitchen tap leaking heavily, floor is wet."),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Confirmed unknowns" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Access overview" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "What contractors must provide" }),
-  ).toBeVisible();
+  await expect(page.getByText("What remains unconfirmed")).toBeVisible();
+  await expect(page.getByText("Property / access")).toBeVisible();
+  await expect(page.getByText("What contractors must provide")).toBeVisible();
 
   // The brief appears before the intake-mechanics contact details (landlord
   // name/email/etc.) in reading order — "what is actually wrong" first.
   const briefY = await page
-    .getByRole("heading", { name: "Reported facts" })
+    .getByText("Reported / observed facts")
     .boundingBox();
   const contactY = await page.getByText("jamie@example.com").boundingBox();
   expect(briefY?.y ?? Infinity).toBeLessThan(contactY?.y ?? -Infinity);
