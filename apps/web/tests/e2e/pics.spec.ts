@@ -25,9 +25,12 @@ test("the PICS appears on the submission screen, states purpose/required-optiona
   // Required vs optional consequence.
   expect(picsText).toContain("姓名、聯絡方式同維修相關資料係處理申請所需");
   expect(picsText).toContain("其他資料你可以選擇唔填");
-  // Classes of transferees.
+  // Classes of transferees — all three: technical service providers,
+  // contractors (only once the case progresses and sharing is separately
+  // confirmed, never implied as automatic), and lawful authorities.
   expect(picsText).toContain("技術服務供應商");
   expect(picsText).toContain("如果個案需要將資料交俾師傅，我哋會先同你確認先至分享");
+  expect(picsText).toContain("在法律要求的情況下，相關資料亦可能提供予法院、政府部門或其他依法有權要求資料的機構");
   // Access/correction rights.
   expect(picsText).toContain("你可以要求查閱或更正 RepairScope 持有關於你嘅個人資料");
 
@@ -62,6 +65,7 @@ test("the English PICS reads consistently with the Chinese version", async ({ pa
   expect(bodyText).toContain("if not provided, we may be unable to process it");
   expect(bodyText).toContain("technical service providers");
   expect(bodyText).toContain("we will confirm this with you first");
+  expect(bodyText).toContain("disclosed to courts, government bodies or other lawful authorities");
   expect(bodyText).toContain("access or correct the personal data");
   await expect(page.getByRole("link", { name: "Privacy Notice" })).toHaveAttribute("href", "/privacy");
 });

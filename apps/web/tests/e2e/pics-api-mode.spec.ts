@@ -2,25 +2,31 @@ import { expect, test } from "@playwright/test";
 import { fillAndSubmitContactForm, finishLeakJourneyToBrief, startLeakJourneyThroughBuilding } from "./hk-helpers";
 
 // Proves the PICS (RepairSubmissionPanel.tsx) is presented before the
-// FIRST point personal data actually leaves the browser — not merely
-// placed on "the final screen" as an assumption. Runs against a server
-// started with NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE=api (same convention as
+// FIRST point RepairScope's own repair-data API is called — not merely
+// placed on "the final screen" as an assumption. This only monitors
+// requests to this app's own `/api/` paths (the one real endpoint,
+// `/api/repair-submissions` — see services/api.ts); it does not attempt
+// general third-party network interception (e.g. a hypothetical
+// analytics beacon to an unrelated domain would not be caught here,
+// though none exists in this codebase today — analytics is parked, see
+// docs). Runs against a server started with
+// NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE=api (same convention as
 // hk-intake-api-mode.spec.ts): the mock data source never makes a real
 // network call at all (services/mock.ts's MockRepairSubmissionService.submit
 // resolves in-memory), so route interception there would prove nothing.
 //
 //   NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE=api PLAYWRIGHT_BASE_URL=http://localhost:PORT npx playwright test tests/e2e/pics-api-mode.spec.ts
 
-test("no request carrying personal data reaches any server before the PICS-bearing submission screen is shown, and the PICS is visible before the submit click that first sends it", async ({
+test("PICS is visible before the first RepairScope repair-data API submission, and no RepairScope /api/ request fires before it", async ({
   page,
 }) => {
-  const requestsBeforeSubmissionScreen: string[] = [];
+  const repairScopeApiRequestsBeforeSubmissionScreen: string[] = [];
   const trackUntilSubmissionScreenVisible = { done: false };
   page.on("request", (request) => {
     if (trackUntilSubmissionScreenVisible.done) return;
     const url = request.url();
     if (url.includes("/api/")) {
-      requestsBeforeSubmissionScreen.push(`${request.method()} ${url}`);
+      repairScopeApiRequestsBeforeSubmissionScreen.push(`${request.method()} ${url}`);
     }
   });
 
@@ -48,8 +54,8 @@ test("no request carrying personal data reaches any server before the PICS-beari
   // is actually visible before doing anything that could submit.
   trackUntilSubmissionScreenVisible.done = true;
   expect(
-    requestsBeforeSubmissionScreen,
-    `expected zero /api/ requests before the submission screen, found: ${requestsBeforeSubmissionScreen.join(", ")}`,
+    repairScopeApiRequestsBeforeSubmissionScreen,
+    `expected zero RepairScope /api/ requests before the submission screen, found: ${repairScopeApiRequestsBeforeSubmissionScreen.join(", ")}`,
   ).toEqual([]);
   await expect(page.getByText("私隱及資料收集")).toBeVisible();
   expect(submissionRequestBody, "the submission POST must not have fired yet").toBeUndefined();
