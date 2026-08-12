@@ -30,7 +30,9 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/landlord/repairs/rs-1047/responses", identifyingText: "Contractor responses" },
   { path: "/landlord/repairs/rs-1047/progress", identifyingText: "Repair progress" },
   { path: "/privacy", identifyingText: "How RepairScope handles your information" },
-  { path: "/terms", identifyingText: "What RepairScope is, and what it isn't" },
+  // Traditional Chinese is the default language for /terms too now (see
+  // the HK founding-pilot Terms rewrite) — not the old English-only copy.
+  { path: "/terms", identifyingText: "使用條款" },
 ];
 
 for (const route of ROUTES) {
