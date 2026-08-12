@@ -44,7 +44,26 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   const body = capturedBody!;
   expect(body.issue_category).toBe("leak");
   expect(body.questionnaire_version).toBe("v1");
-  expect(body.questionnaire_answers).toMatchObject({ affected: "ceiling", district: "eastern" });
+  // The full exact set — not just a couple of fields via toMatchObject —
+  // so a stray/stale field slipping into the payload would be caught.
+  expect(body.questionnaire_answers).toEqual({
+    affected: "ceiling",
+    branchFirst: "rain",
+    branchSecond: "mark",
+    branchThird: "spot",
+    safety: "none",
+    duration: "week",
+    frequency: "occasional",
+    worsening: "unsure",
+    prior: "no",
+    hasEvidence: "no",
+    management: "no",
+    sharedArea: "unsure",
+    accessBy: "owner",
+    availability: "平日 7 點後",
+    district: "eastern",
+    relationship: "owner-occupier",
+  });
 
   expect(body.property_postcode).toBeUndefined();
   expect(body.property_address).toContain("東區");
@@ -59,6 +78,75 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
 
   const brief = body.generated_brief as Record<string, unknown>;
   expect(brief.landlordCorrections).toEqual([correctionText]);
+});
+
+test("the final POST excludes hidden conditional fields even after entering a child value and changing the parent", async ({
+  page,
+}) => {
+  let capturedBody: Record<string, unknown> | undefined;
+  await page.route("**/api/repair-submissions", async (route) => {
+    capturedBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ public_reference: "RS-E2E04", status: "new", created_at: "2026-08-12T00:00:00.000Z" }),
+    });
+  });
+
+  await page.goto("/landlord/repairs/new");
+  await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+  await page
+    .getByRole("radiogroup", { name: "發現問題喺邊度？" })
+    .getByRole("radio", { name: "天花" })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: "通常幾時出現？" })
+    .getByRole("radio", { name: "落雨時／落雨之後" })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: "見到嘅情況係點？" })
+    .getByRole("radio", { name: "水印／濕痕" })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: "影響範圍有幾大？" })
+    .getByRole("radio", { name: "一小處" })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
+    .getByRole("radio", { name: "以上都冇，可以繼續" })
+    .click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("radiogroup", { name: "幾時開始？" }).getByRole("radio", { name: "一星期內" }).click();
+  await page.getByRole("radiogroup", { name: "幾常出現？" }).getByRole("radio", { name: "間中" }).click();
+  await page.getByRole("radiogroup", { name: "有冇惡化？" }).getByRole("radio", { name: "唔肯定" }).click();
+
+  // Enter the child (priorDetail), then change the parent so it hides —
+  // the stale value must never reach the final payload.
+  await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "收到報價" }).click();
+  await page.getByLabel("之前有人點樣講？（可選填）").fill("師傅話要換成條喉管，未落實");
+  await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "冇" }).click();
+  await page.getByRole("button", { name: "繼續" }).click();
+
+  await page.getByRole("radiogroup", { name: "你有冇維修相片、影片、報告或現有報價？" }).getByRole("radio", { name: "冇" }).click();
+  await page.getByRole("radiogroup", { name: "有冇聯絡過管理處？" }).getByRole("radio", { name: "未有聯絡" }).click();
+  await page.getByRole("radiogroup", { name: "問題有冇可能同樓上、隔離單位或者公用地方有關？" }).getByRole("radio", { name: "唔肯定" }).click();
+  await page.getByRole("radiogroup", { name: "開門安排" }).getByRole("radio", { name: "業主本人" }).click();
+  await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("radiogroup", { name: "地區" }).getByRole("radio", { name: "東區" }).click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
+  await page.getByRole("button", { name: "整理維修簡報" }).click();
+  await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+
+  await fillAndSubmitContactForm(page);
+  await expect(page.getByText("RS-E2E04")).toBeVisible();
+
+  expect(capturedBody).toBeTruthy();
+  const answers = capturedBody!.questionnaire_answers as Record<string, unknown>;
+  expect(answers.prior).toBe("no");
+  expect(answers).not.toHaveProperty("priorDetail");
+  expect(JSON.stringify(answers)).not.toContain("換成條喉管");
 });
 
 test("a failed submission keeps the current journey addressable, not silently cleared", async ({ page }) => {

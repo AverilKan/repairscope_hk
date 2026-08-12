@@ -87,14 +87,21 @@ export async function finishLeakJourneyToBrief(page: Page) {
   await radio(page, "relationship", "自住業主").click();
 
   await page.getByRole("button", { name: "整理維修簡報" }).click();
-  await expect(page.getByText("RepairScope neutral brief")).toBeVisible();
+  // Traditional Chinese is the default language for a fresh journey — the
+  // eyebrow text is localised (see GeneratedBriefDocument.tsx).
+  await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
 }
 
-/** Fills and submits the contact/consent form (RepairSubmissionPanel). */
+/** Fills and submits the contact/consent form (RepairSubmissionPanel).
+ * preferredContactMethod now starts unset — no radio is preselected — so
+ * this explicitly picks one (email) before submitting, or the submit
+ * button stays disabled and the click is a no-op. See
+ * RepairSubmissionPanel.tsx's ContactFormState. */
 export async function fillAndSubmitContactForm(page: Page) {
   await page.getByLabel("姓名").fill("陳大文");
   await page.getByLabel("香港聯絡電話").fill("+852 9123 4567");
   await page.getByLabel("電郵").fill("test@example.com");
+  await page.getByRole("radio", { name: "電郵" }).click();
   await page.getByRole("checkbox").check();
   await page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" }).click();
 }
