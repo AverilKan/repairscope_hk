@@ -90,7 +90,7 @@ test("readJourneyDraft/writeJourneyDraft round-trip and are isolated per journey
   writeJourneyDraft({
     journeyId: j1,
     category: "leak",
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeIndex: 2,
     responses: { affected: "ceiling" },
     acknowledgements: {},
@@ -99,7 +99,7 @@ test("readJourneyDraft/writeJourneyDraft round-trip and are isolated per journey
   writeJourneyDraft({
     journeyId: j2,
     category: "electrical",
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeIndex: 0,
     responses: { affected: "one-fitting" },
     acknowledgements: {},
@@ -129,7 +129,7 @@ test("peekJourneyCategory recovers the in-progress category from a draft, so rel
   writeJourneyDraft({
     journeyId,
     category: "electrical",
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeIndex: 1,
     responses: { affected: "one-room" },
     acknowledgements: {},
@@ -186,7 +186,7 @@ test("peekJourneyCategory never leaks one journey's category into another journe
   writeJourneyDraft({
     journeyId: j1,
     category: "plumbing",
-    schemaVersion: 1,
+    schemaVersion: 2,
     activeIndex: 0,
     responses: {},
     acknowledgements: {},

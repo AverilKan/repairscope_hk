@@ -652,7 +652,7 @@ test.describe("malformed stored brief", () => {
         JSON.stringify({
           journeyId: id,
           category: "leak",
-          schemaVersion: 1,
+          schemaVersion: 2,
           draft: "not-an-object",
           brief: { id: "brief-x", repairId: id, version: 1, landlordCorrections: "not-an-array" },
         }),

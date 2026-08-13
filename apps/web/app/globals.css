@@ -199,6 +199,7 @@ h3 {
 .site-nav {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 24px;
   font-size: 0.85rem;
   font-weight: 650;
@@ -1765,6 +1766,14 @@ select:focus {
 
 .safety-notice p {
   max-width: 800px;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
 }
 
 .safety-acknowledgement {
@@ -10827,7 +10836,7 @@ select:focus {
 
 @media (max-width: 840px) {
   .site-header { grid-template-columns: auto 1fr auto; }
-  .site-header > .site-nav { display: none; position: absolute; top: 69px; right: 0; left: 0; align-items: stretch; flex-direction: column; gap: 0; padding: 14px 20px 22px; border-bottom: 1px solid var(--line-strong); background: white; box-shadow: var(--shadow-small); }
+  .site-header > .site-nav { display: none; position: absolute; top: 69px; right: 0; left: 0; align-items: stretch; justify-content: flex-start; flex-direction: column; gap: 0; padding: 14px 20px 22px; border-bottom: 1px solid var(--line-strong); background: white; box-shadow: var(--shadow-small); }
   .site-header > .site-nav--open { display: flex; }
   .site-header > .site-nav > a:not(.button) { display: block; padding: 14px 2px; border-bottom: 1px solid var(--line); }
   .site-header > .site-nav .button { margin-top: 12px; }

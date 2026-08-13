@@ -43,7 +43,7 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   expect(capturedBody).toBeTruthy();
   const body = capturedBody!;
   expect(body.issue_category).toBe("leak");
-  expect(body.questionnaire_version).toBe("v1");
+  expect(body.questionnaire_version).toBe("v2");
   // The full exact set — not just a couple of fields via toMatchObject —
   // so a stray/stale field slipping into the payload would be caught.
   expect(body.questionnaire_answers).toEqual({

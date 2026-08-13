@@ -191,7 +191,6 @@ export const priorOptions = [
   option("quote", "收到報價", "Quotation received"),
   option("attempted", "已經試過維修", "Repair already attempted"),
   option("no", "冇", "No"),
-  option("unsure", "唔肯定", "Not sure"),
 ];
 const managementOptions = [
   option("yes", "有聯絡", "Contacted"),
@@ -284,8 +283,8 @@ const priorStep = step(
     select("prior", "之前處理", "Previous action", priorOptions),
     // Only relevant once the owner has said something already happened —
     // hidden (and cleared from responses by QuestionnaireEngine's
-    // changeResponse) when prior is "no" or "unsure", so a stale answer
-    // typed before switching to "no" can never survive into the brief.
+    // changeResponse) when prior is "no", so a stale answer typed before
+    // switching to "no" can never survive into the brief.
     {
       ...text(
         "priorDetail",
@@ -465,7 +464,7 @@ export const sharedTailFieldIds = new Set(
 // way that matters for how a submitted answer set should be interpreted —
 // persisted on every RepairSubmission (see questionnaireVersionLabel below)
 // so past submissions remain interpretable after the schema evolves.
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2;
 
 interface BranchDefinition {
   affected: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
