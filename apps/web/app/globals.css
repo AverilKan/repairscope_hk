@@ -4864,6 +4864,43 @@ select:focus {
     border-radius: 7px;
   }
 
+  /* The open (current/queued) question panel and the category-picker's
+     equivalent "current" panel are the only states with a bordered white
+     box — completed rows (.question-section--complete) have no such box
+     and keep the external-gutter layout above unchanged. At this width the
+     external 32px marker gutter pushed the whole panel visibly off-centre
+     (uneven left/right outer margins) rather than just narrowing evenly, so
+     these states drop the dedicated column entirely and, where a marker
+     exists, place it inside the panel's own padding box instead. */
+  .question-section--current,
+  .question-section--queued,
+  .intake-sequence--current {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .question-section--current::before,
+  .question-section--queued::before {
+    display: none;
+  }
+
+  .question-section--current .question-section__body,
+  .question-section--queued .question-section__queued {
+    grid-column: 1 / -1;
+    position: relative;
+    padding-top: 54px;
+  }
+
+  .intake-sequence--current .intake-sequence__body {
+    grid-column: 1 / -1;
+  }
+
+  .question-section--current .question-marker,
+  .question-section--queued .question-marker {
+    position: absolute;
+    top: 18px;
+    left: 18px;
+  }
+
   .question-section--complete,
   .intake-sequence--complete {
     padding-right: 0;

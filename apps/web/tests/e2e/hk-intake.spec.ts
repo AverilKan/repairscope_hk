@@ -581,6 +581,77 @@ test.describe("four-stage progress", () => {
   });
 });
 
+// Regression coverage: at mobile widths, the open question panel's external
+// numbered-badge gutter (.question-section grid column) pushed the whole
+// bordered white panel off-centre — visibly uneven left/right outer margins
+// — rather than just narrowing. The badge now moves inside the panel at
+// this breakpoint instead of keeping its own dedicated column.
+test.describe("responsive question panel layout", () => {
+  test("at mobile width, the open panel is horizontally centred and the badge sits inside it; desktop keeps the external badge column", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+
+    const panel = page.locator(".question-section--current .question-section__body");
+    const marker = page.locator(".question-section--current .question-marker");
+    await expect(panel).toBeVisible();
+
+    const viewport = page.viewportSize()!;
+    const panelBox = (await panel.boundingBox())!;
+    const markerBox = (await marker.boundingBox())!;
+
+    const leftMargin = panelBox.x;
+    const rightMargin = viewport.width - (panelBox.x + panelBox.width);
+    // "Approximately equal" — allow a small tolerance for the border/shadow
+    // box rather than requiring pixel-perfect symmetry.
+    expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(4);
+
+    // The badge's bounding box must lie fully within the panel's — i.e.
+    // genuinely inside the white box, not in a separate external gutter.
+    expect(markerBox.x).toBeGreaterThanOrEqual(panelBox.x);
+    expect(markerBox.y).toBeGreaterThanOrEqual(panelBox.y);
+    expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+    expect(markerBox.y + markerBox.height).toBeLessThanOrEqual(panelBox.y + panelBox.height);
+  });
+
+  test("at 430px width, the same centring and in-panel badge placement hold", async ({ page }) => {
+    await page.setViewportSize({ width: 430, height: 900 });
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+
+    const panel = page.locator(".question-section--current .question-section__body");
+    const marker = page.locator(".question-section--current .question-marker");
+    const viewport = page.viewportSize()!;
+    const panelBox = (await panel.boundingBox())!;
+    const markerBox = (await marker.boundingBox())!;
+
+    const leftMargin = panelBox.x;
+    const rightMargin = viewport.width - (panelBox.x + panelBox.width);
+    expect(Math.abs(leftMargin - rightMargin)).toBeLessThanOrEqual(4);
+    expect(markerBox.x).toBeGreaterThanOrEqual(panelBox.x);
+    expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+  });
+
+  test("at desktop width, the badge remains in its own external column, to the left of the panel", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+
+    const panel = page.locator(".question-section--current .question-section__body");
+    const marker = page.locator(".question-section--current .question-marker");
+    const panelBox = (await panel.boundingBox())!;
+    const markerBox = (await marker.boundingBox())!;
+
+    // The badge sits outside/left of the panel's own box — the external
+    // gutter layout, unchanged from before this fix.
+    expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(panelBox.x);
+  });
+});
+
 test.describe("bilingual validation errors", () => {
   // Regression coverage: questionnaireStepValidationErrors always returned
   // hardcoded English messages regardless of the active language — a
