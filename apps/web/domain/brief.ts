@@ -182,6 +182,60 @@ export function summariseObservedFacts(
 }
 
 /**
+ * A short, safe, natural-language synthesis of a standard category's
+ * observed facts, for the owner review screen's "Repair situation" section
+ * — deliberately generic across categories rather than fusing
+ * category-specific branch answers into fully idiomatic prose.
+ * branchFirst/Second/Third mean different things per category (e.g.
+ * leak's third branch answers "how much is affected", plumbing's third
+ * branch answers "can the water be isolated?", aircon's third branch
+ * answers "has it been serviced recently?" — see data/questionnaires.ts's
+ * branches map), and gluing them into one hand-authored sentence per
+ * category would either require ~8 categories' worth of bespoke templates
+ * or risk misrepresenting what was actually answered. Only `affected`
+ * (always a safe, generic "what/where" subject) and the three timeline
+ * fields (duration/frequency/worsening — identical questions across every
+ * category, see data/questionnaires.ts's shared timelineStep) are fused
+ * into prose here; branchFirst/Second/Third remain their own individually
+ * labelled facts, rendered separately by summariseObservedFacts.
+ */
+export function summariseSituation(
+  brief: Pick<ProblemBrief, "category" | "observedFacts">,
+  lang: Lang,
+): string | undefined {
+  const category = brief.category;
+  const of = brief.observedFacts;
+  if (!category || !of) return undefined;
+  const resolve = (fieldId: string, value: string | undefined) =>
+    value ? resolveAnswerLabel(category, fieldId, value, lang) : undefined;
+
+  const affected = resolve("affected", of.affected);
+  const duration = resolve("duration", of.duration);
+  const frequency = resolve("frequency", of.frequency);
+  const worsening = resolve("worsening", of.worsening);
+
+  const sentences: string[] = [];
+  if (lang === "zh") {
+    if (affected) sentences.push(`涉及：${affected}。`);
+    const timeline = [
+      duration ? `由${duration}開始` : undefined,
+      frequency ? `${frequency}出現` : undefined,
+      worsening ? `情況${worsening}` : undefined,
+    ].filter((v): v is string => Boolean(v));
+    if (timeline.length > 0) sentences.push(`${timeline.join("，")}。`);
+  } else {
+    if (affected) sentences.push(`Affected: ${affected}.`);
+    const timeline = [
+      duration ? `began ${duration.toLowerCase()}` : undefined,
+      frequency ? `happens ${frequency.toLowerCase()}` : undefined,
+      worsening ? `condition is ${worsening.toLowerCase()}` : undefined,
+    ].filter((v): v is string => Boolean(v));
+    if (timeline.length > 0) sentences.push(`It ${timeline.join(", ")}.`);
+  }
+  return sentences.length > 0 ? sentences.join(" ") : undefined;
+}
+
+/**
  * Pure, deterministic transformation of questionnaire answers into a
  * landlord-reviewable neutral brief — no diagnosis, no invented scope or
  * price, no contractor chosen. Used directly by the public intake flow (no

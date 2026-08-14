@@ -298,11 +298,17 @@ test.describe("generated brief content", () => {
     await finishLeakJourneyToBrief(page);
     await page.getByRole("button", { name: "EN", exact: true }).click();
 
-    await expect(page.getByText("Reported / observed facts")).toBeVisible();
-    await expect(page.getByText("Ceiling")).toBeVisible();
+    await expect(page.getByText("Repair situation")).toBeVisible();
+    // "Ceiling" now legitimately appears twice — once in the synthesised
+    // situation sentence, once in its own labelled observation row (see
+    // GeneratedBriefDocument's OwnerBriefSummary / domain/brief.ts's
+    // summariseSituation) — so match either occurrence rather than asserting
+    // a single unique element.
+    await expect(page.getByText(/Ceiling/).first()).toBeVisible();
     await expect(page.getByText("During / after rain")).toBeVisible();
     await expect(page.getByText("Water mark / damp patch")).toBeVisible();
-    await expect(page.getByText("Within a week")).toBeVisible();
+    // "Within a week" also legitimately appears twice, same reason as "Ceiling" above.
+    await expect(page.getByText(/Within a week/).first()).toBeVisible();
     await expect(page.getByText("Eastern")).toBeVisible();
 
     // No raw stored codes ever leak into the rendered brief.
@@ -367,7 +373,7 @@ test.describe("generated brief content", () => {
 
     await radio(page, "relationship", "自住業主").click();
     await page.getByRole("button", { name: "整理維修簡報" }).click();
-    await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
 
     // Traditional Chinese (default) — brief review.
     await expect(page.getByText(/通常幾時出現？：唔肯定/)).toBeVisible();
@@ -412,7 +418,7 @@ test.describe("factual correction", () => {
     // between segments — proving correctionMeetsMinimumWords's CJK
     // character-count rule (domain/rules.ts) actually enables the button.
     const correctionText = "其實係牆身，唔係天花。";
-    await page.getByLabel("有冇資料錯咗或者漏咗？").fill(correctionText);
+    await page.getByLabel("補充其他資料").fill(correctionText);
     await page.getByRole("button", { name: "套用更正" }).click();
     await expect(page.getByText("簡報已更新")).toBeVisible();
     await expect(page.getByText(correctionText)).toBeVisible();
@@ -436,7 +442,7 @@ test.describe("journey authority", () => {
   }) => {
     const journeyId = await startLeakJourneyThroughBuilding(page);
     await finishLeakJourneyToBrief(page);
-    await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
 
     await page.getByRole("button", { name: "更改問卷答案" }).click();
 
@@ -474,7 +480,7 @@ test.describe("journey authority", () => {
     await expect(page.getByText("滲水／漏水")).not.toBeVisible();
     await expect(page.getByText("電力／跳掣／冇電").first()).toBeVisible();
     await expect(page.getByText("一個房間").first()).toBeVisible();
-    await expect(page.getByText("RepairScope 中立簡報")).not.toBeVisible();
+    await expect(page.getByText("維修資料摘要")).not.toBeVisible();
   });
 
   // Regression coverage (third Codex audit, item 1): the fix above proved
@@ -493,7 +499,7 @@ test.describe("journey authority", () => {
   }) => {
     const journeyId = await startLeakJourneyThroughBuilding(page);
     await finishLeakJourneyToBrief(page);
-    await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
 
     await page.getByRole("button", { name: "更改問卷答案" }).click();
     // No intermediate click or answer of any kind — reload immediately.
@@ -503,7 +509,7 @@ test.describe("journey authority", () => {
     // Must not have fallen back to the category picker.
     await expect(page.getByRole("heading", { name: "你見到咩問題？" })).not.toBeVisible();
     // Must not have resurrected the old (pre-edit) brief either.
-    await expect(page.getByText("RepairScope 中立簡報")).not.toBeVisible();
+    await expect(page.getByText("維修資料摘要")).not.toBeVisible();
     // The completed questionnaire's own answers must be genuinely present
     // — every prior step restored as completed with its own answer summary
     // (not just re-answerable from scratch), and the actual final step

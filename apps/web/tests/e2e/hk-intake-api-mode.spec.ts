@@ -33,7 +33,7 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   // unspaced Traditional Chinese/Cantonese, proving the correction reaches
   // the final payload without needing artificial spaces.
   const correctionText = "其實係牆身，唔係天花。";
-  await page.getByLabel("有冇資料錯咗或者漏咗？").fill(correctionText);
+  await page.getByLabel("補充其他資料").fill(correctionText);
   await page.getByRole("button", { name: "套用更正" }).click();
   await expect(page.getByText("簡報已更新")).toBeVisible();
 
@@ -154,7 +154,7 @@ test("the final POST excludes hidden conditional fields even after entering a ch
   await page.getByRole("button", { name: "繼續" }).click();
   await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
   await page.getByRole("button", { name: "整理維修簡報" }).click();
-  await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+  await expect(page.getByText("維修資料摘要")).toBeVisible();
 
   await fillAndSubmitContactForm(page);
   await expect(page.getByText("RS-E2E04")).toBeVisible();

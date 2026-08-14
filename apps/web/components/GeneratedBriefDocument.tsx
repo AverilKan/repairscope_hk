@@ -1,7 +1,12 @@
 "use client";
 
-import { questionnaireByCategory, resolveAnswerLabel } from "@/data/questionnaires";
-import { resolveConfirmedUnknown, resolveContractorRequest, summariseObservedFacts } from "@/domain/brief";
+import { questionnaireByCategory, questionnaireFieldLabel, resolveAnswerLabel } from "@/data/questionnaires";
+import {
+  resolveConfirmedUnknown,
+  resolveContractorRequest,
+  summariseObservedFacts,
+  summariseSituation,
+} from "@/domain/brief";
 import type { RepairCategoryId } from "@/domain/types";
 import { useLanguage } from "./LanguageContext";
 
@@ -54,6 +59,7 @@ type GeneratedBriefLike = {
 export function GeneratedBriefDocument({
   brief,
   bare = false,
+  variant = "operator",
 }: {
   brief: GeneratedBriefLike | null | undefined;
   /**
@@ -63,6 +69,17 @@ export function GeneratedBriefDocument({
    * The operator detail screen has no such wrapper, so it uses the default.
    */
   bare?: boolean;
+  /**
+   * "operator" (default) is the original numbered report-style layout,
+   * unchanged — used by the operator submission detail screen
+   * (components/OperatorSubmissionReview.tsx), which should keep seeing
+   * the full technical rendering. "owner" is the simplified, synthesised
+   * review shown on the owner's "Check the facts" screen
+   * (components/LandlordApp.tsx) before contact/submission — see
+   * OwnerBriefSummary below. Both variants are pure presentations of the
+   * same ProblemBrief; no data is added or removed between them.
+   */
+  variant?: "operator" | "owner";
 }) {
   const { lang, t } = useLanguage();
 
@@ -74,6 +91,11 @@ export function GeneratedBriefDocument({
       </>
     );
     return bare ? empty : <div className="brief-document">{empty}</div>;
+  }
+
+  if (variant === "owner") {
+    const content = <OwnerBriefSummary brief={brief} />;
+    return bare ? content : <div className="brief-document">{content}</div>;
   }
 
   const category =
@@ -263,6 +285,206 @@ function BriefSection({
           <li>{emptyLabel ?? (lang === "zh" ? "未有記錄" : "Not recorded")}</li>
         )}
       </ul>
+    </section>
+  );
+}
+
+/**
+ * The owner-facing "Check the facts" review — a concise, synthesised
+ * summary rather than a repeat of the questionnaire, and deliberately not
+ * the numbered report grid the operator sees (see GeneratedBriefDocument's
+ * own comment on `variant`). Renders exactly the same ProblemBrief data;
+ * nothing here is invented, and nothing shown to the operator is hidden —
+ * this only reorganises how it reads. The one exception is "09 What
+ * contractors must provide" (`brief.contractorRequests`), which is
+ * deliberately not rendered here — instructions addressed to a future
+ * contractor belong on the future contractor-facing sourcing brief, not on
+ * the owner's own confirmation screen.
+ */
+function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
+  const { lang } = useLanguage();
+  const category =
+    brief.category && brief.category in questionnaireByCategory
+      ? (brief.category as RepairCategoryId)
+      : undefined;
+  const categoryLabel = category
+    ? (lang === "zh" ? questionnaireByCategory[category].label.zh : questionnaireByCategory[category].label.en)
+    : (lang === "zh" ? "維修個案" : "Repair case");
+  const resolve = (fieldId: string, value: string | undefined) =>
+    category ? resolveAnswerLabel(category, fieldId, value, lang) : (lang === "zh" ? "未提供" : "Not specified");
+  const fieldLabel = (fieldId: string) => (category ? questionnaireFieldLabel(category, fieldId, lang) : undefined);
+
+  const situation = summariseSituation(
+    { category, observedFacts: brief.observedFacts },
+    lang,
+  );
+  const observedFactRows = summariseObservedFacts(
+    {
+      category,
+      observedFacts: brief.observedFacts,
+      reportedFacts: brief.reportedFacts ?? [],
+      landlordCorrections: brief.landlordCorrections,
+    },
+    lang,
+  );
+
+  const priorRows: string[] = brief.priorAction?.status
+    ? [
+        resolve("prior", brief.priorAction.status),
+        ...(brief.priorAction.detail
+          ? [
+              `${fieldLabel("priorDetail") ?? (lang === "zh" ? "對方講法" : "What they said")}${
+                lang === "zh" ? "：" : ": "
+              }${brief.priorAction.detail}`,
+            ]
+          : []),
+      ]
+    : [];
+
+  const evidenceRows: string[] =
+    brief.hasEvidence === "yes"
+      ? [
+          lang === "zh"
+            ? "你表示有相關資料，但尚未透過 RepairScope 網站提供。"
+            : "You indicated you have relevant information, but it has not been provided through the RepairScope website yet.",
+          ...(brief.evidenceKind
+            ? [`${lang === "zh" ? "資料類型：" : "Type: "}${resolve("evidenceKind", brief.evidenceKind)}`]
+            : []),
+        ]
+      : [];
+
+  const pd = brief.propertyDetails;
+  const propertyRows: [string, string][] = [
+    ...(pd?.district ? ([[lang === "zh" ? "地區" : "District", resolve("district", pd.district)]] as [string, string][]) : []),
+    ...(pd?.building ? ([[lang === "zh" ? "屋苑／大廈" : "Building", pd.building]] as [string, string][]) : []),
+    ...(pd?.block ? ([[lang === "zh" ? "座／幢" : "Block", pd.block]] as [string, string][]) : []),
+    ...(pd?.floor ? ([[lang === "zh" ? "樓層" : "Floor", pd.floor]] as [string, string][]) : []),
+    ...(pd?.unit ? ([[lang === "zh" ? "單位" : "Unit", pd.unit]] as [string, string][]) : []),
+  ];
+  const accessRows: [string, string][] = [
+    ...(brief.relationship
+      ? ([[lang === "zh" ? "與物業關係" : "Relationship to property", resolve("relationship", brief.relationship)]] as [
+          string,
+          string,
+        ][])
+      : []),
+    ...(pd?.accessBy
+      ? ([[lang === "zh" ? "上門聯絡" : "Access contact", resolve("accessBy", pd.accessBy)]] as [string, string][])
+      : []),
+    ...(pd?.availability
+      ? ([[lang === "zh" ? "方便時段" : "Convenient time", pd.availability]] as [string, string][])
+      : []),
+  ];
+  const buildingRows: [string, string][] = brief.buildingContext
+    ? [
+        ...(brief.buildingContext.managementContacted
+          ? ([[
+              lang === "zh" ? "管理處" : "Management office",
+              resolve("management", brief.buildingContext.managementContacted),
+            ]] as [string, string][])
+          : []),
+        ...(brief.buildingContext.sharedAreaInvolved
+          ? ([[
+              lang === "zh" ? "其他單位／公用地方" : "Other flat / common area",
+              resolve("sharedArea", brief.buildingContext.sharedAreaInvolved),
+            ]] as [string, string][])
+          : []),
+      ]
+    : [];
+
+  return (
+    <div className="owner-review">
+      <header className="owner-review__header">
+        <h2>{lang === "zh" ? "維修資料摘要" : "Repair summary"}</h2>
+        <p>
+          {lang === "zh"
+            ? "請確認以下資料係咪準確。我哋會根據你確認嘅資料做人手檢視。"
+            : "Please check that the information below is accurate. We’ll use the confirmed information for manual review."}
+        </p>
+        <p className="owner-review__category">{categoryLabel}</p>
+      </header>
+
+      <OwnerSection title={lang === "zh" ? "維修情況" : "Repair situation"}>
+        {situation && <p className="owner-review__situation">{situation}</p>}
+        {observedFactRows.length > 0 && (
+          <ul className="owner-review__facts">
+            {observedFactRows.map((row) => (
+              <li key={row}>{row}</li>
+            ))}
+          </ul>
+        )}
+      </OwnerSection>
+
+      {priorRows.length > 0 && (
+        <OwnerSection title={lang === "zh" ? "之前處理情況" : "Previous action"}>
+          <ul className="owner-review__facts">
+            {priorRows.map((row) => (
+              <li key={row}>{row}</li>
+            ))}
+          </ul>
+        </OwnerSection>
+      )}
+
+      {evidenceRows.length > 0 && (
+        <OwnerSection title={lang === "zh" ? "現有資料" : "Available information"}>
+          <ul className="owner-review__facts">
+            {evidenceRows.map((row) => (
+              <li key={row}>{row}</li>
+            ))}
+          </ul>
+        </OwnerSection>
+      )}
+
+      {(propertyRows.length > 0 || accessRows.length > 0 || buildingRows.length > 0) && (
+        <OwnerSection title={lang === "zh" ? "物業及上門安排" : "Property and access"}>
+          {(propertyRows.length > 0 || accessRows.length > 0) && (
+            <dl className="owner-review__rows">
+              {[...propertyRows, ...accessRows].map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {buildingRows.length > 0 && (
+            <div className="owner-review__subsection">
+              <h4>{lang === "zh" ? "大廈／管理處" : "Building / management office"}</h4>
+              <dl className="owner-review__rows">
+                {buildingRows.map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd>{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+        </OwnerSection>
+      )}
+
+      <p className="owner-review__note">
+        <strong>{lang === "zh" ? "提示" : "Note"}</strong>
+        {lang === "zh"
+          ? "：RepairScope 未有獨立確認成因或責任。實際情況可能需要由師傅檢查。"
+          : ": RepairScope has not independently confirmed the cause or responsibility. The actual condition may need to be inspected by a contractor."}
+      </p>
+
+      {brief.repairId && (
+        <p className="owner-review__ref">
+          {lang === "zh" ? "個案編號 " : "Case reference "}
+          {brief.repairId.toUpperCase()}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function OwnerSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="owner-review__section">
+      <h3>{title}</h3>
+      {children}
     </section>
   );
 }

@@ -88,8 +88,9 @@ export async function finishLeakJourneyToBrief(page: Page) {
 
   await page.getByRole("button", { name: "整理維修簡報" }).click();
   // Traditional Chinese is the default language for a fresh journey — the
-  // eyebrow text is localised (see GeneratedBriefDocument.tsx).
-  await expect(page.getByText("RepairScope 中立簡報")).toBeVisible();
+  // owner-review heading is localised (see GeneratedBriefDocument.tsx's
+  // OwnerBriefSummary).
+  await expect(page.getByText("維修資料摘要")).toBeVisible();
 }
 
 /** Fills and submits the contact/consent form (RepairSubmissionPanel).

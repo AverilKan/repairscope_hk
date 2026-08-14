@@ -260,3 +260,122 @@ test("bare mode omits the outer .brief-document wrapper (for the landlord screen
   );
   assert.ok(wrappedContainer.querySelector(".brief-document"));
 });
+
+// Coverage for the owner-review redesign (variant="owner") — a simplified,
+// synthesised presentation of exactly the same ProblemBrief the operator
+// sees via the default (operator) variant, not a second data source. See
+// GeneratedBriefDocument's own comment on `variant` and OwnerBriefSummary.
+test("owner variant: shows the owner-review heading, category and a synthesised situation, not the numbered report grid", () => {
+  const draft = {
+    id: "draft-leak-owner",
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: {
+      affected: "window",
+      branchFirst: "use",
+      branchSecond: "drip",
+      branchThird: "several",
+      duration: "week",
+      frequency: "occasional",
+      worsening: "yes",
+      district: "eastern",
+    },
+    safetyAcknowledgements: [],
+    status: "draft" as const,
+    updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  const brief = buildRepairBrief(draft);
+
+  const { container } = render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+
+  assert.ok(screen.getByText("Repair summary"));
+  assert.ok(screen.getByText("Please check that the information below is accurate. We’ll use the confirmed information for manual review."));
+  assert.ok(screen.getByText("Water seepage / leakage"));
+  // A synthesised sentence (affected + timeline), not a raw "Question: Answer" dump.
+  assert.ok(screen.getByText(/Affected: Around a window\./));
+  assert.ok(screen.getByText(/began within a week/));
+  // The category-specific branch facts remain individually labelled rows
+  // underneath (not fused into invented prose — see summariseSituation's
+  // own comment on why).
+  assert.ok(screen.getByText(/Dripping/));
+  // No numbered report grid/masthead from the operator variant.
+  assert.equal(screen.queryByText("RepairScope neutral brief"), null);
+  assert.equal(container.querySelector(".brief-grid"), null);
+  assert.equal(container.querySelector(".scope-mark"), null);
+});
+
+test("owner variant: labels every property/access value, and omits values that were never answered", () => {
+  const brief = {
+    ...fullBrief,
+    category: "leak",
+    propertyDetails: { district: "eastern", building: "Test Court", floor: "8", unit: "A" },
+    relationship: "owner-occupier",
+  };
+
+  render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+
+  assert.ok(screen.getByText("District"));
+  assert.ok(screen.getByText("Eastern"));
+  assert.ok(screen.getByText("Building"));
+  assert.ok(screen.getByText("Test Court"));
+  assert.ok(screen.getByText("Floor"));
+  assert.ok(screen.getByText("Unit"));
+  assert.ok(screen.getByText("Relationship to property"));
+  assert.ok(screen.getByText("Owner-occupier"));
+  // block/availability/access-contact were never answered — no blank rows.
+  assert.equal(screen.queryByText("Block"), null);
+  assert.equal(screen.queryByText("Access contact"), null);
+});
+
+test("owner variant: the contractor-only \"What contractors must provide\" section is not shown", () => {
+  const brief = { ...fullBrief, category: "leak", contractorRequests: ["state-diagnosis"] };
+  render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+
+  assert.equal(screen.queryByText("What contractors must provide"), null);
+  assert.equal(screen.queryByText("State a working diagnosis and confidence."), null);
+});
+
+test("owner variant: the uncertainty note appears exactly once, and there is no large top disclaimer banner or numbered \"What remains unconfirmed\" section", () => {
+  const brief = { ...fullBrief, category: "leak" };
+  const { container } = render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+
+  const matches = screen.getAllByText(
+    /RepairScope has not independently confirmed the cause or responsibility\./,
+  );
+  assert.equal(matches.length, 1);
+  assert.equal(screen.queryByText("What remains unconfirmed"), null);
+  assert.equal(container.querySelector(".brief-lead"), null);
+});
+
+test("owner variant: truthful evidence wording — never claims uploaded/received", () => {
+  const brief = { ...fullBrief, category: "leak", hasEvidence: "yes", evidenceKind: "repair-media" };
+  render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+
+  assert.ok(screen.getByText(/has not been provided through the RepairScope website yet/));
+  assert.equal(screen.queryByText(/uploaded/i), null);
+  assert.equal(screen.queryByText(/received/i), null);
+});
+
+test("owner variant renders correctly in Chinese too", () => {
+  const draft = {
+    id: "draft-leak-owner-zh",
+    category: "leak" as const,
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: { affected: "window", duration: "week", district: "eastern" },
+    safetyAcknowledgements: [],
+    status: "draft" as const,
+    updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  const brief = buildRepairBrief(draft);
+
+  render(
+    React.createElement(LanguageProvider, null, React.createElement(GeneratedBriefDocument, { brief, variant: "owner" })),
+  );
+
+  assert.ok(screen.getByText("維修資料摘要"));
+  assert.ok(screen.getByText("滲水／漏水"));
+  assert.ok(screen.getByText(/涉及：窗邊。/));
+  assert.equal(screen.queryByText("RepairScope 中立簡報"), null);
+});

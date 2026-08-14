@@ -655,12 +655,9 @@ function BriefReview({
       />
 
       <section className="brief-document">
-        <GeneratedBriefDocument brief={currentBrief} bare />
+        <GeneratedBriefDocument brief={currentBrief} bare variant="owner" />
 
         <div className="brief-correction">
-          <label htmlFor="brief-correction">
-            {lang === "zh" ? "有冇資料錯咗或者漏咗？" : "Something incorrect or missing?"}
-          </label>
           {appliedCorrection && (
             <div className="brief-correction__result" role="status">
               <div>
@@ -672,48 +669,60 @@ function BriefReview({
               <p>{appliedCorrection.changeSummary}</p>
             </div>
           )}
-          <textarea
-            id="brief-correction"
-            rows={3}
-            value={correction}
-            onChange={(event) => {
-              setCorrection(event.target.value);
-              if (correctionStatus === "error") {
-                setCorrectionStatus("idle");
-                setCorrectionError("");
-              }
-            }}
-            placeholder={
-              lang === "zh"
-                ? "話俾我哋知有咩需要更正。我哋會更新簡報俾你先確認，先分享出去。"
-                : "Tell us what needs correcting. We’ll update the brief for you to review before anything is shared."
-            }
-          />
-          <p className="field-help" id="brief-correction-help">
-            {lang === "zh" ? "請寫至少三個字，等更正夠清楚俾我哋審閱。" : "Use at least three words so the correction is clear enough to review."}
-          </p>
-          {correctionError && <p className="field-error" role="alert">{correctionError}</p>}
-          <div className="brief-correction__actions">
-            {onEditAnswers && (
+
+          {onEditAnswers && (
+            <div className="brief-correction__primary">
+              <p className="field-help">
+                {lang === "zh" ? "如果有答案答錯咗，可以直接改：" : "If a specific answer is wrong, edit it directly:"}
+              </p>
               <button
-                className="button button--secondary"
+                className="button"
                 type="button"
                 disabled={correctionStatus === "updating"}
                 onClick={onEditAnswers}
               >
                 {lang === "zh" ? "更改問卷答案" : "Edit questionnaire answers"}
               </button>
-            )}
-            <button
-              className="button"
-              type="button"
-              disabled={!hasValidCorrection || correctionStatus === "updating"}
-              onClick={() => void applyCorrection()}
-            >
-              {correctionStatus === "updating"
-                ? (lang === "zh" ? "更新緊…" : "Updating brief…")
-                : (lang === "zh" ? "套用更正" : "Apply correction")}
-            </button>
+            </div>
+          )}
+
+          <div className="brief-correction__secondary">
+            <label htmlFor="brief-correction">
+              {lang === "zh" ? "補充其他資料" : "Add something else"}
+            </label>
+            <textarea
+              id="brief-correction"
+              rows={3}
+              value={correction}
+              onChange={(event) => {
+                setCorrection(event.target.value);
+                if (correctionStatus === "error") {
+                  setCorrectionStatus("idle");
+                  setCorrectionError("");
+                }
+              }}
+              placeholder={
+                lang === "zh"
+                  ? "如果仲有其他想講嘅資料，可以喺呢度補充。我哋會更新摘要俾你先確認，先分享出去。"
+                  : "If there’s anything else worth adding, note it here. We’ll update the summary for you to review before anything is shared."
+              }
+            />
+            <p className="field-help" id="brief-correction-help">
+              {lang === "zh" ? "請寫至少三個字，等更正夠清楚俾我哋審閱。" : "Use at least three words so the correction is clear enough to review."}
+            </p>
+            {correctionError && <p className="field-error" role="alert">{correctionError}</p>}
+            <div className="brief-correction__actions">
+              <button
+                className="button button--secondary"
+                type="button"
+                disabled={!hasValidCorrection || correctionStatus === "updating"}
+                onClick={() => void applyCorrection()}
+              >
+                {correctionStatus === "updating"
+                  ? (lang === "zh" ? "更新緊…" : "Updating brief…")
+                  : (lang === "zh" ? "套用更正" : "Apply correction")}
+              </button>
+            </div>
           </div>
         </div>
       </section>

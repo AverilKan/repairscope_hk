@@ -1999,6 +1999,22 @@ select:focus {
   font-size: clamp(1.2rem, 2vw, 1.55rem);
 }
 
+.brief-correction__primary {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brief-correction__primary .field-help {
+  margin-bottom: 12px;
+}
+
+.brief-correction__secondary label {
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
 .brief-correction textarea {
   min-height: 126px;
 }
@@ -2027,6 +2043,125 @@ select:focus {
 .brief-correction__result p {
   margin: 0 0 6px;
   color: var(--ink);
+}
+
+.owner-review {
+  padding: clamp(26px, 4vw, 48px);
+  display: grid;
+  gap: 28px;
+}
+
+.owner-review__header h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 400;
+}
+
+.owner-review__header p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.owner-review__category {
+  margin-top: 18px !important;
+  color: var(--ink) !important;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 2vw, 1.5rem);
+  font-weight: 700;
+}
+
+.owner-review__section {
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+
+.owner-review__section h3 {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.owner-review__section h4 {
+  margin: 18px 0 10px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+.owner-review__situation {
+  margin: 0 0 12px;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.owner-review__facts {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.owner-review__facts li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--ink-soft);
+}
+
+.owner-review__facts li::before {
+  position: absolute;
+  left: 0;
+  color: var(--teal);
+  content: "—";
+}
+
+.owner-review__rows {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 28px;
+  margin: 0;
+}
+
+.owner-review__rows > div {
+  min-width: 0;
+}
+
+.owner-review__rows dt {
+  margin-bottom: 2px;
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.owner-review__rows dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.owner-review__note {
+  margin: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.owner-review__note strong {
+  color: var(--ink);
+}
+
+.owner-review__ref {
+  margin: -12px 0 0;
+  color: var(--ink-soft);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
 }
 
 .repair-submission-panel,
@@ -3751,6 +3886,10 @@ select:focus {
     border-right: 0;
   }
 
+  .owner-review__rows {
+    grid-template-columns: 1fr;
+  }
+
   .sticky-action-bar {
     position: static;
     align-items: stretch;
@@ -3768,6 +3907,10 @@ select:focus {
   }
 
   .brief-correction__actions .button {
+    width: 100%;
+  }
+
+  .brief-correction__primary .button {
     width: 100%;
   }
 

@@ -541,7 +541,7 @@ test("public repair-brief submission requires no account and captures contact/co
     panelSource,
     /Submission does not guarantee managed sourcing and does not broadcast your information to contractors\./,
   );
-  assert.match(landlordSource, /Something incorrect or missing/);
+  assert.match(landlordSource, /Add something else/);
   assert.match(landlordSource, /Edit questionnaire answers/);
   assert.match(landlordSource, /Apply correction/);
   // The corrected brief is persisted to journey-scoped storage (not only
