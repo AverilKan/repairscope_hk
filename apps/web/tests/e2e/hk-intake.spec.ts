@@ -299,20 +299,13 @@ test.describe("generated brief content", () => {
     await page.getByRole("button", { name: "EN", exact: true }).click();
 
     await expect(page.getByText("Repair situation")).toBeVisible();
-    // "Ceiling" appears twice — once in the synthesised situation sentence,
-    // once in its own concisely-labelled observation row (see
-    // GeneratedBriefDocument's OwnerBriefSummary / domain/brief.ts's
-    // summariseSituation) — so match either occurrence rather than asserting
-    // a single unique element.
-    await expect(page.getByText(/Ceiling/).first()).toBeVisible();
-    await expect(page.getByText("During / after rain")).toBeVisible();
-    await expect(page.getByText("Water mark / damp patch")).toBeVisible();
-    // "within a week" appears once — only inside the situation sentence
-    // (lowercased there, mid-sentence — see summariseSituation). duration/
-    // frequency/worsening are deliberately not repeated as their own rows
-    // here (see summariseObservedFacts's includeTimeline option), since the
-    // sentence above already states them.
-    await expect(page.getByText(/within a week/i).first()).toBeVisible();
+    // Every fact is its own labelled row — there is no generated prose
+    // sentence above them (see GeneratedBriefDocument's OwnerBriefSummary),
+    // so each value appears exactly once.
+    await expect(page.getByText("Affected area: Ceiling")).toBeVisible();
+    await expect(page.getByText("Usually happens: During / after rain")).toBeVisible();
+    await expect(page.getByText("What you can see: Water mark / damp patch")).toBeVisible();
+    await expect(page.getByText("Started: Within a week")).toBeVisible();
     await expect(page.getByText("Eastern")).toBeVisible();
 
     // No raw stored codes ever leak into the rendered brief.
@@ -414,6 +407,70 @@ test.describe("generated brief content", () => {
     await expect(confirmation.getByText(/When does it usually happen\?.*Not sure/)).toBeVisible();
     await expect(confirmation.getByText(/What can you see\?.*Not sure/)).toBeVisible();
     await expect(confirmation.getByText(/How much is affected\?.*Not sure/)).toBeVisible();
+  });
+});
+
+// Codex audit finding: an Other/Unsure submission's duration/frequency/
+// worsening answers were captured by the questionnaire (the shared
+// timelineStep applies to every category) but silently dropped from the
+// rendered ProblemBrief, because buildRepairBrief set observedFacts to
+// undefined entirely for open categories. Fixed by always populating
+// observedFacts (see domain/brief.ts) — verified end-to-end here on both
+// the pre-submission owner review and the post-submission confirmation
+// screen, not just the underlying data function.
+test.describe("Other/Unsure timeline preservation", () => {
+  test("Other's open description and its duration/frequency/worsening answers are visible on both the owner review and the confirmation screen", async ({
+    page,
+  }) => {
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /其他維修/ }).click();
+    await page.getByLabel("情況描述").fill("露台趟門個轆好似卡住，推唔郁");
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "safety", "以上都冇，可以繼續").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "duration", "一個月內").click();
+    await radio(page, "frequency", "持續").click();
+    await radio(page, "worsening", "有惡化").click();
+    await radio(page, "prior", "冇").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "hasEvidence", "冇").click();
+    await radio(page, "management", "唔適用").click();
+    await radio(page, "sharedArea", "暫時睇唔到").click();
+
+    await radio(page, "accessBy", "業主本人").click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "district", "東區").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "relationship", "自住業主").click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
+
+    // Owner review — the free-text description AND its timeline, together.
+    await expect(page.getByText("露台趟門個轆好似卡住，推唔郁")).toBeVisible();
+    await expect(page.getByText("開始時間：一個月內")).toBeVisible();
+    await expect(page.getByText("出現頻率：持續")).toBeVisible();
+    await expect(page.getByText("情況變化：有惡化")).toBeVisible();
+
+    await fillAndSubmitContactForm(page);
+    await expect(page.getByText("資料已安全提交")).toBeVisible();
+
+    // Confirmation screen — same underlying data, question-style labels
+    // (see summariseObservedFacts's default style), scoped to the
+    // confirmation region since the brief panel above it repeats the same
+    // facts.
+    const confirmation = page.getByRole("region", { name: /submission-confirmation-heading|個案參考編號/ }).or(
+      page.locator(".repair-submission-confirmation"),
+    );
+    await expect(confirmation.getByText("露台趟門個轆好似卡住，推唔郁")).toBeVisible();
+    await expect(confirmation.getByText(/幾時開始？：一個月內/)).toBeVisible();
+    await expect(confirmation.getByText(/幾常出現？：持續/)).toBeVisible();
+    await expect(confirmation.getByText(/有冇惡化？：有惡化/)).toBeVisible();
   });
 });
 
@@ -663,6 +720,125 @@ test.describe("responsive question panel layout", () => {
     // The badge sits outside/left of the panel's own box — the external
     // gutter layout, unchanged from before this fix.
     expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(panelBox.x);
+  });
+});
+
+// Codex audit: no direct proof existed that the owner-summary review screen
+// (not just the questionnaire panel above) was overflow-safe at mobile
+// widths, or that a long draft UUID / long free-text building name would
+// wrap rather than force horizontal scroll.
+test.describe("owner-summary responsive layout", () => {
+  async function reachOwnerSummaryWithLongValues(page: import("@playwright/test").Page) {
+    await page.goto("/landlord/repairs/new");
+    // Clerk's dev-mode "keyless" configuration banner is a fixed-position
+    // overlay unrelated to anything under test here — at narrow viewports it
+    // can sit over form controls and intercept clicks. Hidden for this
+    // multi-step flow only; nothing it renders is part of what's being
+    // verified.
+    await page.addStyleTag({ content: "#clerk-components, .cl-internal-b3fm6y { display: none !important; }" });
+    await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+    await radio(page, "affected", "天花").click();
+    await radio(page, "branchFirst", "落雨時／落雨之後").click();
+    await radio(page, "branchSecond", "水印／濕痕").click();
+    await radio(page, "branchThird", "一小處").click();
+    await radio(page, "safety", "以上都冇，可以繼續").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "duration", "一星期內").click();
+    await radio(page, "frequency", "間中").click();
+    await radio(page, "worsening", "唔肯定").click();
+    await radio(page, "prior", "冇").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "hasEvidence", "冇").click();
+    await radio(page, "management", "未有聯絡").click();
+    await radio(page, "sharedArea", "唔肯定").click();
+
+    await radio(page, "accessBy", "業主本人").click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "district", "東區").click();
+    // Deliberately long, unbroken-adjacent free text for the optional
+    // building/block/floor/unit fields — real HK building names can be
+    // long, and this also exercises wrapping behaviour distinct from the
+    // draft UUID's own overflow-wrap handling.
+    await page.getByLabel("屋苑／大廈（如適用）").fill("藍田廣田邨廣田商場對面嘅一座非常長名稱嘅大型私人屋苑大廈");
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "relationship", "自住業主").click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
+  }
+
+  async function assertNoHorizontalOverflow(page: import("@playwright/test").Page) {
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  }
+
+  test("at 390px, the owner summary has no horizontal overflow and the draft reference/building text wrap", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await reachOwnerSummaryWithLongValues(page);
+
+    await assertNoHorizontalOverflow(page);
+
+    const ref = page.locator(".owner-review__ref");
+    await expect(ref).toBeVisible();
+    const refBox = (await ref.boundingBox())!;
+    expect(refBox.width).toBeLessThanOrEqual(390);
+
+    const buildingRow = page.getByText("藍田廣田邨廣田商場對面嘅一座非常長名稱嘅大型私人屋苑大廈");
+    await expect(buildingRow).toBeVisible();
+    const buildingBox = (await buildingRow.boundingBox())!;
+    expect(buildingBox.width).toBeLessThanOrEqual(390);
+
+    // Both submission-panel buttons remain a tappable minimum height.
+    const submitButton = page.getByRole("button", { name: "更改問卷答案" });
+    await expect(submitButton).toBeVisible();
+    const buttonBox = (await submitButton.boundingBox())!;
+    expect(buttonBox.height).toBeGreaterThanOrEqual(32);
+  });
+
+  test("at 430px, the owner summary has no horizontal overflow", async ({ page }) => {
+    await page.setViewportSize({ width: 430, height: 900 });
+    await reachOwnerSummaryWithLongValues(page);
+    await assertNoHorizontalOverflow(page);
+  });
+
+  test("at desktop width, the owner summary has no horizontal overflow and property rows stay readable", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await reachOwnerSummaryWithLongValues(page);
+    await assertNoHorizontalOverflow(page);
+    await expect(page.getByText("屋苑／大廈")).toBeVisible();
+    await expect(page.getByText("藍田廣田邨廣田商場對面嘅一座非常長名稱嘅大型私人屋苑大廈")).toBeVisible();
+  });
+});
+
+// Codex audit: the owner-review screen's own page framing (LandlordApp.tsx's
+// PageIntro) still read as addressed to a future contractor ("Contractor
+// brief", "invited contractors will receive") despite the review itself
+// having been rewritten for the owner — nothing on this pre-submission
+// screen should imply sharing/contractors before that has actually happened.
+test.describe("owner-review page framing", () => {
+  test("the pre-submission review page never mentions contractors or sharing", async ({ page }) => {
+    await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+    await page.getByRole("button", { name: "EN", exact: true }).click();
+
+    await expect(page.getByText("Repair summary · Review before submission")).toBeVisible();
+    const bodyText = await page.locator("body").innerText();
+    expect(bodyText).not.toMatch(/contractor brief/i);
+    expect(bodyText).not.toMatch(/invited contractors/i);
+    expect(bodyText).not.toMatch(/contractors will receive/i);
+  });
+
+  test("the pre-submission review page never mentions contractors or sharing, in Chinese", async ({ page }) => {
+    await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+
+    await expect(page.getByText("維修簡報 · 提交前確認")).toBeVisible();
+    const bodyText = await page.locator("body").innerText();
+    expect(bodyText).not.toContain("分享之前先審閱");
   });
 });
 

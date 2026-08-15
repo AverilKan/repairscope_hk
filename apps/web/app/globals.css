@@ -2095,6 +2095,7 @@ select:focus {
   margin: 0 0 12px;
   color: var(--ink);
   line-height: 1.6;
+  overflow-wrap: break-word;
 }
 
 .owner-review__facts {
@@ -2109,6 +2110,7 @@ select:focus {
   position: relative;
   padding-left: 18px;
   color: var(--ink-soft);
+  overflow-wrap: break-word;
 }
 
 .owner-review__facts li::before {
@@ -2142,6 +2144,7 @@ select:focus {
   margin: 0;
   font-weight: 600;
   color: var(--ink);
+  overflow-wrap: break-word;
 }
 
 .owner-review__note {
@@ -2162,6 +2165,8 @@ select:focus {
   font-family: var(--font-geist-mono), monospace;
   font-size: 0.68rem;
   letter-spacing: 0.04em;
+  overflow-wrap: break-word;
+  word-break: break-all;
 }
 
 .repair-submission-panel,

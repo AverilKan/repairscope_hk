@@ -644,12 +644,12 @@ function BriefReview({
       <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
       <IntakeStageProgress activeStage={2} />
       <PageIntro
-        eyebrow={lang === "zh" ? "維修簡報 · 分享之前先審閱" : "Contractor brief · Review before sharing"}
+        eyebrow={lang === "zh" ? "維修簡報 · 提交前確認" : "Repair summary · Review before submission"}
         title={lang === "zh" ? "我哋將你講嘅情況整理好喇。" : "Check the situation. Keep the diagnosis open."}
         description={
           lang === "zh"
             ? "呢份唔係診斷。請睇吓有冇事實需要更正。"
-            : "This is what invited contractors will receive. Correct factual errors, but leave technical conclusions for each contractor to state independently."
+            : "This is not a diagnosis. Please check whether anything needs correcting."
         }
         aside={<StatusPill tone="attention">{lang === "zh" ? "未分享" : "Not shared yet"}</StatusPill>}
       />

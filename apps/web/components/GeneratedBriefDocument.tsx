@@ -1,12 +1,7 @@
 "use client";
 
 import { questionnaireByCategory, resolveAnswerLabel } from "@/data/questionnaires";
-import {
-  resolveConfirmedUnknown,
-  resolveContractorRequest,
-  summariseObservedFacts,
-  summariseSituation,
-} from "@/domain/brief";
+import { resolveConfirmedUnknown, resolveContractorRequest, summariseObservedFacts } from "@/domain/brief";
 import type { RepairCategoryId } from "@/domain/types";
 import { useLanguage } from "./LanguageContext";
 
@@ -300,6 +295,16 @@ function BriefSection({
  * deliberately not rendered here — instructions addressed to a future
  * contractor belong on the future contractor-facing sourcing brief, not on
  * the owner's own confirmation screen.
+ *
+ * Deliberately no generated prose "situation" sentence above the labelled
+ * facts: a fixed sentence template around option values reads as broken
+ * grammar for many valid combinations (e.g. affected="unsure" — "Not sure
+ * is the affected area" — or a category where `affected` is a component/
+ * type/device, not an "area" at all), and would always duplicate the
+ * affected value the first labelled row below it already shows. Labelled
+ * facts are accurate for every category and every option value; a
+ * best-effort sentence is not — see summariseObservedFacts for what
+ * replaced it.
  */
 function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
   const { lang } = useLanguage();
@@ -313,15 +318,18 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
   const resolve = (fieldId: string, value: string | undefined) =>
     category ? resolveAnswerLabel(category, fieldId, value, lang) : (lang === "zh" ? "未提供" : "Not specified");
 
-  const situation = summariseSituation(
-    { category, observedFacts: brief.observedFacts },
-    lang,
-  );
   // "concise" labels (e.g. "受影響位置", not the question "發現問題喺邊度？")
-  // and includeTimeline:false — duration/frequency/worsening are already
-  // fused into `situation` above, so repeating them as their own rows here
-  // would just restate the same three facts twice. See summariseObservedFacts's
-  // own comment for why every other caller keeps the defaults.
+  // and includeTimeline:true — every fact is a labelled row; there is no
+  // generated prose sentence attempting to fuse option values into a
+  // sentence (a fixed English/Chinese template around option labels reads
+  // as broken grammar for many valid answers — e.g. duration="unsure"
+  // produces "It began not sure" — since a stored option label is not
+  // guaranteed to be a grammatical sentence fragment; see git history for
+  // the previous summariseSituation approach this replaced). This also
+  // covers other/unsure categories correctly: buildRepairBrief now
+  // populates observedFacts.duration/frequency/worsening for every
+  // category, so their timeline still appears here even though they have
+  // no affected/branch facts.
   const observedFactRows = summariseObservedFacts(
     {
       category,
@@ -330,31 +338,51 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
       landlordCorrections: brief.landlordCorrections,
     },
     lang,
-    { style: "concise", includeTimeline: false },
+    { style: "concise", includeTimeline: true },
   );
 
-  // Always labelled, even though today's priorOptions already resolve to a
-  // specific meaning (e.g. "收到報價"/"Quotation received") rather than a
-  // bare "有"/"Yes" — a stable label prefix keeps this section readable as
-  // a statement rather than a lone value, and is the correct fallback if a
-  // stored answer is ever only yes/no.
+  // The negative option ("冇"/"No") reads awkwardly under an explicit
+  // "Previous action:" label ("Previous action: No"), so it gets its own
+  // plain statement instead; every other stored option already carries a
+  // specific meaning (只係睇過／檢查過／收到報價／已經試過維修) and keeps
+  // the stable label prefix, which is also the correct fallback if a
+  // stored answer were ever only yes/no.
   const priorStatusLabel = lang === "zh" ? "之前曾經處理" : "Previous action";
   const priorDetailLabel = lang === "zh" ? "對方講法" : "What they said";
-  const priorRows: string[] = brief.priorAction?.status
+  const priorStatusRow =
+    brief.priorAction?.status === "no"
+      ? (lang === "zh" ? "未有之前處理" : "No previous action")
+      : brief.priorAction?.status
+        ? `${priorStatusLabel}${lang === "zh" ? "：" : ": "}${resolve("prior", brief.priorAction.status)}`
+        : undefined;
+  const priorRows: string[] = priorStatusRow
     ? [
-        `${priorStatusLabel}${lang === "zh" ? "：" : ": "}${resolve("prior", brief.priorAction.status)}`,
-        ...(brief.priorAction.detail
+        priorStatusRow,
+        ...(brief.priorAction?.detail
           ? [`${priorDetailLabel}${lang === "zh" ? "：" : ": "}${brief.priorAction.detail}`]
           : []),
       ]
     : [];
 
   // Truthful either way: no upload path exists yet, so this never claims
-  // anything was received. When a type was actually captured, it's listed
-  // as its own row (evidenceKind is a single_select field — at most one
-  // type is ever recorded); when hasEvidence is "yes" but no type was
-  // answered, the sentence alone stands without a dangling colon.
+  // anything was received. hasEvidence is a yes/no question ("do you have
+  // repair photos, videos, reports or an existing quotation?") — "no" gets
+  // its own explicit statement rather than silently omitting the section,
+  // since an owner reviewing the summary should be able to confirm that
+  // absence was correctly understood too, not just guess it from the
+  // section not appearing at all. When a type was actually captured
+  // (hasEvidence "yes"), it's listed as its own row (evidenceKind is a
+  // single_select field — at most one type is ever recorded); when
+  // hasEvidence is "yes" but no type was answered, the sentence alone
+  // stands without a dangling colon.
   const evidenceRows: string[] = (() => {
+    if (brief.hasEvidence === "no") {
+      return [
+        lang === "zh"
+          ? "目前未有相關相片、影片、報告或報價資料。"
+          : "No related photos, videos, reports or quotations are currently available.",
+      ];
+    }
     if (brief.hasEvidence !== "yes") return [];
     const kind = brief.evidenceKind ? resolve("evidenceKind", brief.evidenceKind) : undefined;
     const intro = kind
@@ -415,7 +443,6 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
       </header>
 
       <OwnerSection title={lang === "zh" ? "維修情況" : "Repair situation"}>
-        {situation && <p className="owner-review__situation">{situation}</p>}
         {observedFactRows.length > 0 && (
           <ul className="owner-review__facts">
             {observedFactRows.map((row) => (

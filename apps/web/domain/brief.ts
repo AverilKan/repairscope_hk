@@ -143,7 +143,7 @@ const CONCISE_BRANCH_LABELS: Record<
     affected: lt("受影響部分", "Affected part"),
     branchFirst: lt("見到嘅情況", "What you can see"),
     branchSecond: lt("可否安全關好", "Can be secured"),
-    branchThird: lt("出現方式", "How it appeared"),
+    branchThird: lt("出現過程", "Onset"),
   },
   surface: {
     affected: lt("受損表面", "Damaged surface"),
@@ -213,17 +213,21 @@ function labelledFact(
 
 /**
  * Renders a brief's observed facts (a standard category's affected area,
- * branch answers and timeline, or an other/unsure category's short
- * description) as display strings for the current language — the single
- * shared implementation behind both the "Check the facts" brief document
- * and the post-submission confirmation screen, so neither shows an empty
- * list for a standard category now that reportedFacts is intentionally
- * empty there (see buildRepairBrief).
+ * branch answers and timeline, and/or an other/unsure category's short free
+ * text description plus its own timeline — see buildRepairBrief, which
+ * populates duration/frequency/worsening in observedFacts for EVERY
+ * category, open ones included) as display strings for the current
+ * language — the single shared implementation behind both the "Check the
+ * facts" brief document and the post-submission confirmation screen, so
+ * neither shows an empty list for a standard category now that
+ * reportedFacts is intentionally empty there.
  *
- * Always appends reportedFacts (the other/unsure free-text description, or
- * — for a standard category — nothing until a correction is applied) and
- * any landlordCorrections, each with a localised label added here rather
- * than baked into the stored text. A correction must remain visible for a
+ * Leads with reportedFacts (the other/unsure free-text description — a
+ * standard category's is empty, see buildRepairBrief) so a free-text
+ * account of what happened reads before the structured timeline facts that
+ * follow it, then the structured observed/timeline facts, then any
+ * landlordCorrections, each with a localised label added here rather than
+ * baked into the stored text. A correction must remain visible for a
  * standard category too — it is not conditional on hasObservedFacts, or an
  * owner's correction to a fully answered "leak" journey would silently
  * disappear from this section.
@@ -292,63 +296,7 @@ export function summariseObservedFacts(
       : [];
   const correctionLabel = lang === "zh" ? CORRECTION_LABEL.zh : CORRECTION_LABEL.en;
   const corrections = (brief.landlordCorrections ?? []).map((text) => `${correctionLabel}${text}`);
-  return [...observed, ...(brief.reportedFacts ?? []), ...corrections];
-}
-
-/**
- * A short, safe, natural-language synthesis of a standard category's
- * observed facts, for the owner review screen's "Repair situation" section
- * — deliberately generic across categories rather than fusing
- * category-specific branch answers into fully idiomatic prose.
- * branchFirst/Second/Third mean different things per category (e.g.
- * leak's third branch answers "how much is affected", plumbing's third
- * branch answers "can the water be isolated?", aircon's third branch
- * answers "has it been serviced recently?" — see data/questionnaires.ts's
- * branches map), and gluing them into one hand-authored sentence per
- * category would either require ~8 categories' worth of bespoke templates
- * or risk misrepresenting what was actually answered. Only `affected`
- * (always a safe, generic "what/where" subject) and the three timeline
- * fields (duration/frequency/worsening — identical questions across every
- * category, see data/questionnaires.ts's shared timelineStep) are fused
- * into prose here; branchFirst/Second/Third remain their own individually
- * labelled facts, rendered separately by summariseObservedFacts.
- */
-export function summariseSituation(
-  brief: Pick<ProblemBrief, "category" | "observedFacts">,
-  lang: Lang,
-): string | undefined {
-  const category = brief.category;
-  const of = brief.observedFacts;
-  if (!category || !of) return undefined;
-  const resolve = (fieldId: string, value: string | undefined) =>
-    value ? resolveAnswerLabel(category, fieldId, value, lang) : undefined;
-
-  const affected = resolve("affected", of.affected);
-  const duration = resolve("duration", of.duration);
-  const frequency = resolve("frequency", of.frequency);
-  const worsening = resolve("worsening", of.worsening);
-
-  const sentences: string[] = [];
-  if (lang === "zh") {
-    // "X出現問題。" reads as a plain statement of what was reported, not
-    // "涉及：X。" which is closer to a form field than a sentence.
-    if (affected) sentences.push(`${affected}出現問題。`);
-    const timeline = [
-      duration ? `${duration}開始` : undefined,
-      frequency,
-      worsening ? `而且情況${worsening}` : undefined,
-    ].filter((v): v is string => Boolean(v));
-    if (timeline.length > 0) sentences.push(`${timeline.join("，")}。`);
-  } else {
-    if (affected) sentences.push(`${affected} is the affected area.`);
-    const timeline = [
-      duration ? `began ${duration.toLowerCase()}` : undefined,
-      frequency ? `happens ${frequency.toLowerCase()}` : undefined,
-      worsening ? `condition is ${worsening.toLowerCase()}` : undefined,
-    ].filter((v): v is string => Boolean(v));
-    if (timeline.length > 0) sentences.push(`It ${timeline.join(", ")}.`);
-  }
-  return sentences.length > 0 ? sentences.join(" ") : undefined;
+  return [...(brief.reportedFacts ?? []), ...observed, ...corrections];
 }
 
 /**
@@ -365,7 +313,6 @@ export function summariseSituation(
  */
 export function buildRepairBrief(draft: RepairIntakeDraft): ProblemBrief {
   const r = draft.responses;
-  const isOpenCategory = draft.category === "other" || draft.category === "unsure";
   // Standard categories have no single free-text "story" (the HK flow is
   // category-first, not free-text-first) — otherDetail only exists for
   // other/unsure categories. Falls back to draft.originalReport for the
@@ -373,22 +320,27 @@ export function buildRepairBrief(draft: RepairIntakeDraft): ProblemBrief {
   // unrelated fetched-brief path).
   const originalReport = str(r.otherDetail) ?? str(draft.originalReport) ?? "";
 
-  // A standard category's actual observations live in affected/branchFirst/
-  // Second/Third — these must reach reportedFacts, or the review shows an
-  // empty "Reported facts" section despite the owner having answered every
-  // question (the bug this function exists to fix). Only populated for
-  // non-open categories; other/unsure has no branch questions to report.
-  const observedFacts = isOpenCategory
-    ? undefined
-    : {
-        affected: str(r.affected),
-        branchFirst: str(r.branchFirst),
-        branchSecond: str(r.branchSecond),
-        branchThird: str(r.branchThird),
-        duration: str(r.duration),
-        frequency: str(r.frequency),
-        worsening: str(r.worsening),
-      };
+  // affected/branchFirst/Second/Third only exist for non-open categories
+  // (other/unsure has no branch questions) — str() naturally leaves them
+  // undefined there. duration/frequency/worsening, however, come from the
+  // SHARED timelineStep asked for every category, other/unsure included
+  // (see data/questionnaires.ts's sharedTail) — populating this object for
+  // every category, not just non-open ones, is what keeps a genuinely
+  // answered timeline for an other/unsure submission from being silently
+  // dropped (it used to be discarded entirely by setting observedFacts to
+  // undefined for isOpenCategory, even though duration/frequency/worsening
+  // had real answers). summariseObservedFacts already renders only the
+  // fields that are actually present, so an other/unsure brief correctly
+  // shows just its timeline facts here, with no affected/branch rows.
+  const observedFacts = {
+    affected: str(r.affected),
+    branchFirst: str(r.branchFirst),
+    branchSecond: str(r.branchSecond),
+    branchThird: str(r.branchThird),
+    duration: str(r.duration),
+    frequency: str(r.frequency),
+    worsening: str(r.worsening),
+  };
 
   const reportedFacts = [
     ...(originalReport ? [originalReport] : []),
@@ -399,11 +351,11 @@ export function buildRepairBrief(draft: RepairIntakeDraft): ProblemBrief {
     id: `brief-${draft.id}-v1`,
     repairId: draft.id,
     originalReport,
-    // GeneratedBriefDocument renders observedFacts (resolved bilingually)
-    // as the primary content of "02 Reported / observed facts" for
-    // standard categories, and falls back to reportedFacts/originalReport
-    // for other/unsure and for BriefReviewRoute's unrelated fetched-brief
-    // path — reportedFacts itself intentionally stays empty for a standard
+    // GeneratedBriefDocument renders observedFacts (resolved bilingually) as
+    // the primary content of "Reported / observed facts" for every
+    // category; reportedFacts (the free-text description) is additionally
+    // populated for other/unsure and BriefReviewRoute's unrelated
+    // fetched-brief path — it intentionally stays empty for a standard
     // category rather than being padded with placeholder text.
     reportedFacts,
     structuredSymptoms: draft.extractedSymptoms,
