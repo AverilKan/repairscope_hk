@@ -1,6 +1,6 @@
 "use client";
 
-import { questionnaireByCategory, questionnaireFieldLabel, resolveAnswerLabel } from "@/data/questionnaires";
+import { questionnaireByCategory, resolveAnswerLabel } from "@/data/questionnaires";
 import {
   resolveConfirmedUnknown,
   resolveContractorRequest,
@@ -312,12 +312,16 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
     : (lang === "zh" ? "維修個案" : "Repair case");
   const resolve = (fieldId: string, value: string | undefined) =>
     category ? resolveAnswerLabel(category, fieldId, value, lang) : (lang === "zh" ? "未提供" : "Not specified");
-  const fieldLabel = (fieldId: string) => (category ? questionnaireFieldLabel(category, fieldId, lang) : undefined);
 
   const situation = summariseSituation(
     { category, observedFacts: brief.observedFacts },
     lang,
   );
+  // "concise" labels (e.g. "受影響位置", not the question "發現問題喺邊度？")
+  // and includeTimeline:false — duration/frequency/worsening are already
+  // fused into `situation` above, so repeating them as their own rows here
+  // would just restate the same three facts twice. See summariseObservedFacts's
+  // own comment for why every other caller keeps the defaults.
   const observedFactRows = summariseObservedFacts(
     {
       category,
@@ -326,32 +330,32 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
       landlordCorrections: brief.landlordCorrections,
     },
     lang,
+    { style: "concise", includeTimeline: false },
   );
 
+  const priorDetailLabel = lang === "zh" ? "對方講法" : "What they said";
   const priorRows: string[] = brief.priorAction?.status
     ? [
         resolve("prior", brief.priorAction.status),
         ...(brief.priorAction.detail
-          ? [
-              `${fieldLabel("priorDetail") ?? (lang === "zh" ? "對方講法" : "What they said")}${
-                lang === "zh" ? "：" : ": "
-              }${brief.priorAction.detail}`,
-            ]
+          ? [`${priorDetailLabel}${lang === "zh" ? "：" : ": "}${brief.priorAction.detail}`]
           : []),
       ]
     : [];
 
-  const evidenceRows: string[] =
-    brief.hasEvidence === "yes"
-      ? [
-          lang === "zh"
-            ? "你表示有相關資料，但尚未透過 RepairScope 網站提供。"
-            : "You indicated you have relevant information, but it has not been provided through the RepairScope website yet.",
-          ...(brief.evidenceKind
-            ? [`${lang === "zh" ? "資料類型：" : "Type: "}${resolve("evidenceKind", brief.evidenceKind)}`]
-            : []),
-        ]
-      : [];
+  // Truthful either way: no upload path exists yet, so this never claims
+  // anything was received. When a type was actually captured, it's listed
+  // as its own row (evidenceKind is a single_select field — at most one
+  // type is ever recorded); when hasEvidence is "yes" but no type was
+  // answered, the sentence alone stands without a dangling colon.
+  const evidenceRows: string[] = (() => {
+    if (brief.hasEvidence !== "yes") return [];
+    const kind = brief.evidenceKind ? resolve("evidenceKind", brief.evidenceKind) : undefined;
+    const intro = kind
+      ? (lang === "zh" ? "你表示有以下資料，但尚未透過 RepairScope 網站提供：" : "You indicated you have the following, but it has not been provided through the RepairScope website yet:")
+      : (lang === "zh" ? "你表示有相關資料，但尚未透過 RepairScope 網站提供。" : "You indicated you have relevant information, but it has not been provided through the RepairScope website yet.");
+    return [intro, ...(kind ? [kind] : [])];
+  })();
 
   const pd = brief.propertyDetails;
   const propertyRows: [string, string][] = [
@@ -463,6 +467,12 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
         </OwnerSection>
       )}
 
+      {brief.additionalContext && (
+        <OwnerSection title={lang === "zh" ? "其他補充" : "Additional information"}>
+          <p className="owner-review__situation">{brief.additionalContext}</p>
+        </OwnerSection>
+      )}
+
       <p className="owner-review__note">
         <strong>{lang === "zh" ? "提示" : "Note"}</strong>
         {lang === "zh"
@@ -471,8 +481,16 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
       </p>
 
       {brief.repairId && (
+        // This is the client-side draft/journey identifier (see
+        // domain/journey.ts's crypto.randomUUID()), not the backend-issued
+        // case reference — that only exists once RepairSubmissionPanel's
+        // submission actually succeeds, and is shown as "個案參考編號" /
+        // "Case reference" on the confirmation screen
+        // (RepairSubmissionPanel.tsx). Labelling this the same thing here
+        // would let an owner mistake an in-progress draft id for a real,
+        // submitted case reference.
         <p className="owner-review__ref">
-          {lang === "zh" ? "個案編號 " : "Case reference "}
+          {lang === "zh" ? "草稿編號 " : "Draft reference "}
           {brief.repairId.toUpperCase()}
         </p>
       )}

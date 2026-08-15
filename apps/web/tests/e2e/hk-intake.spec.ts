@@ -299,16 +299,20 @@ test.describe("generated brief content", () => {
     await page.getByRole("button", { name: "EN", exact: true }).click();
 
     await expect(page.getByText("Repair situation")).toBeVisible();
-    // "Ceiling" now legitimately appears twice — once in the synthesised
-    // situation sentence, once in its own labelled observation row (see
+    // "Ceiling" appears twice — once in the synthesised situation sentence,
+    // once in its own concisely-labelled observation row (see
     // GeneratedBriefDocument's OwnerBriefSummary / domain/brief.ts's
     // summariseSituation) — so match either occurrence rather than asserting
     // a single unique element.
     await expect(page.getByText(/Ceiling/).first()).toBeVisible();
     await expect(page.getByText("During / after rain")).toBeVisible();
     await expect(page.getByText("Water mark / damp patch")).toBeVisible();
-    // "Within a week" also legitimately appears twice, same reason as "Ceiling" above.
-    await expect(page.getByText(/Within a week/).first()).toBeVisible();
+    // "within a week" appears once — only inside the situation sentence
+    // (lowercased there, mid-sentence — see summariseSituation). duration/
+    // frequency/worsening are deliberately not repeated as their own rows
+    // here (see summariseObservedFacts's includeTimeline option), since the
+    // sentence above already states them.
+    await expect(page.getByText(/within a week/i).first()).toBeVisible();
     await expect(page.getByText("Eastern")).toBeVisible();
 
     // No raw stored codes ever leak into the rendered brief.
@@ -318,18 +322,19 @@ test.describe("generated brief content", () => {
 
   // Regression coverage for rework item "observation context": a bare
   // resolved value like "Yes"/"No" on its own is ambiguous — each
-  // observation row must retain its own question/field text (rework's own
-  // examples: "Can the water be isolated?: Yes", not a lone "Yes").
-  test("observation rows retain their own question context rather than a bare value", async ({ page }) => {
+  // observation row must retain its own label (concise on the owner
+  // review, see domain/brief.ts's CONCISE_BRANCH_LABELS), not appear as a
+  // bare value with no indication of what it answers.
+  test("observation rows retain their own label context rather than a bare value", async ({ page }) => {
     await startLeakJourneyThroughBuilding(page);
     await finishLeakJourneyToBrief(page);
     await page.getByRole("button", { name: "EN", exact: true }).click();
 
-    // "When did it begin?: Within a week" — not a lone "Within a week".
-    await expect(page.getByText(/When did it begin\?.*Within a week/)).toBeVisible();
-    // "How often?: Occasionally" — not a lone "Occasionally", which is
-    // genuinely ambiguous without knowing what question it answers.
-    await expect(page.getByText(/How often\?.*Occasionally/)).toBeVisible();
+    // "Usually happens: During / after rain" — not a lone "During / after rain".
+    await expect(page.getByText(/Usually happens:.*During \/ after rain/)).toBeVisible();
+    // "What you can see: Water mark / damp patch" — not a lone value, which
+    // is genuinely ambiguous without knowing what question it answers.
+    await expect(page.getByText(/What you can see:.*Water mark \/ damp patch/)).toBeVisible();
   });
 
   // Regression coverage (third Codex audit, item 2): summariseObservedFacts
@@ -375,16 +380,19 @@ test.describe("generated brief content", () => {
     await page.getByRole("button", { name: "整理維修簡報" }).click();
     await expect(page.getByText("維修資料摘要")).toBeVisible();
 
-    // Traditional Chinese (default) — brief review.
-    await expect(page.getByText(/通常幾時出現？：唔肯定/)).toBeVisible();
-    await expect(page.getByText(/見到嘅情況係點？：唔肯定/)).toBeVisible();
-    await expect(page.getByText(/影響範圍有幾大？：唔肯定/)).toBeVisible();
+    // Traditional Chinese (default) — brief review. The owner-review screen
+    // uses concise summary labels, not the raw questionnaire question (see
+    // domain/brief.ts's CONCISE_BRANCH_LABELS) — unlike the confirmation
+    // screen below, which keeps the question-style labels.
+    await expect(page.getByText(/通常出現時間：唔肯定/)).toBeVisible();
+    await expect(page.getByText(/見到嘅情況：唔肯定/)).toBeVisible();
+    await expect(page.getByText(/影響範圍：唔肯定/)).toBeVisible();
 
     // English — brief review.
     await page.getByRole("button", { name: "EN", exact: true }).click();
-    await expect(page.getByText(/When does it usually happen\?.*Not sure/)).toBeVisible();
-    await expect(page.getByText(/What can you see\?.*Not sure/)).toBeVisible();
-    await expect(page.getByText(/How much is affected\?.*Not sure/)).toBeVisible();
+    await expect(page.getByText(/Usually happens: Not sure/)).toBeVisible();
+    await expect(page.getByText(/What you can see: Not sure/)).toBeVisible();
+    await expect(page.getByText(/Extent: Not sure/)).toBeVisible();
     await page.getByRole("button", { name: "繁", exact: true }).click();
 
     await fillAndSubmitContactForm(page);

@@ -96,23 +96,119 @@ export function resolveContractorRequest(value: string, lang: Lang): string {
 const CORRECTION_LABEL = lt("業主更正：", "Owner correction: ");
 
 /**
- * Pairs a resolved answer with its own question/field text (e.g. "Can the
- * water be isolated?: Yes") — a bare resolved value on its own can be
- * ambiguous (a lone "Yes"/"No" in a list says nothing about what it
- * answers), but repeating the field's own label is not duplicating the
- * whole questionnaire, just labelling one fact. Falls back to the bare
- * value if this schema has no label for the field (should not happen for a
- * real category, but keeps this defensive like the rest of this file).
+ * Short, human-readable labels for each category's affected/branch fields —
+ * used only for the owner-review "concise" label style (see
+ * `FactLabelStyle`), never for the questionnaire itself or the operator's
+ * full report, which both continue to use the field's own question text via
+ * `questionnaireFieldLabel`. These deliberately do NOT live in
+ * data/questionnaires.ts: they are a presentation-only summary vocabulary
+ * for a screen the owner has already completed the actual questions on, not
+ * a second copy of the schema's own labels.
+ */
+const CONCISE_BRANCH_LABELS: Record<
+  string,
+  { affected: LocalizedText; branchFirst: LocalizedText; branchSecond: LocalizedText; branchThird: LocalizedText }
+> = {
+  leak: {
+    affected: lt("受影響位置", "Affected area"),
+    branchFirst: lt("通常出現時間", "Usually happens"),
+    branchSecond: lt("見到嘅情況", "What you can see"),
+    branchThird: lt("影響範圍", "Extent"),
+  },
+  drainage: {
+    affected: lt("受影響去水位", "Affected outlet"),
+    branchFirst: lt("去水情況", "Drainage condition"),
+    branchSecond: lt("之前有冇發生過", "Happened before"),
+    branchThird: lt("受影響去水位數目", "Outlets affected"),
+  },
+  plumbing: {
+    affected: lt("受影響位置／設備", "Affected area/fitting"),
+    branchFirst: lt("見到嘅情況", "What you can see"),
+    branchSecond: lt("通常出現時間", "Usually happens"),
+    branchThird: lt("可否關水掣控制", "Can water be isolated"),
+  },
+  electrical: {
+    affected: lt("受影響範圍", "Affected area"),
+    branchFirst: lt("見到嘅情況", "What you can see"),
+    branchSecond: lt("之前有冇發生過", "Happened before"),
+    branchThird: lt("設備現時使用狀況", "Current use status"),
+  },
+  aircon: {
+    affected: lt("冷氣機類型", "Air conditioner type"),
+    branchFirst: lt("見到嘅情況", "What you can see"),
+    branchSecond: lt("受影響部數", "Units affected"),
+    branchThird: lt("最近保養狀況", "Recent servicing"),
+  },
+  "door-window": {
+    affected: lt("受影響部分", "Affected part"),
+    branchFirst: lt("見到嘅情況", "What you can see"),
+    branchSecond: lt("可否安全關好", "Can be secured"),
+    branchThird: lt("出現方式", "How it appeared"),
+  },
+  surface: {
+    affected: lt("受損表面", "Damaged surface"),
+    branchFirst: lt("見到嘅情況", "What you can see"),
+    branchSecond: lt("受損範圍", "Extent of damage"),
+    branchThird: lt("附近有冇滲水跡象", "Dampness nearby"),
+  },
+  bathroom: {
+    affected: lt("受影響部分", "Affected part"),
+    branchFirst: lt("主要問題", "Main problem"),
+    branchSecond: lt("對使用嘅影響", "Effect on use"),
+    branchThird: lt("有冇水流出浴室", "Water reaching outside"),
+  },
+};
+
+const CONCISE_TIMELINE_LABELS: Record<"duration" | "frequency" | "worsening", LocalizedText> = {
+  duration: lt("開始時間", "Started"),
+  frequency: lt("出現頻率", "Frequency"),
+  worsening: lt("情況變化", "Change over time"),
+};
+
+function conciseFieldLabel(category: RepairCategoryId, fieldId: string, lang: Lang): string | undefined {
+  if (fieldId === "duration" || fieldId === "frequency" || fieldId === "worsening") {
+    const entry = CONCISE_TIMELINE_LABELS[fieldId];
+    return lang === "zh" ? entry.zh : entry.en;
+  }
+  const branchLabels = CONCISE_BRANCH_LABELS[category];
+  const entry =
+    branchLabels && (fieldId === "affected" || fieldId === "branchFirst" || fieldId === "branchSecond" || fieldId === "branchThird")
+      ? branchLabels[fieldId]
+      : undefined;
+  return entry ? (lang === "zh" ? entry.zh : entry.en) : undefined;
+}
+
+/** Which vocabulary a rendered fact is labelled with: the questionnaire's
+ * own question text (the operator's full report, and the post-submission
+ * confirmation screen — both places an owner is seeing this for the first
+ * time or is reading a record of exactly what was asked), or a short
+ * standalone summary label (the owner's own pre-submission review, where
+ * repeating the question they just answered reads as "here is the
+ * questionnaire again" rather than a summary — see CONCISE_BRANCH_LABELS
+ * above). Defaults to "question" so every existing caller is unaffected. */
+export type FactLabelStyle = "question" | "concise";
+
+/**
+ * Pairs a resolved answer with a label (e.g. "Can the water be isolated?:
+ * Yes" in question style, or "Can water be isolated: Yes" in concise style)
+ * — a bare resolved value on its own can be ambiguous (a lone "Yes"/"No" in
+ * a list says nothing about what it answers), but repeating a label is not
+ * duplicating the whole questionnaire, just labelling one fact. Falls back
+ * to the bare value if no label is available for the field/style
+ * combination (should not happen for a real category, but keeps this
+ * defensive like the rest of this file).
  */
 function labelledFact(
   category: RepairCategoryId,
   fieldId: string,
   resolvedValue: string,
   lang: Lang,
+  style: FactLabelStyle = "question",
 ): string {
-  const question = questionnaireFieldLabel(category, fieldId, lang);
-  if (!question) return resolvedValue;
-  return lang === "zh" ? `${question}：${resolvedValue}` : `${question}: ${resolvedValue}`;
+  const label =
+    style === "concise" ? conciseFieldLabel(category, fieldId, lang) : questionnaireFieldLabel(category, fieldId, lang);
+  if (!label) return resolvedValue;
+  return lang === "zh" ? `${label}：${resolvedValue}` : `${label}: ${resolvedValue}`;
 }
 
 /**
@@ -135,7 +231,23 @@ function labelledFact(
 export function summariseObservedFacts(
   brief: Pick<ProblemBrief, "category" | "observedFacts" | "reportedFacts" | "landlordCorrections">,
   lang: Lang,
+  options?: {
+    /** Defaults to "question" — see FactLabelStyle. */
+    style?: FactLabelStyle;
+    /**
+     * Whether to include duration/frequency/worsening as their own rows.
+     * Defaults to true. The owner-review screen passes false because those
+     * three facts are already fused into its own synthesis sentence
+     * (domain/brief.ts's summariseSituation) immediately above this list —
+     * every other caller (the operator's full report, the post-submission
+     * confirmation screen) has no such sentence, so they keep showing them
+     * here, the only place they appear.
+     */
+    includeTimeline?: boolean;
+  },
 ): string[] {
+  const style = options?.style ?? "question";
+  const includeTimeline = options?.includeTimeline ?? true;
   const category = brief.category;
   const of = brief.observedFacts;
   const hasObservedFacts = Boolean(
@@ -149,7 +261,7 @@ export function summariseObservedFacts(
   const observed =
     hasObservedFacts && category
       ? [
-          ...(of!.affected ? [labelledFact(category, "affected", resolve("affected", of!.affected), lang)] : []),
+          ...(of!.affected ? [labelledFact(category, "affected", resolve("affected", of!.affected), lang, style)] : []),
           // Each branch answer is rendered against its OWN known field
           // identity — observedFacts.branchFirst/Second/Third are already
           // separately named, so there is no need (and it is actively
@@ -159,20 +271,22 @@ export function summariseObservedFacts(
           // answered "unsure"), silently mislabelling the 2nd/3rd answer
           // under the 1st question.
           ...(of!.branchFirst
-            ? [labelledFact(category, "branchFirst", resolve("branchFirst", of!.branchFirst), lang)]
+            ? [labelledFact(category, "branchFirst", resolve("branchFirst", of!.branchFirst), lang, style)]
             : []),
           ...(of!.branchSecond
-            ? [labelledFact(category, "branchSecond", resolve("branchSecond", of!.branchSecond), lang)]
+            ? [labelledFact(category, "branchSecond", resolve("branchSecond", of!.branchSecond), lang, style)]
             : []),
           ...(of!.branchThird
-            ? [labelledFact(category, "branchThird", resolve("branchThird", of!.branchThird), lang)]
+            ? [labelledFact(category, "branchThird", resolve("branchThird", of!.branchThird), lang, style)]
             : []),
-          ...(of!.duration ? [labelledFact(category, "duration", resolve("duration", of!.duration), lang)] : []),
-          ...(of!.frequency
-            ? [labelledFact(category, "frequency", resolve("frequency", of!.frequency), lang)]
+          ...(includeTimeline && of!.duration
+            ? [labelledFact(category, "duration", resolve("duration", of!.duration), lang, style)]
             : []),
-          ...(of!.worsening
-            ? [labelledFact(category, "worsening", resolve("worsening", of!.worsening), lang)]
+          ...(includeTimeline && of!.frequency
+            ? [labelledFact(category, "frequency", resolve("frequency", of!.frequency), lang, style)]
+            : []),
+          ...(includeTimeline && of!.worsening
+            ? [labelledFact(category, "worsening", resolve("worsening", of!.worsening), lang, style)]
             : []),
         ]
       : [];

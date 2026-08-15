@@ -379,3 +379,134 @@ test("owner variant renders correctly in Chinese too", () => {
   assert.ok(screen.getByText(/涉及：窗邊。/));
   assert.equal(screen.queryByText("RepairScope 中立簡報"), null);
 });
+
+// Coverage for the owner-review label/reference polish pass.
+
+test("owner variant: never renders a raw questionnaire question (？： or ?:) — uses concise summary labels instead, across every category with branch questions", () => {
+  const categories = ["leak", "drainage", "plumbing", "electrical", "aircon", "door-window", "surface", "bathroom"] as const;
+  for (const category of categories) {
+    const draft = {
+      id: `draft-${category}`, category, originalReport: "", extractedSymptoms: [],
+      responses: {
+        affected: "unsure", branchFirst: "unsure", branchSecond: "unsure", branchThird: "unsure",
+        duration: "week", frequency: "occasional", worsening: "yes", district: "eastern",
+      },
+      safetyAcknowledgements: [], status: "draft" as const, updatedAt: "2026-08-11T00:00:00.000Z",
+    };
+    const brief = buildRepairBrief(draft);
+    const { container, unmount } = render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+    const text = container.textContent ?? "";
+    assert.doesNotMatch(text, /？：/, `${category}: found ？： in owner review`);
+    assert.doesNotMatch(text, /\?:/, `${category}: found ?: in owner review`);
+    unmount();
+    cleanup();
+  }
+});
+
+test("owner variant: category-specific branch facts use their own concise label, not a shared generic one where the schema distinguishes them", () => {
+  const leakDraft = {
+    id: "draft-leak-concise", category: "leak" as const, originalReport: "", extractedSymptoms: [],
+    responses: { affected: "window", branchThird: "several", duration: "week", district: "eastern" },
+    safetyAcknowledgements: [], status: "draft" as const, updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  render(React.createElement(GeneratedBriefDocument, { brief: buildRepairBrief(leakDraft), variant: "owner" }));
+  assert.ok(screen.getByText(/Extent: Several areas/));
+  cleanup();
+
+  const plumbingDraft = {
+    id: "draft-plumbing-concise", category: "plumbing" as const, originalReport: "", extractedSymptoms: [],
+    responses: { affected: "kitchen", branchThird: "no", duration: "week", district: "eastern" },
+    safetyAcknowledgements: [], status: "draft" as const, updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  render(React.createElement(GeneratedBriefDocument, { brief: buildRepairBrief(plumbingDraft), variant: "owner" }));
+  assert.ok(screen.getByText(/Can water be isolated: No \/ cannot control it/));
+  cleanup();
+
+  // And the Chinese equivalent, to confirm the concise labels aren't
+  // English-only fallbacks.
+  render(
+    React.createElement(
+      LanguageProvider,
+      null,
+      React.createElement(GeneratedBriefDocument, { brief: buildRepairBrief(leakDraft), variant: "owner" }),
+    ),
+  );
+  assert.ok(screen.getByText(/影響範圍：幾個位置/));
+});
+
+test("owner variant: duration/frequency/worsening are not duplicated as separate rows once already stated in the situation sentence", () => {
+  const draft = {
+    id: "draft-leak-no-dup", category: "leak" as const, originalReport: "", extractedSymptoms: [],
+    responses: { affected: "window", duration: "week", frequency: "occasional", worsening: "yes", district: "eastern" },
+    safetyAcknowledgements: [], status: "draft" as const, updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  render(React.createElement(GeneratedBriefDocument, { brief: buildRepairBrief(draft), variant: "owner" }));
+  // Present once, inside the synthesised sentence.
+  assert.ok(screen.getByText(/began within a week/));
+  // Not present again as a separate "Started: Within a week" row.
+  assert.equal(screen.queryByText(/^Started:/), null);
+  assert.equal(screen.queryByText(/^Frequency:/), null);
+  assert.equal(screen.queryByText(/^Change over time:/), null);
+});
+
+test("owner variant: shows the evidence type when captured, and omits the colon when no type was answered — never claims uploaded/received", () => {
+  const withKind = { ...fullBrief, category: "leak", hasEvidence: "yes", evidenceKind: "repair-media" };
+  const { unmount } = render(React.createElement(GeneratedBriefDocument, { brief: withKind, variant: "owner" }));
+  assert.ok(screen.getByText(/following, but it has not been provided/));
+  assert.ok(screen.getByText("Repair photo / video"));
+  unmount();
+  cleanup();
+
+  const withoutKind = { ...fullBrief, category: "leak", hasEvidence: "yes", evidenceKind: undefined };
+  render(React.createElement(GeneratedBriefDocument, { brief: withoutKind, variant: "owner" }));
+  assert.ok(screen.getByText(/relevant information, but it has not been provided/));
+  assert.equal(screen.queryByText(/following, but it has not been provided/), null);
+});
+
+test("owner variant: previous-action detail is labelled concisely (\"What they said\"), not with the raw questionnaire question", () => {
+  const draft = {
+    id: "draft-leak-prior", category: "leak" as const, originalReport: "", extractedSymptoms: [],
+    responses: { affected: "window", duration: "week", district: "eastern", prior: "quote", priorDetail: "Plumber quoted $500" },
+    safetyAcknowledgements: [], status: "draft" as const, updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  render(React.createElement(GeneratedBriefDocument, { brief: buildRepairBrief(draft), variant: "owner" }));
+  assert.ok(screen.getByText(/What they said: Plumber quoted \$500/));
+  assert.equal(screen.queryByText(/What were you told/), null);
+});
+
+test("owner variant: additional context is shown only when actually entered", () => {
+  const withContext = {
+    ...fullBrief, category: "leak", additionalContext: "The neighbour upstairs mentioned a similar issue last year.",
+  };
+  const { unmount } = render(React.createElement(GeneratedBriefDocument, { brief: withContext, variant: "owner" }));
+  assert.ok(screen.getByText("Additional information"));
+  assert.ok(screen.getByText("The neighbour upstairs mentioned a similar issue last year."));
+  unmount();
+  cleanup();
+
+  const withoutContext = { ...fullBrief, category: "leak", additionalContext: undefined };
+  render(React.createElement(GeneratedBriefDocument, { brief: withoutContext, variant: "owner" }));
+  assert.equal(screen.queryByText("Additional information"), null);
+});
+
+test("owner variant: the pre-submission identifier is labelled \"Draft reference\", never \"Case reference\"", () => {
+  const brief = { ...fullBrief, category: "leak", repairId: "draft-abc-123" };
+  const { container } = render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+  const ref = container.querySelector(".owner-review__ref");
+  assert.ok(ref);
+  assert.match(ref!.textContent ?? "", /Draft reference/);
+  assert.match(ref!.textContent ?? "", /DRAFT-ABC-123/);
+  assert.doesNotMatch(ref!.textContent ?? "", /Case reference/);
+  assert.equal(screen.queryByText(/Case reference/), null);
+});
+
+test("operator variant is unaffected: still uses question-style labels and shows duration/frequency/worsening as their own rows", () => {
+  const draft = {
+    id: "draft-leak-operator", category: "leak" as const, originalReport: "", extractedSymptoms: [],
+    responses: { affected: "window", duration: "week", frequency: "occasional", worsening: "yes", district: "eastern" },
+    safetyAcknowledgements: [], status: "draft" as const, updatedAt: "2026-08-11T00:00:00.000Z",
+  };
+  render(React.createElement(GeneratedBriefDocument, { brief: buildRepairBrief(draft) }));
+  assert.ok(screen.getByText(/When did it begin\?: Within a week/));
+  assert.ok(screen.getByText(/How often\?: Occasionally/));
+});
