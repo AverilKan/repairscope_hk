@@ -335,10 +335,10 @@ test.describe("generated brief content", () => {
   // whichever one first resolved a given raw value, so three branch
   // answers that share the same value (here, all three "唔肯定"/"Not sure")
   // all rendered under the FIRST branch question's label. Each of the
-  // three questions ("通常幾時出現？"/"見到嘅情況係點？"/"影響範圍有幾大？")
-  // must appear with its own distinct label, in both languages, and in
-  // both the brief review and the post-submission confirmation screen —
-  // the two render paths sharing summariseObservedFacts (see
+  // three questions must appear with its own distinct label, in both
+  // languages, and in both the brief review and the post-submission
+  // confirmation screen's own "View submitted details" disclosure — the
+  // two render paths sharing summariseObservedFacts (see
   // components/RepairSubmissionPanel.tsx's SubmissionConfirmation).
   test("three branch answers sharing the same value each render under their own distinct question, in both languages and on both the brief and confirmation screens", async ({
     page,
@@ -391,22 +391,30 @@ test.describe("generated brief content", () => {
     await fillAndSubmitContactForm(page);
     await expect(page.getByText("資料已安全提交")).toBeVisible();
 
-    // Traditional Chinese — post-submission confirmation screen. Scoped
-    // to the confirmation region specifically: the brief document panel
-    // above it renders the identical labelled facts, so an unscoped
-    // getByText would match both and violate Playwright's strict mode.
-    const confirmation = page.getByRole("region", { name: /submission-confirmation-heading|個案參考編號/ }).or(
-      page.locator(".repair-submission-confirmation"),
-    );
-    await expect(confirmation.getByText(/通常幾時出現？：唔肯定/)).toBeVisible();
-    await expect(confirmation.getByText(/見到嘅情況係點？：唔肯定/)).toBeVisible();
-    await expect(confirmation.getByText(/影響範圍有幾大？：唔肯定/)).toBeVisible();
+    // The pre-submission owner review is gone entirely once submission
+    // succeeds (see LandlordApp.tsx's BriefReview `submitted` state) — the
+    // branch facts checked below can only be coming from the confirmation
+    // screen's own "查看已提交資料"/"View submitted details" disclosure,
+    // not a duplicate copy still sitting above it.
+    await expect(page.getByText("維修資料摘要")).not.toBeVisible();
+
+    const confirmation = page.locator(".repair-submission-confirmation");
+    const details = confirmation.locator(".repair-submission-confirmation__details");
+    await expect(details).not.toHaveAttribute("open", "");
+    await confirmation.getByText("查看已提交資料").click();
+    await expect(details).toHaveAttribute("open", "");
+
+    // Reuses the same concise-label owner-review rendering shown before
+    // submission (variant="owner") — not the old raw question-style list.
+    await expect(confirmation.getByText(/通常出現時間：唔肯定/)).toBeVisible();
+    await expect(confirmation.getByText(/見到嘅情況：唔肯定/)).toBeVisible();
+    await expect(confirmation.getByText(/影響範圍：唔肯定/)).toBeVisible();
 
     // English — post-submission confirmation screen.
     await page.getByRole("button", { name: "EN", exact: true }).click();
-    await expect(confirmation.getByText(/When does it usually happen\?.*Not sure/)).toBeVisible();
-    await expect(confirmation.getByText(/What can you see\?.*Not sure/)).toBeVisible();
-    await expect(confirmation.getByText(/How much is affected\?.*Not sure/)).toBeVisible();
+    await expect(confirmation.getByText(/Usually happens: Not sure/)).toBeVisible();
+    await expect(confirmation.getByText(/What you can see: Not sure/)).toBeVisible();
+    await expect(confirmation.getByText(/Extent: Not sure/)).toBeVisible();
   });
 });
 
@@ -460,17 +468,119 @@ test.describe("Other/Unsure timeline preservation", () => {
     await fillAndSubmitContactForm(page);
     await expect(page.getByText("資料已安全提交")).toBeVisible();
 
-    // Confirmation screen — same underlying data, question-style labels
-    // (see summariseObservedFacts's default style), scoped to the
-    // confirmation region since the brief panel above it repeats the same
-    // facts.
-    const confirmation = page.getByRole("region", { name: /submission-confirmation-heading|個案參考編號/ }).or(
-      page.locator(".repair-submission-confirmation"),
-    );
+    // Confirmation screen — same underlying data, reusing the concise-label
+    // owner-review rendering inside the collapsed "查看已提交資料"
+    // disclosure (see RepairSubmissionPanel.tsx's SubmissionConfirmation).
+    const confirmation = page.locator(".repair-submission-confirmation");
+    await confirmation.getByText("查看已提交資料").click();
     await expect(confirmation.getByText("露台趟門個轆好似卡住，推唔郁")).toBeVisible();
-    await expect(confirmation.getByText(/幾時開始？：一個月內/)).toBeVisible();
-    await expect(confirmation.getByText(/幾常出現？：持續/)).toBeVisible();
-    await expect(confirmation.getByText(/有冇惡化？：有惡化/)).toBeVisible();
+    await expect(confirmation.getByText("開始時間：一個月內")).toBeVisible();
+    await expect(confirmation.getByText("出現頻率：持續")).toBeVisible();
+    await expect(confirmation.getByText("情況變化：有惡化")).toBeVisible();
+  });
+});
+
+// Codex audit: after a successful submission, the pre-submission
+// editable/review flow (owner review, Edit Answers, correction box,
+// contact fields, consent/PICS, submit button) stayed visible above the
+// success confirmation, and a second, older "Your submitted brief"
+// representation rendered automatically below it — the owner saw the same
+// repair described three different ways on one screen.
+test.describe("submission success state", () => {
+  test("before submission, the full editable review is visible; after success, only the confirmation is — no duplicate raw brief renders automatically", async ({
+    page,
+  }) => {
+    await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+
+    // Before submission: the full editable flow is present.
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
+    await expect(page.getByRole("button", { name: "更改問卷答案" })).toBeVisible();
+    await expect(page.getByLabel("補充其他資料")).toBeVisible();
+    await expect(page.getByLabel("姓名")).toBeVisible();
+    await expect(page.getByLabel("香港聯絡電話")).toBeVisible();
+    await expect(page.getByLabel("電郵")).toBeVisible();
+    await expect(page.getByRole("checkbox")).toBeVisible();
+    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeVisible();
+    // The draft/journey identifier is shown, secondary, correctly labelled
+    // — not yet a case reference.
+    await expect(page.getByText("草稿編號")).toBeVisible();
+    await expect(page.getByText("個案參考編號")).toHaveCount(0);
+
+    await fillAndSubmitContactForm(page);
+    await expect(page.getByText("資料已安全提交")).toBeVisible();
+
+    // After success: the real backend reference is the prominent identifier.
+    await expect(page.getByText("個案參考編號")).toBeVisible();
+    const reference = await page
+      .locator("#submission-confirmation-heading")
+      .innerText();
+    expect(reference).toMatch(/^RS-/);
+
+    // The entire pre-submission editable flow is gone.
+    await expect(page.getByText("維修資料摘要")).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "更改問卷答案" })).toHaveCount(0);
+    await expect(page.getByLabel("補充其他資料")).toHaveCount(0);
+    await expect(page.getByLabel("姓名")).toHaveCount(0);
+    await expect(page.getByLabel("香港聯絡電話")).toHaveCount(0);
+    await expect(page.getByLabel("電郵")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toHaveCount(0);
+    await expect(page.getByText("私隱及資料收集")).toHaveCount(0);
+    // The draft UUID is not shown prominently after success — it still
+    // exists inside the collapsed "View submitted details" disclosure
+    // (correctly labelled "草稿編號", never confused with the real case
+    // reference), so assert it is not VISIBLE rather than absent from the DOM.
+    await expect(page.getByText("草稿編號")).not.toBeVisible();
+
+    // No second, raw representation of the brief auto-renders.
+    await expect(page.getByText("你提交嘅簡報")).toHaveCount(0);
+    await expect(page.getByText("Your submitted brief")).toHaveCount(0);
+    const details = page.locator(".repair-submission-confirmation__details");
+    await expect(details).not.toHaveAttribute("open", "");
+  });
+
+  test("the success state works the same in English", async ({ page }) => {
+    await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+    // fillAndSubmitContactForm's own selectors are Chinese-label-based, so
+    // submit first in the default language, then switch to English to
+    // verify the resulting confirmation screen.
+    await fillAndSubmitContactForm(page);
+    await expect(page.getByText("資料已安全提交")).toBeVisible();
+    await page.getByRole("button", { name: "EN", exact: true }).click();
+
+    await expect(page.getByText("SUBMISSION RECEIVED")).toBeVisible();
+    await expect(page.getByText("Case reference")).toBeVisible();
+    await expect(page.getByText("Repair summary")).not.toBeVisible();
+    await expect(page.getByRole("button", { name: "Edit questionnaire answers" })).toHaveCount(0);
+    await expect(page.getByText("Your submitted brief")).toHaveCount(0);
+    await expect(page.getByText("View submitted details")).toBeVisible();
+  });
+
+  test("\"View submitted details\" opens the read-only concise owner summary — no Edit Answers, no raw questions, no contractor-only content", async ({
+    page,
+  }) => {
+    await startLeakJourneyThroughBuilding(page);
+    await finishLeakJourneyToBrief(page);
+    await fillAndSubmitContactForm(page);
+    await expect(page.getByText("資料已安全提交")).toBeVisible();
+
+    const confirmation = page.locator(".repair-submission-confirmation");
+    const detailsBody = confirmation.locator(".repair-submission-confirmation__details-body");
+    await expect(detailsBody).toBeHidden();
+
+    await confirmation.getByText("查看已提交資料").click();
+    await expect(detailsBody).toBeVisible();
+
+    // Read-only: no editing controls of any kind inside it.
+    await expect(detailsBody.getByRole("button", { name: "更改問卷答案" })).toHaveCount(0);
+    await expect(detailsBody.getByRole("textbox")).toHaveCount(0);
+    await expect(detailsBody.getByRole("button", { name: "套用更正" })).toHaveCount(0);
+    // Concise labels, not raw questionnaire questions.
+    const bodyText = await detailsBody.innerText();
+    expect(bodyText).not.toMatch(/？：/);
+    expect(bodyText).not.toContain("師傅需要提供");
+    expect(bodyText).not.toContain("What contractors must provide");
   });
 });
 

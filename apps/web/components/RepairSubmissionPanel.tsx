@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { summariseObservedFacts } from "@/domain/brief";
 import type { ProblemBrief } from "@/domain/types";
 import {
   canSubmitRepairSubmissionForm,
@@ -13,6 +12,7 @@ import {
   type RepairSubmissionResult,
 } from "@/domain/submission";
 import { repairScopeServices } from "@/services";
+import { GeneratedBriefDocument } from "./GeneratedBriefDocument";
 import { StatusPill } from "./SiteShell";
 import { IntakeStageProgress } from "./IntakeStageProgress";
 import { useLanguage } from "./LanguageContext";
@@ -333,11 +333,6 @@ function SubmissionConfirmation({
   hasSafetyFlags: boolean;
 }) {
   const { lang } = useLanguage();
-  // reportedFacts is intentionally empty for a standard-category journey
-  // (its real answers live in brief.observedFacts — see domain/brief.ts),
-  // so the confirmation screen must summarise observedFacts the same way
-  // the "Check the facts" brief document does, or it would show nothing.
-  const submittedFacts = summariseObservedFacts(brief, lang);
   return (
     <section className="repair-submission-confirmation" aria-labelledby="submission-confirmation-heading">
       <StatusPill tone="good">{lang === "zh" ? "資料已安全提交" : "SUBMISSION RECEIVED"}</StatusPill>
@@ -360,14 +355,20 @@ function SubmissionConfirmation({
         </div>
       )}
 
-      <div className="repair-submission-confirmation__brief">
-        <p className="eyebrow">{lang === "zh" ? "你提交嘅簡報" : "Your submitted brief"}</p>
-        <ul>
-          {submittedFacts.map((fact) => (
-            <li key={fact}>{fact}</li>
-          ))}
-        </ul>
-      </div>
+      {/* Collapsed by default — the review already served its purpose
+          before submission; an owner who wants to double-check exactly what
+          was sent can open this, but it should not compete with the case
+          reference above. Reuses the same read-only owner-summary rendering
+          (variant="owner") shown before submission — no Edit Answers,
+          correction controls or contractor-only content live inside
+          GeneratedBriefDocument itself, so embedding it here adds none of
+          that by construction. */}
+      <details className="repair-submission-confirmation__details">
+        <summary>{lang === "zh" ? "查看已提交資料" : "View submitted details"}</summary>
+        <div className="repair-submission-confirmation__details-body">
+          <GeneratedBriefDocument brief={brief} bare variant="owner" />
+        </div>
+      </details>
     </section>
   );
 }

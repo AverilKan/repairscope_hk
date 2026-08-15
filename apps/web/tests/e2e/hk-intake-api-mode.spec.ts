@@ -182,6 +182,16 @@ test("a failed submission keeps the current journey addressable, not silently cl
   // fresh/cleared state, and the contact form's own values were not lost.
   await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeVisible();
   await expect(page.getByLabel("姓名")).toHaveValue("陳大文");
+
+  // Codex audit: the simplified success state (owner review hidden, only
+  // the confirmation shown) must switch on ONLY after a confirmed success —
+  // a failed submission keeps the full editable review, Edit Answers and
+  // correction box available, and must never show a fake RS-XXXXXX reference.
+  await expect(page.getByText("維修資料摘要")).toBeVisible();
+  await expect(page.getByRole("button", { name: "更改問卷答案" })).toBeVisible();
+  await expect(page.getByLabel("補充其他資料")).toBeVisible();
+  await expect(page.getByText("個案參考編號")).toHaveCount(0);
+  await expect(page.getByText(/^RS-/)).toHaveCount(0);
 });
 
 test("a successful submission clears only the submitted journey, and clears the last-active pointer only when it still names that journey", async ({

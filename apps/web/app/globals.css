@@ -2269,10 +2269,23 @@ select:focus {
   margin: 0;
 }
 
-.repair-submission-confirmation__brief {
+.repair-submission-confirmation__details {
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid var(--line);
+}
+
+.repair-submission-confirmation__details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 4px 0;
+}
+
+.repair-submission-confirmation__details-body {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  background: var(--paper-light);
 }
 
 .safety-notice__no-wait {

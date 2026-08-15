@@ -587,6 +587,13 @@ function BriefReview({
   const [correctionStatus, setCorrectionStatus] = useState<"idle" | "updating" | "success" | "error">("idle");
   const [correctionError, setCorrectionError] = useState("");
   const [appliedCorrection, setAppliedCorrection] = useState<ProblemBriefCorrectionResult | null>(null);
+  // Once a submission has actually succeeded (RepairSubmissionPanel's own
+  // onSubmitted fires only on a confirmed backend response — never on a
+  // failure), the editable review/correction/contact/consent flow above it
+  // no longer applies and is hidden; RepairSubmissionPanel itself keeps
+  // rendering unconditionally, since it already switches to its own
+  // success confirmation internally.
+  const [submitted, setSubmitted] = useState(false);
   const hasPendingCorrection = correction.trim().length > 0;
   const hasValidCorrection = correctionMeetsMinimumWords(correction);
   const submissionBlocked = hasPendingCorrection || correctionStatus === "updating";
@@ -642,90 +649,95 @@ function BriefReview({
   return (
     <main className="content-page brief-page">
       <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
-      <IntakeStageProgress activeStage={2} />
-      <PageIntro
-        eyebrow={lang === "zh" ? "維修簡報 · 提交前確認" : "Repair summary · Review before submission"}
-        title={lang === "zh" ? "我哋將你講嘅情況整理好喇。" : "Check the situation. Keep the diagnosis open."}
-        description={
-          lang === "zh"
-            ? "呢份唔係診斷。請睇吓有冇事實需要更正。"
-            : "This is not a diagnosis. Please check whether anything needs correcting."
-        }
-        aside={<StatusPill tone="attention">{lang === "zh" ? "未分享" : "Not shared yet"}</StatusPill>}
-      />
 
-      <section className="brief-document">
-        <GeneratedBriefDocument brief={currentBrief} bare variant="owner" />
+      {!submitted && (
+        <>
+          <IntakeStageProgress activeStage={2} />
+          <PageIntro
+            eyebrow={lang === "zh" ? "維修簡報 · 提交前確認" : "Repair summary · Review before submission"}
+            title={lang === "zh" ? "我哋將你講嘅情況整理好喇。" : "Check the situation. Keep the diagnosis open."}
+            description={
+              lang === "zh"
+                ? "呢份唔係診斷。請睇吓有冇事實需要更正。"
+                : "This is not a diagnosis. Please check whether anything needs correcting."
+            }
+            aside={<StatusPill tone="attention">{lang === "zh" ? "未分享" : "Not shared yet"}</StatusPill>}
+          />
 
-        <div className="brief-correction">
-          {appliedCorrection && (
-            <div className="brief-correction__result" role="status">
-              <div>
-                <StatusPill tone="good">
-                  {lang === "zh" ? "簡報已更新" : "Brief updated"} · v{appliedCorrection.brief.version}
-                </StatusPill>
-                <strong>{lang === "zh" ? "更改咗咩" : "What changed"}</strong>
+          <section className="brief-document">
+            <GeneratedBriefDocument brief={currentBrief} bare variant="owner" />
+
+            <div className="brief-correction">
+              {appliedCorrection && (
+                <div className="brief-correction__result" role="status">
+                  <div>
+                    <StatusPill tone="good">
+                      {lang === "zh" ? "簡報已更新" : "Brief updated"} · v{appliedCorrection.brief.version}
+                    </StatusPill>
+                    <strong>{lang === "zh" ? "更改咗咩" : "What changed"}</strong>
+                  </div>
+                  <p>{appliedCorrection.changeSummary}</p>
+                </div>
+              )}
+
+              {onEditAnswers && (
+                <div className="brief-correction__primary">
+                  <p className="field-help">
+                    {lang === "zh" ? "如果有答案答錯咗，可以直接改：" : "If a specific answer is wrong, edit it directly:"}
+                  </p>
+                  <button
+                    className="button"
+                    type="button"
+                    disabled={correctionStatus === "updating"}
+                    onClick={onEditAnswers}
+                  >
+                    {lang === "zh" ? "更改問卷答案" : "Edit questionnaire answers"}
+                  </button>
+                </div>
+              )}
+
+              <div className="brief-correction__secondary">
+                <label htmlFor="brief-correction">
+                  {lang === "zh" ? "補充其他資料" : "Add something else"}
+                </label>
+                <textarea
+                  id="brief-correction"
+                  rows={3}
+                  value={correction}
+                  onChange={(event) => {
+                    setCorrection(event.target.value);
+                    if (correctionStatus === "error") {
+                      setCorrectionStatus("idle");
+                      setCorrectionError("");
+                    }
+                  }}
+                  placeholder={
+                    lang === "zh"
+                      ? "如果仲有其他想講嘅資料，可以喺呢度補充。我哋會更新摘要俾你先確認，先分享出去。"
+                      : "If there’s anything else worth adding, note it here. We’ll update the summary for you to review before anything is shared."
+                  }
+                />
+                <p className="field-help" id="brief-correction-help">
+                  {lang === "zh" ? "請寫至少三個字，等更正夠清楚俾我哋審閱。" : "Use at least three words so the correction is clear enough to review."}
+                </p>
+                {correctionError && <p className="field-error" role="alert">{correctionError}</p>}
+                <div className="brief-correction__actions">
+                  <button
+                    className="button button--secondary"
+                    type="button"
+                    disabled={!hasValidCorrection || correctionStatus === "updating"}
+                    onClick={() => void applyCorrection()}
+                  >
+                    {correctionStatus === "updating"
+                      ? (lang === "zh" ? "更新緊…" : "Updating brief…")
+                      : (lang === "zh" ? "套用更正" : "Apply correction")}
+                  </button>
+                </div>
               </div>
-              <p>{appliedCorrection.changeSummary}</p>
             </div>
-          )}
-
-          {onEditAnswers && (
-            <div className="brief-correction__primary">
-              <p className="field-help">
-                {lang === "zh" ? "如果有答案答錯咗，可以直接改：" : "If a specific answer is wrong, edit it directly:"}
-              </p>
-              <button
-                className="button"
-                type="button"
-                disabled={correctionStatus === "updating"}
-                onClick={onEditAnswers}
-              >
-                {lang === "zh" ? "更改問卷答案" : "Edit questionnaire answers"}
-              </button>
-            </div>
-          )}
-
-          <div className="brief-correction__secondary">
-            <label htmlFor="brief-correction">
-              {lang === "zh" ? "補充其他資料" : "Add something else"}
-            </label>
-            <textarea
-              id="brief-correction"
-              rows={3}
-              value={correction}
-              onChange={(event) => {
-                setCorrection(event.target.value);
-                if (correctionStatus === "error") {
-                  setCorrectionStatus("idle");
-                  setCorrectionError("");
-                }
-              }}
-              placeholder={
-                lang === "zh"
-                  ? "如果仲有其他想講嘅資料，可以喺呢度補充。我哋會更新摘要俾你先確認，先分享出去。"
-                  : "If there’s anything else worth adding, note it here. We’ll update the summary for you to review before anything is shared."
-              }
-            />
-            <p className="field-help" id="brief-correction-help">
-              {lang === "zh" ? "請寫至少三個字，等更正夠清楚俾我哋審閱。" : "Use at least three words so the correction is clear enough to review."}
-            </p>
-            {correctionError && <p className="field-error" role="alert">{correctionError}</p>}
-            <div className="brief-correction__actions">
-              <button
-                className="button button--secondary"
-                type="button"
-                disabled={!hasValidCorrection || correctionStatus === "updating"}
-                onClick={() => void applyCorrection()}
-              >
-                {correctionStatus === "updating"
-                  ? (lang === "zh" ? "更新緊…" : "Updating brief…")
-                  : (lang === "zh" ? "套用更正" : "Apply correction")}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        </>
+      )}
 
       <RepairSubmissionPanel
         brief={currentBrief}
@@ -746,6 +758,11 @@ function BriefReview({
               : undefined
         }
         onSubmitted={() => {
+          // Fires only on a confirmed successful backend response
+          // (RepairSubmissionPanel catches every error path itself and
+          // never calls this) — safe to switch away from the editable
+          // review here without risking a false success state.
+          setSubmitted(true);
           // A failed submission (caught inside RepairSubmissionPanel, this
           // callback never fires) must not clear the journey — only a
           // successful submission does, and only this journey's own
