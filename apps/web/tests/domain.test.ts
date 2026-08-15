@@ -27,6 +27,7 @@ import {
   isValidContactName,
   isValidEmailAddress,
   isValidPhoneNumber,
+  normaliseMultiSelectValue,
   questionnaireFieldIsVisible,
   questionnaireStepUsesAutomaticProgression,
   questionnaireStepValidationErrors,
@@ -35,7 +36,8 @@ import {
   validateQuestionnaireSchemas,
 } from "../domain/rules";
 import { rebuildDraftForCategoryChange } from "../domain/journey";
-import { summariseObservedFacts } from "../domain/brief";
+import { buildRepairBrief, summariseObservedFacts } from "../domain/brief";
+import { resolveAnswerLabels } from "../data/questionnaires";
 import {
   calculateContractorQuote,
   contractorMaterialsTotal,
@@ -394,6 +396,109 @@ test("summariseObservedFacts renders each branch answer under its own question w
     "What can you see?: Not sure",
     "How much is affected?: Not sure",
   ]);
+});
+
+// Gate A fix: a persisted/restored v3 draft could contain an invalid
+// multi_select array — duplicates, contradictory exclusive+real
+// combinations, or click/reverse order — and readJourneyDraft accepted it
+// unchanged, letting it reach journey state, the generated brief and the
+// submission payload. normaliseMultiSelectValue (domain/rules.ts) is the
+// single shared rule every one of those boundaries now goes through — see
+// domain/journey.ts's sanitiseResponses, domain/brief.ts's buildRepairBrief,
+// and data/questionnaires.ts's resolveAnswerLabels. plumbing's branchFirst
+// field is used throughout (options: leak, no-water, pressure, fitting,
+// colour, unsure, other — exclusiveValue "unsure", otherValue "other").
+
+const plumbingBranchFirst = questionnaireByCategory.plumbing.steps
+  .flatMap((step) => step.fields)
+  .find((field) => field.id === "branchFirst")!;
+
+test("normaliseMultiSelectValue: duplicates collapse to a single value", () => {
+  assert.deepEqual(normaliseMultiSelectValue(plumbingBranchFirst, ["leak", "leak"]), ["leak"]);
+});
+
+test("normaliseMultiSelectValue: values are reordered into the schema's own declared option order, not click order", () => {
+  assert.deepEqual(normaliseMultiSelectValue(plumbingBranchFirst, ["pressure", "leak", "other"]), [
+    "leak",
+    "pressure",
+    "other",
+  ]);
+});
+
+test("normaliseMultiSelectValue: the exclusive value alone remains valid", () => {
+  assert.deepEqual(normaliseMultiSelectValue(plumbingBranchFirst, ["unsure"]), ["unsure"]);
+});
+
+test("normaliseMultiSelectValue: the exclusive value alongside a real value is contradictory and returns null (fail closed, never guessed)", () => {
+  assert.equal(normaliseMultiSelectValue(plumbingBranchFirst, ["unsure", "leak"]), null);
+});
+
+// The exact Codex adversarial reproduction: contradictory AND duplicated in
+// the same array. Deduplication must not rescue the contradictory state —
+// it still returns null.
+test("normaliseMultiSelectValue: the exact Codex repro [\"unsure\",\"leak\",\"leak\"] is contradictory and returns null", () => {
+  assert.equal(normaliseMultiSelectValue(plumbingBranchFirst, ["unsure", "leak", "leak"]), null);
+});
+
+test("normaliseMultiSelectValue: an unknown option id is silently dropped from the result rather than causing a null (whole-field rejection is enforced one layer up, at restoration)", () => {
+  assert.deepEqual(normaliseMultiSelectValue(plumbingBranchFirst, ["leak", "not-a-real-option"]), ["leak"]);
+});
+
+test("resolveAnswerLabels: a contradictory stored array (exclusive + real) renders nothing rather than contradictory content", () => {
+  assert.deepEqual(resolveAnswerLabels("plumbing", "branchFirst", ["unsure", "leak"], "en"), []);
+});
+
+test("resolveAnswerLabels: a duplicated stored array renders each symptom once", () => {
+  assert.deepEqual(resolveAnswerLabels("plumbing", "branchFirst", ["leak", "leak", "pressure"], "en"), [
+    "Dripping / leaking",
+    "Low / uneven pressure",
+  ]);
+});
+
+test("resolveAnswerLabels: a historical scalar value for the now-multi_select field still resolves (backward compatibility)", () => {
+  assert.deepEqual(resolveAnswerLabels("plumbing", "branchFirst", "leak", "en"), ["Dripping / leaking"]);
+});
+
+function plumbingDraft(branchFirst: unknown): RepairIntakeDraft {
+  return {
+    id: "draft-plumbing-normalise",
+    category: "plumbing",
+    originalReport: "",
+    extractedSymptoms: [],
+    responses: {
+      affected: "kitchen",
+      branchFirst: branchFirst as never,
+      branchSecond: "constant",
+      branchThird: "yes",
+      duration: "week",
+      frequency: "occasional",
+      worsening: "yes",
+      district: "eastern",
+    },
+    safetyAcknowledgements: [],
+    status: "draft",
+    updatedAt: "2026-08-15T00:00:00.000Z",
+  };
+}
+
+test("buildRepairBrief deduplicates a duplicated multi_select response before it reaches observedFacts", () => {
+  const brief = buildRepairBrief(plumbingDraft(["leak", "leak", "pressure"]));
+  assert.deepEqual(brief.observedFacts?.branchFirst, ["leak", "pressure"]);
+});
+
+test("buildRepairBrief canonicalises a reverse/click-order multi_select response into the schema's own option order", () => {
+  const brief = buildRepairBrief(plumbingDraft(["pressure", "leak", "other"]));
+  assert.deepEqual(brief.observedFacts?.branchFirst, ["leak", "pressure", "other"]);
+});
+
+test("buildRepairBrief drops (treats as unanswered) a contradictory exclusive+real multi_select response rather than guessing", () => {
+  const brief = buildRepairBrief(plumbingDraft(["unsure", "leak", "leak"]));
+  assert.equal(brief.observedFacts?.branchFirst, undefined);
+});
+
+test("buildRepairBrief still supports a historical scalar value for the now-multi_select field", () => {
+  const brief = buildRepairBrief(plumbingDraft("leak"));
+  assert.equal(brief.observedFacts?.branchFirst, "leak");
 });
 
 test("building context and access/relationship steps preserve the approved Sites question set", () => {

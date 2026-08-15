@@ -1,11 +1,13 @@
 import {
   districtOptions,
+  questionnaireByCategory,
   questionnaireFieldLabel,
   resolveAnswerLabel,
   resolveAnswerLabels,
   SYMPTOM_OTHER_VALUE,
 } from "@/data/questionnaires";
 import { lt, type Lang, type LocalizedText } from "./i18n";
+import { normaliseMultiSelectValue } from "./rules";
 import type {
   ProblemBrief,
   ProblemBriefCorrectionResult,
@@ -18,21 +20,32 @@ function str(value: unknown): string | undefined {
 }
 
 /**
- * Like str(), but preserves an array shape — for the one branch field per
- * category that is now multi_select (see data/questionnaires.ts's
- * symptomSlot) and so may arrive as string[] rather than a single string.
- * Every non-string/empty entry is dropped rather than causing the whole
- * value to be rejected, and an array that ends up with nothing left is
- * treated the same as never having answered at all (undefined, not []),
- * so downstream "is this present" checks stay a single boolean test rather
- * than needing a separate empty-array case everywhere.
+ * Like str(), but for the one branch field per category that is genuinely
+ * multi_select (see data/questionnaires.ts's symptomSlot) and so may
+ * arrive as string[] rather than a single string: additionally
+ * deduplicates and canonicalises into the field's own declared option
+ * order, and — via normaliseMultiSelectValue's fail-closed rule — drops
+ * the value entirely (undefined, i.e. unanswered) if it contradicts itself
+ * (the field's exclusiveValue, e.g. "unsure", present alongside a real
+ * selection). This is what keeps a corrupted/hand-edited draft's responses
+ * (already caught once at domain/journey.ts's sanitiseResponses
+ * restoration boundary) from ALSO reaching a freshly-generated brief and,
+ * from there, the submission payload — buildRepairBrief must never trust
+ * that its input already went through that boundary.
  */
-function strOrStringArray(value: unknown): string | string[] | undefined {
-  if (Array.isArray(value)) {
-    const cleaned = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
-    return cleaned.length > 0 ? cleaned : undefined;
-  }
-  return str(value);
+function normalisedSymptomValue(
+  category: RepairCategoryId | undefined,
+  fieldId: "branchFirst" | "branchSecond" | "branchThird",
+  value: unknown,
+): string | string[] | undefined {
+  if (!Array.isArray(value)) return str(value);
+  const cleaned = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+  const field = category
+    ? questionnaireByCategory[category]?.steps.flatMap((step) => step.fields).find((candidate) => candidate.id === fieldId)
+    : undefined;
+  if (!field || field.type !== "multi_select") return cleaned.length > 0 ? cleaned : undefined;
+  const normalised = normaliseMultiSelectValue(field, cleaned);
+  return normalised && normalised.length > 0 ? normalised : undefined;
 }
 
 /** True when a possibly-array observedFacts value actually has content — a bare `Boolean(value)` alone would treat an (unreachable via buildRepairBrief, but not TypeScript-impossible for a hand-built test fixture) empty array as truthy. */
@@ -406,12 +419,13 @@ export function buildRepairBrief(draft: RepairIntakeDraft): ProblemBrief {
     affected: str(r.affected),
     // Exactly one of these three is this category's multi_select
     // observation field (see data/questionnaires.ts's symptomSlot) and so
-    // may be string[]; strOrStringArray preserves whichever shape the
-    // questionnaire actually produced rather than forcing everything
-    // through the scalar-only str().
-    branchFirst: strOrStringArray(r.branchFirst),
-    branchSecond: strOrStringArray(r.branchSecond),
-    branchThird: strOrStringArray(r.branchThird),
+    // may be string[]; normalisedSymptomValue preserves whichever shape the
+    // questionnaire actually produced (falling back to str() for the other
+    // two, always-scalar fields) while also deduplicating, canonicalising
+    // option order, and dropping a contradictory exclusive+real selection.
+    branchFirst: normalisedSymptomValue(draft.category, "branchFirst", r.branchFirst),
+    branchSecond: normalisedSymptomValue(draft.category, "branchSecond", r.branchSecond),
+    branchThird: normalisedSymptomValue(draft.category, "branchThird", r.branchThird),
     duration: str(r.duration),
     frequency: str(r.frequency),
     worsening: str(r.worsening),

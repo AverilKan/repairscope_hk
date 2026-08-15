@@ -1068,6 +1068,102 @@ test.describe("malformed stored brief", () => {
   });
 });
 
+// Gate A fix: the exact Codex adversarial reproduction, driven through the
+// real browser/localStorage path rather than a unit-level call — a
+// persisted v3 draft whose multi_select field holds a contradictory,
+// duplicated array (["unsure","leak","leak"]) must not survive restoration.
+// See domain/journey.ts's sanitiseResponses (now normaliseMultiSelectValue-
+// aware) for the actual fix; this proves the fail-closed behaviour end to
+// end: the field reads back unanswered, the owner must answer it again, and
+// the eventual brief/submission reflects only that fresh, valid answer.
+test.describe("restored draft with contradictory multi-select state", () => {
+  test("a stored [\"unsure\",\"leak\",\"leak\"] does not survive restoration — the symptom field comes back unanswered, and the owner must answer it again", async ({
+    page,
+  }) => {
+    await page.goto("/landlord/repairs/new");
+    const journeyId = await extractJourneyId(page);
+    await page.getByRole("radio", { name: /水喉問題/ }).click();
+    await page
+      .getByRole("radiogroup", { name: "邊個位置或設備受影響？" })
+      .getByRole("radio", { name: "廚房" })
+      .click();
+    const symptomGroup = page.locator('.pill-row[aria-label="你見到咩情況？"]');
+    await symptomGroup.getByRole("checkbox", { name: "滴水／漏水" }).click();
+    await symptomGroup.getByRole("checkbox", { name: "水壓低／不穩" }).click();
+
+    // Wait for the real, valid selection to autosave, then directly
+    // corrupt the stored draft's branchFirst into the exact Codex repro —
+    // simulating a hand-edited or otherwise-corrupted record, since the
+    // live UI itself can never produce this contradictory shape.
+    await expect
+      .poll(() =>
+        page.evaluate(
+          (id) => window.localStorage.getItem(`repairscope:journey:${id}:draft`)?.includes("pressure"),
+          journeyId,
+        ),
+      )
+      .toBe(true);
+    await page.evaluate((id) => {
+      const key = `repairscope:journey:${id}:draft`;
+      const stored = JSON.parse(window.localStorage.getItem(key)!);
+      stored.responses.branchFirst = ["unsure", "leak", "leak"];
+      window.localStorage.setItem(key, JSON.stringify(stored));
+    }, journeyId);
+
+    await page.reload();
+
+    // The field reads back unanswered — no chip is selected — not the
+    // corrupted array, and not a guessed single value from it.
+    await expect(symptomGroup).toBeVisible();
+    await expect(symptomGroup.locator("button.selected")).toHaveCount(0);
+
+    // The owner answers it again with a fresh, valid combination, and the
+    // rest of the journey proceeds normally.
+    await symptomGroup.getByRole("checkbox", { name: "水有異色／鏽色" }).click();
+    await page
+      .getByRole("radiogroup", { name: "問題通常幾時出現？" })
+      .getByRole("radio", { name: "長期都有" })
+      .click();
+    await page
+      .getByRole("radiogroup", { name: "而家可唔可以關水掣控制？" })
+      .getByRole("radio", { name: "可以", exact: true })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
+      .getByRole("radio", { name: "以上都冇，可以繼續" })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "幾時開始？" }).getByRole("radio", { name: "一星期內" }).click();
+    await page.getByRole("radiogroup", { name: "幾常出現？" }).getByRole("radio", { name: "間中" }).click();
+    await page.getByRole("radiogroup", { name: "有冇惡化？" }).getByRole("radio", { name: "唔肯定" }).click();
+    await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "冇" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "你有冇維修相片、影片、報告或現有報價？" })
+      .getByRole("radio", { name: "冇" })
+      .click();
+    await page.getByRole("radiogroup", { name: "有冇聯絡過管理處？" }).getByRole("radio", { name: "未有聯絡" }).click();
+    await page
+      .getByRole("radiogroup", { name: "問題有冇可能同樓上、隔離單位或者公用地方有關？" })
+      .getByRole("radio", { name: "唔肯定" })
+      .click();
+    await page.getByRole("radiogroup", { name: "開門安排" }).getByRole("radio", { name: "業主本人" }).click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "地區" }).getByRole("radio", { name: "東區" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
+
+    // The brief reflects only the fresh, valid answer — no trace of the
+    // corrupted duplicate/contradictory state (which would have rendered as
+    // "見到嘅情況：唔肯定、滴水／漏水" or similar had it survived).
+    await expect(page.getByText("見到嘅情況：水有異色／鏽色")).toBeVisible();
+  });
+});
+
 test.describe("hk phone validation", () => {
   // Regression coverage: an ordinary 8-digit Hong Kong local phone number
   // used to be rejected outright (the validator required at least 10
@@ -1584,7 +1680,7 @@ const MULTI_SELECT_CATEGORIES: Array<{
     categoryRegex: /浴室／潔具問題/,
     affectedGroup: "浴室邊一部分受影響？",
     affectedOption: "座廁",
-    symptomGroup: "主要見到咩問題？",
+    symptomGroup: "你見到邊啲問題？",
     symptomOptions: ["漏水／滲水", "去水慢／淤塞"],
     otherBranchFields: [
       { label: "問題會唔會影響浴室使用？", option: "仍可正常使用" },

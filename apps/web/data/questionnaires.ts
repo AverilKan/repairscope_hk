@@ -1,5 +1,6 @@
 import { lt } from "@/domain/i18n";
 import type { LocalizedText } from "@/domain/i18n";
+import { normaliseMultiSelectValue } from "@/domain/rules";
 import type {
   QuestionnaireField,
   QuestionnaireOption,
@@ -914,8 +915,8 @@ const branches: Record<string, BranchDefinition> = {
       ],
     },
     first: {
-      titleZh: "主要見到咩問題？",
-      titleEn: "What is the main problem?",
+      titleZh: "你見到邊啲問題？",
+      titleEn: "What problems can you see?",
       options: [
         option("leak", "漏水／滲水", "Leakage / seepage"),
         option("drain", "去水慢／淤塞", "Slow / blocked drain"),
@@ -944,14 +945,14 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
-    // first ("主要見到咩問題？"/"what is the main problem?": leak, slow/
+    // first ("你見到邊啲問題？"/"what problems can you see?": leak, slow/
     // blocked drain, loose fitting, mouldy sealant, flush/supply problem)
-    // is the observable-symptom question by meaning despite its "主要"
-    // ("main") wording — a leak AND mouldy sealant, or a slow drain AND a
-    // loose fitting, are plausible real combinations. The field's own
-    // question text is left unchanged (see this file's own scope note);
-    // the "you can select more than one" help text is what tells the
-    // owner this no longer means "pick the single main problem".
+    // is the observable-symptom question — a leak AND mouldy sealant, or a
+    // slow drain AND a loose fitting, are plausible real combinations.
+    // Reworded from the original "主要見到咩問題？"/"What is the main
+    // problem?" (singular "main"), which read oddly once multiple answers
+    // became allowed — a Gate A polish item, not a functional change; the
+    // option ids/values are untouched.
     symptomSlot: "first",
   },
 };
@@ -1176,6 +1177,17 @@ export function resolveAnswerLabel(
  * substituted with a placeholder — a genuinely unresolvable entry does not
  * shrink the count of what to expect from an otherwise-valid selection the
  * way "Not specified" would if it stood in for it.
+ *
+ * For a multi_select field, `value` also goes through
+ * normaliseMultiSelectValue (domain/rules.ts) before resolving: this is the
+ * render-time half of the same fail-closed rule sanitiseResponses applies
+ * at restoration and buildRepairBrief applies at brief generation — a
+ * contradictory stored value (the field's exclusiveValue, e.g. "unsure",
+ * alongside a real selection, which can only reach this function via a
+ * historical/hand-edited record that predates or bypassed those two
+ * boundaries) renders as nothing rather than the contradictory content
+ * itself, in every caller of this function (owner review, generated brief,
+ * confirmation, operator rendering) at once.
  */
 export function resolveAnswerLabels(
   category: RepairCategoryId,
@@ -1189,8 +1201,10 @@ export function resolveAnswerLabels(
   for (const step of schema.steps) {
     const field = step.fields.find((candidate) => candidate.id === fieldId);
     if (!field?.options) continue;
+    const normalisedRaw = field.type === "multi_select" ? normaliseMultiSelectValue(field, raw) : raw;
+    if (!normalisedRaw) return [];
     return field.options
-      .filter((option) => raw.includes(option.value))
+      .filter((option) => normalisedRaw.includes(option.value))
       .map((option) => (lang === "zh" ? option.label.zh : option.label.en));
   }
   return [];

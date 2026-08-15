@@ -313,6 +313,93 @@ test("readJourneyDraft drops an unknown response field id and an unrecognised op
   });
 });
 
+// Gate A fix: a persisted/restored v3 draft could contain an invalid
+// multi_select array (duplicates, a contradictory exclusive+real
+// combination, or reverse/click order) and readJourneyDraft accepted it
+// unchanged — the array could then reach journey state, the generated
+// brief and the submission payload with e.g. ["unsure","leak","leak"]
+// intact. sanitiseResponses (domain/journey.ts) now runs every restored
+// multi_select value through normaliseMultiSelectValue (domain/rules.ts)
+// at this exact restoration boundary. Uses plumbing's branchFirst field
+// (options: leak, no-water, pressure, fitting, colour, unsure, other).
+
+function storePlumbingDraftWithBranchFirst(journeyId: string, branchFirst: unknown, schemaVersion: number) {
+  window.localStorage.setItem(
+    `repairscope:journey:${journeyId}:draft`,
+    JSON.stringify({
+      journeyId,
+      category: "plumbing",
+      schemaVersion,
+      activeIndex: 0,
+      responses: { affected: "kitchen", branchFirst },
+      acknowledgements: {},
+      completedStepIds: [],
+    }),
+  );
+}
+
+test("readJourneyDraft: the exact Codex repro [\"unsure\",\"leak\",\"leak\"] does not survive restoration — the field reads back unanswered, not guessed at", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "codex-repro-journey";
+  storePlumbingDraftWithBranchFirst(journeyId, ["unsure", "leak", "leak"], questionnaireByCategory.plumbing.version);
+
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.plumbing);
+  assert.deepEqual(restored?.responses, { affected: "kitchen" });
+  assert.equal("branchFirst" in (restored?.responses ?? {}), false);
+});
+
+test("readJourneyDraft: A — duplicates only normalise to a single value", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "duplicates-only-journey";
+  storePlumbingDraftWithBranchFirst(journeyId, ["leak", "leak"], questionnaireByCategory.plumbing.version);
+
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.plumbing);
+  assert.deepEqual(restored?.responses.branchFirst, ["leak"]);
+});
+
+test("readJourneyDraft: B — reverse/click order normalises to the schema's own declared option order", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "reverse-order-journey";
+  storePlumbingDraftWithBranchFirst(journeyId, ["pressure", "leak", "other"], questionnaireByCategory.plumbing.version);
+
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.plumbing);
+  assert.deepEqual(restored?.responses.branchFirst, ["leak", "pressure", "other"]);
+});
+
+test("readJourneyDraft: C — the exclusive value alone remains a valid, answered field", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "exclusive-alone-journey";
+  storePlumbingDraftWithBranchFirst(journeyId, ["unsure"], questionnaireByCategory.plumbing.version);
+
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.plumbing);
+  assert.deepEqual(restored?.responses.branchFirst, ["unsure"]);
+});
+
+test("readJourneyDraft: D — the exclusive value alongside a real value is dropped, field reads back unanswered", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "exclusive-plus-real-journey";
+  storePlumbingDraftWithBranchFirst(journeyId, ["unsure", "leak"], questionnaireByCategory.plumbing.version);
+
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.plumbing);
+  assert.equal("branchFirst" in (restored?.responses ?? {}), false);
+});
+
+test("readJourneyDraft: E — an array containing an unknown option id is dropped entirely, field reads back unanswered", async () => {
+  const { readJourneyDraft } = await import("../domain/journey");
+  const { questionnaireByCategory } = await import("../data/questionnaires");
+  const journeyId = "unknown-option-journey";
+  storePlumbingDraftWithBranchFirst(journeyId, ["leak", "not-a-real-option"], questionnaireByCategory.plumbing.version);
+
+  const restored = readJourneyDraft(journeyId, questionnaireByCategory.plumbing);
+  assert.equal("branchFirst" in (restored?.responses ?? {}), false);
+});
+
+
 // Regression coverage for rework item "conditional restoration must remove
 // hidden values": restoration used to validate each response's own
 // key/value shape but never re-checked showWhen against the REST of the

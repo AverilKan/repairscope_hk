@@ -100,10 +100,40 @@ export function questionnaireFieldIsVisible(
  *   exclusive value if present (selecting a real symptom always
  *   deselects "Not sure"), then toggles that value normally.
  */
+/**
+ * The single schema-aware normalisation rule for a multi_select field's
+ * stored value, shared by every place a multi-select array is accepted from
+ * outside a single live toggle click: restored draft responses
+ * (domain/journey.ts's sanitiseResponses), the live toggle itself (below —
+ * canonicalising order after every click), and the generated brief /
+ * render boundary (domain/brief.ts, data/questionnaires.ts's
+ * resolveAnswerLabels) for both freshly-built and historical data.
+ *
+ * Returns null — never a best-effort guess — when the value is
+ * contradictory (the field's own exclusiveValue, e.g. "unsure", present
+ * alongside any other value): the caller must treat the field as
+ * unanswered rather than silently picking a side. Otherwise returns the
+ * value deduplicated and reordered into the field's own declared option
+ * order (never click/insertion order), so every consumer renders and
+ * submits the same deterministic shape.
+ */
+export function normaliseMultiSelectValue(
+  field: Pick<QuestionnaireField, "options" | "exclusiveValue">,
+  value: readonly string[],
+): string[] | null {
+  const deduped = [...new Set(value)];
+  if (field.exclusiveValue && deduped.includes(field.exclusiveValue) && deduped.length > 1) {
+    return null;
+  }
+  if (!field.options?.length) return deduped;
+  const dedupedSet = new Set(deduped);
+  return field.options.filter((option) => dedupedSet.has(option.value)).map((option) => option.value);
+}
+
 export function toggleMultiSelectValue(
   current: string[] | undefined,
   clickedValue: string,
-  field: Pick<QuestionnaireField, "exclusiveValue">,
+  field: Pick<QuestionnaireField, "options" | "exclusiveValue">,
 ): string[] {
   const currentValues = current ?? [];
   const { exclusiveValue } = field;
@@ -116,7 +146,12 @@ export function toggleMultiSelectValue(
   } else {
     withoutExclusive.add(clickedValue);
   }
-  return [...withoutExclusive];
+  const toggled = [...withoutExclusive];
+  // Always valid by construction (exclusivity already enforced above, every
+  // member came from a real option click) — normaliseMultiSelectValue here
+  // only ever reorders into canonical option order, but the null branch is
+  // kept so this stays correct if that invariant ever changes.
+  return normaliseMultiSelectValue(field, toggled) ?? toggled;
 }
 
 // Matches CJK Unified Ideographs (+ extension A, + compatibility) — the
