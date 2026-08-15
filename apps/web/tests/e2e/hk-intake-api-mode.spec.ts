@@ -43,13 +43,16 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   expect(capturedBody).toBeTruthy();
   const body = capturedBody!;
   expect(body.issue_category).toBe("leak");
-  expect(body.questionnaire_version).toBe("v2");
+  expect(body.questionnaire_version).toBe("v3");
   // The full exact set — not just a couple of fields via toMatchObject —
   // so a stray/stale field slipping into the payload would be caught.
+  // branchSecond is leak's multi_select observable-symptom field (see
+  // data/questionnaires.ts's symptomSlot) — a single click still submits an
+  // array, not a bare string.
   expect(body.questionnaire_answers).toEqual({
     affected: "ceiling",
     branchFirst: "rain",
-    branchSecond: "mark",
+    branchSecond: ["mark"],
     branchThird: "spot",
     safety: "none",
     duration: "week",
@@ -88,7 +91,7 @@ test("submission POSTs the exact expected payload: HK category, questionnaire ve
   expect(brief.observedFacts).toEqual({
     affected: "ceiling",
     branchFirst: "rain",
-    branchSecond: "mark",
+    branchSecond: ["mark"],
     branchThird: "spot",
     duration: "week",
     frequency: "occasional",
@@ -120,14 +123,20 @@ test("the final POST excludes hidden conditional fields even after entering a ch
     .getByRole("radiogroup", { name: "通常幾時出現？" })
     .getByRole("radio", { name: "落雨時／落雨之後" })
     .click();
+  // branchSecond is leak's multi_select observable-symptom field — rendered
+  // as role="group" with role="checkbox" options, not role="radiogroup".
   await page
-    .getByRole("radiogroup", { name: "見到嘅情況係點？" })
-    .getByRole("radio", { name: "水印／濕痕" })
+    .getByRole("group", { name: "見到嘅情況係點？" })
+    .getByRole("checkbox", { name: "水印／濕痕" })
     .click();
   await page
     .getByRole("radiogroup", { name: "影響範圍有幾大？" })
     .getByRole("radio", { name: "一小處" })
     .click();
+  // The "branch" step no longer auto-advances now that it contains a
+  // multi_select field (branchSecond) — an explicit continue is needed
+  // before the "safety" step's radiogroup exists to answer.
+  await page.getByRole("button", { name: "繼續" }).click();
   await page
     .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
     .getByRole("radio", { name: "以上都冇，可以繼續" })
@@ -273,4 +282,116 @@ test("submitting J1 does not clear J2's last-active pointer when the owner has s
   expect(lastActiveAfterJ1Submits).toBe(j2);
 
   await context.close();
+});
+
+// Task section 24's exact-payload requirement for the multi-select
+// observable-symptom change: array shape, Other text landing in its own
+// field, no stale hidden Other value, no duplicated values, Not sure never
+// coexisting with a real selection, the generated_brief containing every
+// selected observation, and every existing contact/consent field unchanged.
+test("multi-select payload: an array of symptoms plus Other text reach the backend correctly, and Not sure never coexists with a real selection", async ({
+  page,
+}) => {
+  let capturedBody: Record<string, unknown> | undefined;
+  await page.route("**/api/repair-submissions", async (route) => {
+    capturedBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({ public_reference: "RS-E2E05", status: "new", created_at: "2026-08-15T00:00:00.000Z" }),
+    });
+  });
+
+  await page.goto("/landlord/repairs/new");
+  await page.getByRole("radio", { name: /水喉問題/ }).click();
+  await page
+    .getByRole("radiogroup", { name: "邊個位置或設備受影響？" })
+    .getByRole("radio", { name: "廚房" })
+    .click();
+
+  const symptomGroup = page.locator('.pill-row[aria-label="你見到咩情況？"]');
+  // Select two real symptoms plus a third ("水有異色／鏽色"), then select Not
+  // sure — which must clear all three — then select real symptoms again.
+  // Proves the final payload reflects only the deliberate final state (Not
+  // sure never coexisting with anything, and the earlier "colour" selection
+  // never resurrected), not the full click history (see
+  // domain/rules.ts's toggleMultiSelectValue).
+  await symptomGroup.getByRole("checkbox", { name: "滴水／漏水" }).click();
+  await symptomGroup.getByRole("checkbox", { name: "水壓低／不穩" }).click();
+  await symptomGroup.getByRole("checkbox", { name: "水有異色／鏽色" }).click();
+  await symptomGroup.getByRole("checkbox", { name: "唔肯定" }).click();
+  await symptomGroup.getByRole("checkbox", { name: "滴水／漏水" }).click();
+  await symptomGroup.getByRole("checkbox", { name: "水壓低／不穩" }).click();
+  await symptomGroup.getByRole("checkbox", { name: "其他" }).click();
+  await page.getByLabel("其他情況", { exact: true }).fill("水龍頭開大時會有震動聲");
+
+  await page
+    .getByRole("radiogroup", { name: "問題通常幾時出現？" })
+    .getByRole("radio", { name: "長期都有" })
+    .click();
+  await page
+    .getByRole("radiogroup", { name: "而家可唔可以關水掣控制？" })
+    .getByRole("radio", { name: "可以", exact: true })
+    .click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page
+    .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
+    .getByRole("radio", { name: "以上都冇，可以繼續" })
+    .click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("radiogroup", { name: "幾時開始？" }).getByRole("radio", { name: "一星期內" }).click();
+  await page.getByRole("radiogroup", { name: "幾常出現？" }).getByRole("radio", { name: "間中" }).click();
+  await page.getByRole("radiogroup", { name: "有冇惡化？" }).getByRole("radio", { name: "唔肯定" }).click();
+  await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "冇" }).click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page
+    .getByRole("radiogroup", { name: "你有冇維修相片、影片、報告或現有報價？" })
+    .getByRole("radio", { name: "冇" })
+    .click();
+  await page.getByRole("radiogroup", { name: "有冇聯絡過管理處？" }).getByRole("radio", { name: "未有聯絡" }).click();
+  await page
+    .getByRole("radiogroup", { name: "問題有冇可能同樓上、隔離單位或者公用地方有關？" })
+    .getByRole("radio", { name: "唔肯定" })
+    .click();
+  await page.getByRole("radiogroup", { name: "開門安排" }).getByRole("radio", { name: "業主本人" }).click();
+  await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("radiogroup", { name: "地區" }).getByRole("radio", { name: "東區" }).click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
+  await page.getByRole("button", { name: "整理維修簡報" }).click();
+  await expect(page.getByText("維修資料摘要")).toBeVisible();
+
+  await fillAndSubmitContactForm(page);
+  await expect(page.getByText("RS-E2E05")).toBeVisible();
+
+  expect(capturedBody).toBeTruthy();
+  const body = capturedBody!;
+  expect(body.issue_category).toBe("plumbing");
+  expect(body.questionnaire_version).toBe("v3");
+
+  const answers = body.questionnaire_answers as Record<string, unknown>;
+  // Exact array shape — final selection only ("water有異色" deselected
+  // again, "unsure" never survives once a real symptom was chosen), no
+  // duplicates, Not sure absent entirely.
+  expect(answers.branchFirst).toEqual(["leak", "pressure", "other"]);
+  expect(Array.isArray(answers.branchFirst)).toBe(true);
+  expect((answers.branchFirst as string[]).includes("unsure")).toBe(false);
+  expect(new Set(answers.branchFirst as string[]).size).toBe((answers.branchFirst as string[]).length);
+  // Other's free text lands in its own field, not merged into the array.
+  expect(answers.symptomOther).toBe("水龍頭開大時會有震動聲");
+
+  // Every other existing contact/consent field is unchanged by this feature.
+  expect(body.landlord_name).toBe("陳大文");
+  expect(body.landlord_email).toBe("test@example.com");
+  expect(body.preferred_contact_method).toBe("email");
+  expect(body.consent_to_contact).toBe(true);
+  expect(body.consent_to_share_with_contractors).toBe(false);
+
+  // The generated brief carries every selected observation and the Other
+  // text too — never dropped, never collapsed into a single value.
+  const brief = body.generated_brief as Record<string, unknown>;
+  const observedFacts = brief.observedFacts as Record<string, unknown>;
+  expect(observedFacts.branchFirst).toEqual(["leak", "pressure", "other"]);
+  expect(observedFacts.symptomOther).toBe("水龍頭開大時會有震動聲");
 });

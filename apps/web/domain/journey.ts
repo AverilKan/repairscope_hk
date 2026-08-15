@@ -35,6 +35,12 @@ function isValidResponseValue(field: QuestionnaireField, value: unknown): boolea
       // list — a value that is not one of them is not a value the current
       // questionnaire could have produced.
       return !field.options?.length || field.options.some((option) => option.value === value);
+    case "multi_select":
+      if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) return false;
+      return (
+        !field.options?.length ||
+        (value as string[]).every((entry) => field.options!.some((option) => option.value === entry))
+      );
     case "grouped_select":
       if (typeof value !== "string") return false;
       return (
@@ -413,6 +419,12 @@ function isValidSourceDocument(value: unknown): boolean {
   );
 }
 
+// Exactly one of these three per category is the multi_select "what can
+// you observe" field and so may legitimately hold a string[] (see
+// domain/types.ts's ProblemBrief.observedFacts comment) — the other two,
+// and every field outside this set, remain scalar-only.
+const OBSERVED_FACTS_ARRAY_CAPABLE_KEYS = new Set(["branchFirst", "branchSecond", "branchThird"]);
+
 function isValidObservedFacts(value: unknown): boolean {
   if (value === undefined) return true;
   if (!isPlainObject(value)) return false;
@@ -421,11 +433,16 @@ function isValidObservedFacts(value: unknown): boolean {
     "branchFirst",
     "branchSecond",
     "branchThird",
+    "symptomOther",
     "duration",
     "frequency",
     "worsening",
   ]);
-  return Object.entries(value).every(([key, entry]) => allowedKeys.has(key) && isOptionalString(entry));
+  return Object.entries(value).every(([key, entry]) => {
+    if (!allowedKeys.has(key)) return false;
+    if (OBSERVED_FACTS_ARRAY_CAPABLE_KEYS.has(key)) return isOptionalString(entry) || isStringArray(entry);
+    return isOptionalString(entry);
+  });
 }
 
 function isValidPriorAction(value: unknown): boolean {

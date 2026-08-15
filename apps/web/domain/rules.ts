@@ -1,5 +1,6 @@
 import type { Lang } from "./i18n";
 import type {
+  QuestionnaireField,
   QuestionnaireSchema,
   QuestionnaireStep,
   RepairIntakeDraft,
@@ -39,6 +40,7 @@ export function validateQuestionnaireSchemas(
         fieldIds.add(field.id);
         if (
           (field.type === "single_select" ||
+            field.type === "multi_select" ||
             field.type === "grouped_select") &&
           !field.options?.length &&
           !field.groups?.length
@@ -73,7 +75,48 @@ export function questionnaireFieldIsVisible(
   if (!field.showWhen) return true;
   const { equals, fieldId } = field.showWhen;
   const actual = responses[fieldId];
-  return Array.isArray(equals) ? equals.includes(actual as string) : actual === equals;
+  const expected = Array.isArray(equals) ? equals : [equals];
+  // A source field can itself now be multi_select (e.g. the "other" text
+  // field's showWhen watches whether "other" is among the selected
+  // observations) — visible when ANY selected value matches. A scalar
+  // source field behaves exactly as before: expected.includes(actual) is
+  // equivalent to the previous actual===equals / equals.includes(actual)
+  // branches.
+  if (Array.isArray(actual)) {
+    return actual.some((value) => expected.includes(value));
+  }
+  return expected.includes(actual as string);
+}
+
+/**
+ * Applies a click on `clickedValue` to a multi_select field's current
+ * selection, honouring `field.exclusiveValue` (e.g. "unsure" — mutually
+ * exclusive with everything else, including `otherValue`) and
+ * `field.otherValue` (e.g. "other" — a normal, non-exclusive selection).
+ *
+ * - Clicking the exclusive value toggles the WHOLE selection to just that
+ *   value (or to empty, if it was already the only thing selected).
+ * - Clicking any other value (including otherValue) first drops the
+ *   exclusive value if present (selecting a real symptom always
+ *   deselects "Not sure"), then toggles that value normally.
+ */
+export function toggleMultiSelectValue(
+  current: string[] | undefined,
+  clickedValue: string,
+  field: Pick<QuestionnaireField, "exclusiveValue">,
+): string[] {
+  const currentValues = current ?? [];
+  const { exclusiveValue } = field;
+  if (exclusiveValue && clickedValue === exclusiveValue) {
+    return currentValues.includes(exclusiveValue) ? [] : [exclusiveValue];
+  }
+  const withoutExclusive = new Set(currentValues.filter((value) => value !== exclusiveValue));
+  if (withoutExclusive.has(clickedValue)) {
+    withoutExclusive.delete(clickedValue);
+  } else {
+    withoutExclusive.add(clickedValue);
+  }
+  return [...withoutExclusive];
 }
 
 // Matches CJK Unified Ideographs (+ extension A, + compatibility) — the
@@ -282,6 +325,9 @@ function missingFieldMessage(field: QuestionnaireStep["fields"][number], lang: L
   if (field.id === "repairResponsibility") {
     return lang === "zh" ? "請記低而家對維修責任嘅了解。" : "Record the current understanding of repair responsibility.";
   }
+  if (field.id === "symptomOther") {
+    return lang === "zh" ? "請簡單講低你見到嘅情況。" : "Briefly describe what you are seeing.";
+  }
   return lang === "zh" ? "請先回答呢題先可以繼續。" : "Add an answer before continuing.";
 }
 
@@ -358,6 +404,26 @@ export function safetyAnswersAreUnprefilled(
     .every((field) => responses[field.id] === undefined);
 }
 
+/**
+ * Whether a field's current answer contains one of its own safety rule's
+ * trigger values — true for a scalar answer equal to a trigger value
+ * (single_select, the only shape a safety-rule-bearing field had before
+ * multi_select existed), and equally true for a multi_select answer that
+ * merely CONTAINS a trigger value alongside other, non-triggering
+ * selections (e.g. ["tripping", "smell-sparks"]) — the presence of any
+ * dangerous symptom must trigger the exit regardless of what else was
+ * also selected, not only when it is the sole selection.
+ */
+export function responseTriggersSafetyRule(
+  field: Pick<QuestionnaireField, "safetyRule">,
+  value: RepairIntakeDraft["responses"][string] | undefined,
+): boolean {
+  if (!field.safetyRule) return false;
+  const triggerValues = field.safetyRule.triggerValues;
+  if (Array.isArray(value)) return value.some((entry) => triggerValues.includes(entry as string));
+  return typeof value === "string" && triggerValues.includes(value);
+}
+
 export function safetyAcknowledgementIsRequired(
   schema: QuestionnaireSchema,
   stepIndex: number,
@@ -365,14 +431,7 @@ export function safetyAcknowledgementIsRequired(
 ): boolean {
   const step = schema.steps[stepIndex];
   if (!step) return false;
-  return step.fields.some((field) => {
-    const value = responses[field.id];
-    return Boolean(
-      field.safetyRule &&
-        typeof value === "string" &&
-        field.safetyRule.triggerValues.includes(value),
-    );
-  });
+  return step.fields.some((field) => responseTriggersSafetyRule(field, responses[field.id]));
 }
 
 export function canContinueQuestionnaireStep(

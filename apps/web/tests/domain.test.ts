@@ -138,9 +138,14 @@ test("category-first: standard categories ask affected area then three branch fa
   const leak = questionnaireByCategory.leak;
   assert.deepEqual(leak.steps.slice(0, 2).map((step) => step.id), ["affected", "branch"]);
   const branchStep = leak.steps[1];
+  // symptomOther is the companion free-text field for whichever branch
+  // field is this category's multi_select observation question (leak's
+  // own is branchSecond — see data/questionnaires.ts's symptomSlot) — it
+  // is always present in the step's static field list, only conditionally
+  // VISIBLE (via showWhen) at render/validation time.
   assert.deepEqual(
     branchStep.fields.map((field) => field.id),
-    ["branchFirst", "branchSecond", "branchThird"],
+    ["branchFirst", "branchSecond", "branchThird", "symptomOther"],
   );
 });
 

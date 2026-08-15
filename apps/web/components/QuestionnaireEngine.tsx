@@ -9,6 +9,8 @@ import {
   questionnaireResumeState,
   questionnaireStepUsesAutomaticProgression,
   questionnaireStepValidationErrors,
+  responseTriggersSafetyRule,
+  toggleMultiSelectValue,
 } from "@/domain/rules";
 import { intakeStageForStep } from "@/data/questionnaires";
 import type {
@@ -103,6 +105,15 @@ export function QuestionnaireEngine({
     }
     if (field.type === "single_select" && typeof value === "string") {
       return t(field.options?.find((option) => option.value === value)?.label ?? { zh: value, en: value });
+    }
+    if (field.type === "multi_select" && Array.isArray(value)) {
+      // Same option-array order as everywhere else this is shown (owner
+      // review, generated brief, confirmation, operator) — see
+      // data/questionnaires.ts's resolveAnswerLabels.
+      const labels = (field.options ?? [])
+        .filter((option) => value.includes(option.value))
+        .map((option) => t(option.label));
+      return labels.length > 0 ? labels.join(lang === "zh" ? "、" : ", ") : (lang === "zh" ? "未提供" : "Not provided");
     }
     if (typeof value === "boolean") return value ? (lang === "zh" ? "已確認" : "Confirmed") : (lang === "zh" ? "未確認" : "Not confirmed");
     return String(value);
@@ -272,9 +283,11 @@ export function QuestionnaireEngine({
 
   const activeSafetyRule = useMemo(() => {
     for (const field of currentStep.fields) {
-      if (!field.safetyRule) continue;
-      const response = responses[field.id];
-      if (typeof response === "string" && field.safetyRule.triggerValues.includes(response)) {
+      // A multi_select field's answer is an array — the presence of a
+      // trigger value anywhere in it (e.g. ["tripping", "smell-sparks"])
+      // must still trigger the exit, regardless of what else was also
+      // selected. See domain/rules.ts's responseTriggersSafetyRule.
+      if (responseTriggersSafetyRule(field, responses[field.id])) {
         return field.safetyRule;
       }
     }
@@ -599,6 +612,47 @@ function FieldControl({
                 className={checked ? "selected" : ""}
                 key={item.value}
                 onClick={() => onChange(item.value)}
+              >
+                {display === "list" && (
+                  <span className="choice-list-radio" aria-hidden="true">
+                    {checked ? "✓" : ""}
+                  </span>
+                )}
+                {display === "grid" && (
+                  <span aria-hidden="true">{checked ? "✓" : "→"}</span>
+                )}
+                <strong>{t(item.label)}</strong>
+                {item.hint && <small>{t(item.hint)}</small>}
+              </button>
+            );
+          })}
+        </div>
+        {error && <p className="field-error" id={errorId}>{error}</p>}
+      </fieldset>
+    );
+  }
+
+  if (field.type === "multi_select") {
+    const display = field.display ?? "pill";
+    const containerClass = display === "pill" ? "pill-row" : display === "grid" ? "card-grid" : "choice-list";
+    const selected = Array.isArray(value) ? value : [];
+    return (
+      <fieldset className={`choice-field ${error ? "field--error" : ""}`} aria-describedby={describedBy}>
+        <legend>{t(field.label)}</legend>
+        {field.help && (
+          <p id={helpId} className="field-help">{t(field.help)}</p>
+        )}
+        <div className={containerClass} role="group" aria-label={t(field.label)}>
+          {field.options?.map((item) => {
+            const checked = selected.includes(item.value);
+            return (
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                className={checked ? "selected" : ""}
+                key={item.value}
+                onClick={() => onChange(toggleMultiSelectValue(selected, item.value, field))}
               >
                 {display === "list" && (
                   <span className="choice-list-radio" aria-hidden="true">

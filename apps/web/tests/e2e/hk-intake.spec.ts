@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import {
   RADIOGROUP,
+  checkbox,
   extractJourneyId,
   fillAndSubmitContactForm,
   finishLeakJourneyToBrief,
@@ -147,8 +148,12 @@ test.describe("category change", () => {
     await page.getByRole("radio", { name: /滲水／漏水/ }).click();
     await radio(page, "affected", "天花").click();
     await radio(page, "branchFirst", "落雨時／落雨之後").click();
-    await radio(page, "branchSecond", "水印／濕痕").click();
+    await checkbox(page, "branchSecond", "水印／濕痕").click();
     await radio(page, "branchThird", "一小處").click();
+    // The "branch" step no longer auto-advances now that it contains a
+    // multi_select field (branchSecond) — an explicit continue is needed
+    // before the "safety" step's radiogroup exists to answer.
+    await page.getByRole("button", { name: "繼續" }).click();
 
     // "safety" is a shared field (safetyStep is in every category's
     // schema — see sharedTailFieldIds) — answer it and change category
@@ -180,7 +185,11 @@ test.describe("safety exit", () => {
     await page.getByRole("radio", { name: /電力／跳掣／冇電/ }).click();
     await page.getByRole("radio", { name: "一個房間" }).click();
 
-    await page.getByRole("radio", { name: "燒焦味／煙／火花" }).click();
+    // electrical's branchFirst is the multi_select observable-symptom field
+    // for this category (symptomSlot: "first" — it carries the smell/sparks
+    // safety trigger, see data/questionnaires.ts), so this option is a
+    // role="checkbox" inside role="group", not role="radio".
+    await page.getByRole("checkbox", { name: "燒焦味／煙／火花" }).click();
 
     await expect(page.getByText("有即時危險：撥 999")).toBeVisible();
     await expect(page.getByRole("link", { name: /999/ })).toBeVisible();
@@ -199,8 +208,12 @@ test.describe("conditional question display", () => {
     await page.getByRole("radio", { name: /滲水／漏水/ }).click();
     await radio(page, "affected", "天花").click();
     await radio(page, "branchFirst", "落雨時／落雨之後").click();
-    await radio(page, "branchSecond", "水印／濕痕").click();
+    await checkbox(page, "branchSecond", "水印／濕痕").click();
     await radio(page, "branchThird", "一小處").click();
+    // The "branch" step no longer auto-advances now that it contains a
+    // multi_select field (branchSecond) — an explicit continue is needed
+    // before the "safety" step's radiogroup exists to answer.
+    await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "safety", "以上都冇，可以繼續").click();
     await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "duration", "一星期內").click();
@@ -220,8 +233,12 @@ test.describe("conditional question display", () => {
     await page.getByRole("radio", { name: /滲水／漏水/ }).click();
     await radio(page, "affected", "天花").click();
     await radio(page, "branchFirst", "落雨時／落雨之後").click();
-    await radio(page, "branchSecond", "水印／濕痕").click();
+    await checkbox(page, "branchSecond", "水印／濕痕").click();
     await radio(page, "branchThird", "一小處").click();
+    // The "branch" step no longer auto-advances now that it contains a
+    // multi_select field (branchSecond) — an explicit continue is needed
+    // before the "safety" step's radiogroup exists to answer.
+    await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "safety", "以上都冇，可以繼續").click();
     await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "duration", "一星期內").click();
@@ -243,8 +260,12 @@ test.describe("conditional question display", () => {
     await page.getByRole("radio", { name: /滲水／漏水/ }).click();
     await radio(page, "affected", "天花").click();
     await radio(page, "branchFirst", "落雨時／落雨之後").click();
-    await radio(page, "branchSecond", "水印／濕痕").click();
+    await checkbox(page, "branchSecond", "水印／濕痕").click();
     await radio(page, "branchThird", "一小處").click();
+    // The "branch" step no longer auto-advances now that it contains a
+    // multi_select field (branchSecond) — an explicit continue is needed
+    // before the "safety" step's radiogroup exists to answer.
+    await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "safety", "以上都冇，可以繼續").click();
     await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "duration", "一星期內").click();
@@ -347,8 +368,12 @@ test.describe("generated brief content", () => {
     await page.getByRole("radio", { name: /滲水／漏水/ }).click();
     await radio(page, "affected", "天花").click();
     await radio(page, "branchFirst", "唔肯定").click();
-    await radio(page, "branchSecond", "唔肯定").click();
+    await checkbox(page, "branchSecond", "唔肯定").click();
     await radio(page, "branchThird", "唔肯定").click();
+    // The "branch" step no longer auto-advances now that it contains a
+    // multi_select field (branchSecond) — an explicit continue is needed
+    // before the "safety" step's radiogroup exists to answer.
+    await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "safety", "以上都冇，可以繼續").click();
     await page.getByRole("button", { name: "繼續" }).click();
 
@@ -849,8 +874,12 @@ test.describe("owner-summary responsive layout", () => {
     await page.getByRole("radio", { name: /滲水／漏水/ }).click();
     await radio(page, "affected", "天花").click();
     await radio(page, "branchFirst", "落雨時／落雨之後").click();
-    await radio(page, "branchSecond", "水印／濕痕").click();
+    await checkbox(page, "branchSecond", "水印／濕痕").click();
     await radio(page, "branchThird", "一小處").click();
+    // The "branch" step no longer auto-advances now that it contains a
+    // multi_select field (branchSecond) — an explicit continue is needed
+    // before the "safety" step's radiogroup exists to answer.
+    await page.getByRole("button", { name: "繼續" }).click();
     await radio(page, "safety", "以上都冇，可以繼續").click();
     await page.getByRole("button", { name: "繼續" }).click();
 
@@ -1079,4 +1108,675 @@ test.describe("hk phone validation", () => {
     await page.getByLabel("香港聯絡電話").fill("9123 4567");
     await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeEnabled();
   });
+});
+
+// Multi-select observable symptoms (see data/questionnaires.ts's symptomSlot
+// and multiSelect helper) — a real owner test found that these
+// what-do-you-see questions only allowed one answer, but real repair
+// situations often show more than one symptom at once. Scenarios A-J below
+// exercise every documented interaction for plumbing's branchFirst, the
+// category whose symptom field sits in the DEFAULT slot ("first"); a
+// smaller smoke pass at the end covers leak's branchSecond (the one
+// category whose symptom field sits in the non-default "second" slot) to
+// prove the mechanism is not accidentally hard-coded to "first".
+test.describe("multi-select observable symptoms", () => {
+  async function goToPlumbingBranchStep(page: import("@playwright/test").Page) {
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /水喉問題/ }).click();
+    await page
+      .getByRole("radiogroup", { name: "邊個位置或設備受影響？" })
+      .getByRole("radio", { name: "廚房" })
+      .click();
+    await expect(page.locator('.pill-row[aria-label="你見到咩情況？"]')).toBeVisible();
+  }
+
+  function symptomGroup(page: import("@playwright/test").Page) {
+    return page.locator('.pill-row[aria-label="你見到咩情況？"]');
+  }
+
+  // A. One normal selection.
+  test("A: selecting a single symptom checks only that option", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    const leakOption = symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" });
+    await leakOption.click();
+    await expect(leakOption).toHaveAttribute("aria-checked", "true");
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "水壓低／不穩" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  // B. Two or more normal selections — the task's own worked example
+  // (dripping + low pressure + discoloured water).
+  test("B: selecting multiple symptoms checks all of them, and the brief renders every one in canonical option order regardless of click order", async ({
+    page,
+  }) => {
+    await goToPlumbingBranchStep(page);
+    // Click out of canonical order (colour before leak before pressure).
+    await symptomGroup(page).getByRole("checkbox", { name: "水有異色／鏽色" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "水壓低／不穩" }).click();
+
+    for (const name of ["水有異色／鏽色", "滴水／漏水", "水壓低／不穩"]) {
+      await expect(symptomGroup(page).getByRole("checkbox", { name })).toHaveAttribute("aria-checked", "true");
+    }
+
+    await page
+      .getByRole("radiogroup", { name: "問題通常幾時出現？" })
+      .getByRole("radio", { name: "長期都有" })
+      .click();
+    await page
+      .getByRole("radiogroup", { name: "而家可唔可以關水掣控制？" })
+      .getByRole("radio", { name: "可以", exact: true })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
+      .getByRole("radio", { name: "以上都冇，可以繼續" })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "幾時開始？" }).getByRole("radio", { name: "一星期內" }).click();
+    await page.getByRole("radiogroup", { name: "幾常出現？" }).getByRole("radio", { name: "間中" }).click();
+    await page.getByRole("radiogroup", { name: "有冇惡化？" }).getByRole("radio", { name: "唔肯定" }).click();
+    await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "冇" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "你有冇維修相片、影片、報告或現有報價？" })
+      .getByRole("radio", { name: "冇" })
+      .click();
+    await page.getByRole("radiogroup", { name: "有冇聯絡過管理處？" }).getByRole("radio", { name: "未有聯絡" }).click();
+    await page
+      .getByRole("radiogroup", { name: "問題有冇可能同樓上、隔離單位或者公用地方有關？" })
+      .getByRole("radio", { name: "唔肯定" })
+      .click();
+    await page.getByRole("radiogroup", { name: "開門安排" }).getByRole("radio", { name: "業主本人" }).click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "地區" }).getByRole("radio", { name: "東區" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+
+    // Canonical option order (滴水／漏水 before 水壓低／不穩 before
+    // 水有異色／鏽色 in the schema's own options array), joined into one row
+    // — not click order, which was colour, leak, pressure. The owner review
+    // uses the concise summary label ("見到嘅情況"), not the raw question
+    // text ("你見到咩情況？") — see domain/brief.ts's CONCISE_BRANCH_LABELS.
+    await expect(page.getByText("見到嘅情況：滴水／漏水、水壓低／不穩、水有異色／鏽色")).toBeVisible();
+  });
+
+  // C. Not sure only.
+  test("C: selecting only Not sure checks it and nothing else", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "唔肯定" }).click();
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "唔肯定" })).toHaveAttribute("aria-checked", "true");
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  // D. Select Not sure, then select a real symptom — Not sure must clear.
+  test("D: choosing Not sure then a real symptom clears Not sure, never submits both", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "唔肯定" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" }).click();
+
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "唔肯定" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  // E. Select real symptoms, then Not sure — everything else must clear.
+  test("E: choosing real symptoms then Not sure clears every real symptom", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "水壓低／不穩" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "唔肯定" }).click();
+
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "唔肯定" })).toHaveAttribute("aria-checked", "true");
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "水壓低／不穩" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  // F. Other only, with text.
+  test("F: Other alone reveals the free-text field, and its text reaches the brief as its own row", async ({
+    page,
+  }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "其他" }).click();
+    const otherText = page.getByLabel("其他情況", { exact: true });
+    await expect(otherText).toBeVisible();
+    await otherText.fill("水龍頭開大時會有震動聲");
+
+    await page
+      .getByRole("radiogroup", { name: "問題通常幾時出現？" })
+      .getByRole("radio", { name: "長期都有" })
+      .click();
+    await page
+      .getByRole("radiogroup", { name: "而家可唔可以關水掣控制？" })
+      .getByRole("radio", { name: "可以", exact: true })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
+      .getByRole("radio", { name: "以上都冇，可以繼續" })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "幾時開始？" }).getByRole("radio", { name: "一星期內" }).click();
+    await page.getByRole("radiogroup", { name: "幾常出現？" }).getByRole("radio", { name: "間中" }).click();
+    await page.getByRole("radiogroup", { name: "有冇惡化？" }).getByRole("radio", { name: "唔肯定" }).click();
+    await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "冇" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "你有冇維修相片、影片、報告或現有報價？" })
+      .getByRole("radio", { name: "冇" })
+      .click();
+    await page.getByRole("radiogroup", { name: "有冇聯絡過管理處？" }).getByRole("radio", { name: "未有聯絡" }).click();
+    await page
+      .getByRole("radiogroup", { name: "問題有冇可能同樓上、隔離單位或者公用地方有關？" })
+      .getByRole("radio", { name: "唔肯定" })
+      .click();
+    await page.getByRole("radiogroup", { name: "開門安排" }).getByRole("radio", { name: "業主本人" }).click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "地區" }).getByRole("radio", { name: "東區" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+
+    // Other-only: no bare "其他" leaking into the main row, and no empty
+    // "你見到咩情況：" row either — only the dedicated "其他情況" row.
+    await expect(page.getByText("你見到咩情況：", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("其他情況：水龍頭開大時會有震動聲")).toBeVisible();
+  });
+
+  // G. Normal symptom + Other + text — Other coexists, never exclusive.
+  test("G: a normal symptom plus Other both stay checked together", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "其他" }).click();
+
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "其他" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByLabel("其他情況", { exact: true })).toBeVisible();
+  });
+
+  // H. Other selected with empty text — cannot continue.
+  test("H: Other selected with no text blocks continuing past the branch step", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "其他" }).click();
+    await page
+      .getByRole("radiogroup", { name: "問題通常幾時出現？" })
+      .getByRole("radio", { name: "長期都有" })
+      .click();
+    await page
+      .getByRole("radiogroup", { name: "而家可唔可以關水掣控制？" })
+      .getByRole("radio", { name: "可以", exact: true })
+      .click();
+
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    // Still on the branch step — the empty required "其他情況" text field
+    // blocked continuation, with its own validation error shown (see
+    // domain/rules.ts's missingFieldMessage symptomOther case).
+    await expect(symptomGroup(page)).toBeVisible();
+    await expect(page.getByText("請簡單講低你見到嘅情況。")).toBeVisible();
+  });
+
+  // I. Other deselected — hidden stale text not submitted.
+  test("I: deselecting Other clears its stale text from storage", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "其他" }).click();
+    await page.getByLabel("其他情況", { exact: true }).fill("有怪聲");
+    await symptomGroup(page).getByRole("checkbox", { name: "其他" }).click();
+
+    await expect(page.getByLabel("其他情況", { exact: true })).toHaveCount(0);
+
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          for (let i = 0; i < window.localStorage.length; i += 1) {
+            const key = window.localStorage.key(i);
+            if (key?.includes(":draft")) return window.localStorage.getItem(key);
+          }
+          return null;
+        }),
+      )
+      .not.toContain("有怪聲");
+  });
+
+  // J. Edit Answers restores every selection, Not-sure state, Other state
+  // and Other text.
+  test("J: Edit Answers restores multi-select symptoms, Other selection and Other text", async ({ page }) => {
+    await goToPlumbingBranchStep(page);
+    await symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "水壓低／不穩" }).click();
+    await symptomGroup(page).getByRole("checkbox", { name: "其他" }).click();
+    await page.getByLabel("其他情況", { exact: true }).fill("水龍頭開大時會有震動聲");
+
+    await page
+      .getByRole("radiogroup", { name: "問題通常幾時出現？" })
+      .getByRole("radio", { name: "長期都有" })
+      .click();
+    await page
+      .getByRole("radiogroup", { name: "而家可唔可以關水掣控制？" })
+      .getByRole("radio", { name: "可以", exact: true })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "而家有冇以下即時危險？" })
+      .getByRole("radio", { name: "以上都冇，可以繼續" })
+      .click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "幾時開始？" }).getByRole("radio", { name: "一星期內" }).click();
+    await page.getByRole("radiogroup", { name: "幾常出現？" }).getByRole("radio", { name: "間中" }).click();
+    await page.getByRole("radiogroup", { name: "有冇惡化？" }).getByRole("radio", { name: "唔肯定" }).click();
+    await page.getByRole("radiogroup", { name: "之前處理" }).getByRole("radio", { name: "冇" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page
+      .getByRole("radiogroup", { name: "你有冇維修相片、影片、報告或現有報價？" })
+      .getByRole("radio", { name: "冇" })
+      .click();
+    await page.getByRole("radiogroup", { name: "有冇聯絡過管理處？" }).getByRole("radio", { name: "未有聯絡" }).click();
+    await page
+      .getByRole("radiogroup", { name: "問題有冇可能同樓上、隔離單位或者公用地方有關？" })
+      .getByRole("radio", { name: "唔肯定" })
+      .click();
+    await page.getByRole("radiogroup", { name: "開門安排" }).getByRole("radio", { name: "業主本人" }).click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "地區" }).getByRole("radio", { name: "東區" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await page.getByRole("radiogroup", { name: "處理身份" }).getByRole("radio", { name: "自住業主" }).click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
+
+    await page.getByRole("button", { name: "更改問卷答案" }).click();
+
+    // Edit Answers resumes questionnaire editing at the last step, with
+    // every earlier step (including "branch") rendered as a completed,
+    // editable summary — jump directly back to it via its own "更正" (Edit)
+    // button rather than stepping backwards one at a time.
+    await page.locator("#question-branch").getByRole("button", { name: "更正" }).click();
+    await expect(symptomGroup(page)).toBeVisible();
+
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "滴水／漏水" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "水壓低／不穩" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(symptomGroup(page).getByRole("checkbox", { name: "其他" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByLabel("其他情況", { exact: true })).toHaveValue("水龍頭開大時會有震動聲");
+  });
+
+  // Smoke pass for leak's branchSecond (symptomSlot: "second") — proves the
+  // multi-select mechanism works in the non-default slot too, not just
+  // plumbing's default "first" slot.
+  test("leak's branchSecond (the non-default symptom slot) supports multiple selections plus Other", async ({
+    page,
+  }) => {
+    const journeyId = await startLeakJourneyThroughBuilding(page);
+    void journeyId;
+    // startLeakJourneyThroughBuilding already selected one branchSecond
+    // option ("水印／濕痕") — add a second and Other here instead of
+    // restarting, to prove co-selection works in this slot too.
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /滲水／漏水/ }).click();
+    await page
+      .getByRole("radiogroup", { name: "發現問題喺邊度？" })
+      .getByRole("radio", { name: "天花" })
+      .click();
+    await page
+      .getByRole("radiogroup", { name: "通常幾時出現？" })
+      .getByRole("radio", { name: "落雨時／落雨之後" })
+      .click();
+    const leakBranchSecond = page.locator('.pill-row[aria-label="見到嘅情況係點？"]');
+    await leakBranchSecond.getByRole("checkbox", { name: "水印／濕痕" }).click();
+    await leakBranchSecond.getByRole("checkbox", { name: "發霉／油漆剝落" }).click();
+    await leakBranchSecond.getByRole("checkbox", { name: "其他" }).click();
+    await page.getByLabel("其他情況", { exact: true }).fill("有陣怪味");
+
+    await expect(leakBranchSecond.getByRole("checkbox", { name: "水印／濕痕" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(leakBranchSecond.getByRole("checkbox", { name: "發霉／油漆剝落" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await expect(leakBranchSecond.getByRole("checkbox", { name: "其他" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+// Cross-category coverage (task section 23): every one of the 8 structured
+// categories has its own observable-symptom question converted to
+// multi_select (see data/questionnaires.ts's symptomSlot per category,
+// audited by meaning, not by field-id assumption) — reaches a generated
+// brief with two co-selected symptoms rendered together, in the schema's
+// own declared option order, under that category's own concise label
+// (domain/brief.ts's CONCISE_BRANCH_LABELS). "other" and "unsure" have no
+// branch step at all (otherDetailStep is a single free-text field) and are
+// covered separately below to confirm that flow is genuinely untouched.
+const MULTI_SELECT_CATEGORIES: Array<{
+  name: string;
+  categoryRegex: RegExp;
+  affectedGroup: string;
+  affectedOption: string;
+  symptomGroup: string;
+  symptomOptions: [string, string];
+  otherBranchFields: [{ label: string; option: string }, { label: string; option: string }];
+  conciseLabel: string;
+}> = [
+  {
+    name: "leak",
+    categoryRegex: /滲水／漏水/,
+    affectedGroup: "發現問題喺邊度？",
+    affectedOption: "天花",
+    symptomGroup: "見到嘅情況係點？",
+    symptomOptions: ["水印／濕痕", "滴水"],
+    otherBranchFields: [
+      { label: "通常幾時出現？", option: "落雨時／落雨之後" },
+      { label: "影響範圍有幾大？", option: "一小處" },
+    ],
+    conciseLabel: "見到嘅情況",
+  },
+  {
+    name: "drainage",
+    categoryRegex: /去水／渠務問題/,
+    affectedGroup: "邊個去水位有問題？",
+    affectedOption: "座廁",
+    symptomGroup: "去水情況係點？",
+    symptomOptions: ["完全塞咗", "去水好慢"],
+    otherBranchFields: [
+      { label: "之前有冇試過？", option: "第一次" },
+      { label: "有幾多個去水位受影響？", option: "一個" },
+    ],
+    conciseLabel: "去水情況",
+  },
+  {
+    name: "plumbing",
+    categoryRegex: /水喉問題/,
+    affectedGroup: "邊個位置或設備受影響？",
+    affectedOption: "廚房",
+    symptomGroup: "你見到咩情況？",
+    symptomOptions: ["滴水／漏水", "水壓低／不穩"],
+    otherBranchFields: [
+      { label: "問題通常幾時出現？", option: "長期都有" },
+      { label: "而家可唔可以關水掣控制？", option: "可以" },
+    ],
+    conciseLabel: "見到嘅情況",
+  },
+  {
+    name: "electrical",
+    categoryRegex: /電力／跳掣／冇電/,
+    affectedGroup: "影響邊個範圍？",
+    affectedOption: "一個房間",
+    symptomGroup: "你見到咩情況？",
+    // Deliberately avoids "smell-sparks" (燒焦味／煙／火花), which triggers
+    // the category's own safety exit — covered separately by the "safety
+    // exit" describe block above.
+    symptomOptions: ["跳掣", "插座／開關有問題"],
+    otherBranchFields: [
+      { label: "之前有冇發生過？", option: "今次第一次" },
+      { label: "受影響設備而家仲有冇使用？", option: "仲使用緊" },
+    ],
+    conciseLabel: "見到嘅情況",
+  },
+  {
+    name: "aircon",
+    categoryRegex: /冷氣問題/,
+    affectedGroup: "邊類冷氣機有問題？",
+    affectedOption: "分體式",
+    symptomGroup: "你見到咩情況？",
+    symptomOptions: ["唔凍／唔夠凍", "滴水／漏水"],
+    otherBranchFields: [
+      { label: "問題影響幾多部機？", option: "一部" },
+      { label: "最近有冇清洗或維修過？", option: "三個月內" },
+    ],
+    conciseLabel: "見到嘅情況",
+  },
+  {
+    name: "door-window",
+    categoryRegex: /門窗問題/,
+    affectedGroup: "邊樣受影響？",
+    affectedOption: "門",
+    symptomGroup: "你見到咩情況？",
+    symptomOptions: ["關唔到／閂唔實", "玻璃裂咗／爛咗"],
+    otherBranchFields: [
+      { label: "而家可唔可以安全關好？", option: "可以" },
+      { label: "問題係突然出現定慢慢變差？", option: "突然" },
+    ],
+    conciseLabel: "見到嘅情況",
+  },
+  {
+    name: "surface",
+    categoryRegex: /牆身／天花／地板損壞/,
+    affectedGroup: "邊個表面受損？",
+    affectedOption: "牆身",
+    symptomGroup: "你見到咩情況？",
+    symptomOptions: ["裂紋", "污漬／水印"],
+    otherBranchFields: [
+      { label: "受損範圍有幾大？", option: "一小處" },
+      { label: "附近有冇見到水氣或滲水？", option: "有" },
+    ],
+    conciseLabel: "見到嘅情況",
+  },
+  {
+    name: "bathroom",
+    categoryRegex: /浴室／潔具問題/,
+    affectedGroup: "浴室邊一部分受影響？",
+    affectedOption: "座廁",
+    symptomGroup: "主要見到咩問題？",
+    symptomOptions: ["漏水／滲水", "去水慢／淤塞"],
+    otherBranchFields: [
+      { label: "問題會唔會影響浴室使用？", option: "仍可正常使用" },
+      { label: "有冇水流到浴室以外？", option: "冇" },
+    ],
+    conciseLabel: "主要問題",
+  },
+];
+
+test.describe("cross-category multi-select coverage", () => {
+  for (const category of MULTI_SELECT_CATEGORIES) {
+    test(`${category.name}: two co-selected symptoms reach the brief under this category's own concise label, in declared option order`, async ({
+      page,
+    }) => {
+      await page.goto("/landlord/repairs/new");
+      await page.getByRole("radio", { name: category.categoryRegex }).click();
+      await page
+        .getByRole("radiogroup", { name: category.affectedGroup })
+        .getByRole("radio", { name: category.affectedOption, exact: true })
+        .click();
+
+      const symptomGroup = page.locator(`.pill-row[aria-label="${category.symptomGroup}"]`);
+      await expect(symptomGroup).toBeVisible();
+      await symptomGroup.getByRole("checkbox", { name: category.symptomOptions[0] }).click();
+      await symptomGroup.getByRole("checkbox", { name: category.symptomOptions[1] }).click();
+      for (const name of category.symptomOptions) {
+        await expect(symptomGroup.getByRole("checkbox", { name })).toHaveAttribute("aria-checked", "true");
+      }
+
+      for (const other of category.otherBranchFields) {
+        await page
+          .getByRole("radiogroup", { name: other.label })
+          .getByRole("radio", { name: other.option, exact: true })
+          .click();
+      }
+      // The branch step no longer auto-advances (it now contains a
+      // multi_select field) — an explicit continue is required for every
+      // one of these 8 categories, not just leak/plumbing.
+      await page.getByRole("button", { name: "繼續" }).click();
+
+      await radio(page, "safety", "以上都冇，可以繼續").click();
+      await page.getByRole("button", { name: "繼續" }).click();
+      await radio(page, "duration", "一星期內").click();
+      await radio(page, "frequency", "間中").click();
+      await radio(page, "worsening", "唔肯定").click();
+      await radio(page, "prior", "冇").click();
+      await page.getByRole("button", { name: "繼續" }).click();
+      await radio(page, "hasEvidence", "冇").click();
+      await radio(page, "management", "未有聯絡").click();
+      await radio(page, "sharedArea", "唔肯定").click();
+      await radio(page, "accessBy", "業主本人").click();
+      await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+      await page.getByRole("button", { name: "繼續" }).click();
+      await radio(page, "district", "東區").click();
+      await page.getByRole("button", { name: "繼續" }).click();
+      await radio(page, "relationship", "自住業主").click();
+      await page.getByRole("button", { name: "整理維修簡報" }).click();
+      await expect(page.getByText("維修資料摘要")).toBeVisible();
+
+      const expectedRow = `${category.conciseLabel}：${category.symptomOptions[0]}、${category.symptomOptions[1]}`;
+      await expect(page.getByText(expectedRow)).toBeVisible();
+    });
+  }
+});
+
+// The two open-ended categories ("other"/"unsure") have no branch step at
+// all — otherDetailStep is a single free-text field, never converted to
+// multi_select — confirming their existing single free-text flow is
+// genuinely unregressed by this change. "other" itself is already covered
+// end-to-end by the "Other/Unsure timeline preservation" describe block
+// above; this covers "unsure" (the one remaining untested category),
+// completing coverage of all 10 categories.
+test.describe("unsure category (no branch step, unaffected by multi-select)", () => {
+  test("the \"unsure\" category still uses a single open free-text description, with no symptom question at all", async ({
+    page,
+  }) => {
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /唔肯定/ }).click();
+    await expect(page.getByRole("heading", { name: "簡單講吓你見到咩情況？" })).toBeVisible();
+    await page.getByLabel("情況描述").fill("成間屋成日跳掣，但唔知邊個位置有問題");
+    await page.getByRole("button", { name: "繼續" }).click();
+
+    await radio(page, "safety", "以上都冇，可以繼續").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await radio(page, "duration", "一星期內").click();
+    await radio(page, "frequency", "間中").click();
+    await radio(page, "worsening", "唔肯定").click();
+    await radio(page, "prior", "冇").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await radio(page, "hasEvidence", "冇").click();
+    await radio(page, "management", "未有聯絡").click();
+    await radio(page, "sharedArea", "唔肯定").click();
+    await radio(page, "accessBy", "業主本人").click();
+    await page.getByLabel("通常咩時段較方便？").fill("平日 7 點後");
+    await page.getByRole("button", { name: "繼續" }).click();
+    await radio(page, "district", "東區").click();
+    await page.getByRole("button", { name: "繼續" }).click();
+    await radio(page, "relationship", "自住業主").click();
+    await page.getByRole("button", { name: "整理維修簡報" }).click();
+
+    await expect(page.getByText("維修資料摘要")).toBeVisible();
+    await expect(page.getByText("成間屋成日跳掣，但唔知邊個位置有問題")).toBeVisible();
+  });
+});
+
+// Responsive verification for the new multi_select chip rendering (task
+// section 26) — reuses the .pill-row/.choice-field CSS the single_select
+// pill fields already relied on (see components/QuestionnaireEngine.tsx's
+// FieldControl), so no new CSS was added, but this proves that holds at
+// narrow widths for a field with MORE selectable chips and a companion
+// revealed text field, not just the existing single_select case already
+// covered by "responsive question panel layout" above.
+test.describe("multi-select responsive layout", () => {
+  async function assertNoHorizontalOverflow(page: import("@playwright/test").Page) {
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  }
+
+  async function goToPlumbingSymptomField(page: import("@playwright/test").Page) {
+    await page.goto("/landlord/repairs/new");
+    await page.getByRole("radio", { name: /水喉問題/ }).click();
+    await page
+      .getByRole("radiogroup", { name: "邊個位置或設備受影響？" })
+      .getByRole("radio", { name: "廚房" })
+      .click();
+    return page.locator('.pill-row[aria-label="你見到咩情況？"]');
+  }
+
+  for (const { label, width, height } of [
+    { label: "390px", width: 390, height: 900 },
+    { label: "430px", width: 430, height: 900 },
+    { label: "desktop", width: 1280, height: 900 },
+  ]) {
+    test(`at ${label}, the multi-select chips wrap without overflow, multiple selections stay visually obvious, and the revealed Other textbox fits`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width, height });
+      const symptomGroup = await goToPlumbingSymptomField(page);
+      await expect(symptomGroup).toBeVisible();
+
+      // Select three chips, including Other — the panel/chip row must not
+      // force horizontal scroll at any of these widths.
+      await symptomGroup.getByRole("checkbox", { name: "滴水／漏水" }).click();
+      await symptomGroup.getByRole("checkbox", { name: "水壓低／不穩" }).click();
+      await symptomGroup.getByRole("checkbox", { name: "其他" }).click();
+      const otherText = page.getByLabel("其他情況", { exact: true });
+      await expect(otherText).toBeVisible();
+
+      await assertNoHorizontalOverflow(page);
+
+      // Every chip's own box stays within the viewport width — proves
+      // wrapping, not overflow, is what accommodates more chips than fit on
+      // one line at narrow widths.
+      const groupBox = (await symptomGroup.boundingBox())!;
+      expect(groupBox.x + groupBox.width).toBeLessThanOrEqual(width + 1);
+
+      // Selected chips are visually distinguishable from unselected ones —
+      // reuses the pre-existing ".selected" class (see globals.css), so this
+      // just confirms it is actually applied at every width, not only
+      // desktop.
+      const selectedLeak = symptomGroup.locator("button.selected", { hasText: "滴水／漏水" });
+      await expect(selectedLeak).toHaveCount(1);
+      const unselectedNoWater = symptomGroup.locator("button:not(.selected)", { hasText: "冇水" });
+      await expect(unselectedNoWater).toHaveCount(1);
+
+      // The revealed Other textbox fits inside the viewport, not clipped or
+      // pushed off-screen.
+      const otherBox = (await otherText.boundingBox())!;
+      expect(otherBox.x).toBeGreaterThanOrEqual(0);
+      expect(otherBox.x + otherBox.width).toBeLessThanOrEqual(width + 1);
+
+      // The question marker badge follows the same mobile-vs-desktop
+      // placement rule already proven for single_select fields (see
+      // "responsive question panel layout" above) — still holds for a step
+      // whose fields include a multi_select one.
+      const panel = page.locator(".question-section--current .question-section__body");
+      const marker = page.locator(".question-section--current .question-marker");
+      const panelBox = (await panel.boundingBox())!;
+      const markerBox = (await marker.boundingBox())!;
+      if (width < 768) {
+        expect(markerBox.x).toBeGreaterThanOrEqual(panelBox.x);
+        expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+      } else {
+        expect(markerBox.x + markerBox.width).toBeLessThanOrEqual(panelBox.x);
+      }
+
+      // The Continue button remains reachable (scrolled into view and
+      // clickable) even with the extra Other field now present in the step.
+      const continueButton = page.getByRole("button", { name: "繼續" });
+      await continueButton.scrollIntoViewIfNeeded();
+      await expect(continueButton).toBeVisible();
+      await expect(continueButton).toBeEnabled();
+    });
+  }
 });

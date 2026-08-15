@@ -18,6 +18,7 @@ export type RepairCategoryId =
 
 export type QuestionnaireFieldType =
   | "single_select"
+  | "multi_select"
   | "grouped_select"
   | "short_text"
   | "name"
@@ -66,11 +67,26 @@ export interface QuestionnaireField {
    * — affected-area). Defaults to "list" when unset.
    */
   display?: "pill" | "list" | "grid";
-  /** Conditional visibility — hidden (and, per QuestionnaireEngine's changeResponse, cleared from responses) unless the named field's current answer matches equals (a single value, or any value in the array). */
+  /** Conditional visibility — hidden (and, per QuestionnaireEngine's changeResponse, cleared from responses) unless the named field's current answer matches equals (a single value, or any value in the array). Also matches when the named field's own answer is itself an array (a multi_select field) and it overlaps with equals — see questionnaireFieldIsVisible. */
   showWhen?: {
     fieldId: string;
     equals: string | string[];
   };
+  /**
+   * multi_select only. The option value (e.g. "unsure") that is mutually
+   * exclusive with every other selection on this field, including
+   * `otherValue` — selecting it clears every other selection, and
+   * selecting anything else clears it. See domain/rules.ts's
+   * toggleMultiSelectValue.
+   */
+  exclusiveValue?: string;
+  /**
+   * multi_select only. The option value (e.g. "other") that is NOT
+   * exclusive — it may coexist with normal selections — and reveals a
+   * companion free-text field via that field's own `showWhen` (see
+   * data/questionnaires.ts's multiSelect helper).
+   */
+  otherValue?: string;
 }
 
 export interface QuestionnaireStep {
@@ -173,15 +189,28 @@ export interface ProblemBrief {
    * what "02 Reported / observed facts" is built from for a standard
    * category (reportedFacts/originalReport are empty there, since the HK
    * flow is category-first, not free-text-first).
+   *
+   * Exactly one of branchFirst/branchSecond/branchThird is a multi_select
+   * "what can you observe" question per category (which one varies — see
+   * data/questionnaires.ts's branches map) and so may hold `string[]`
+   * (possibly more than one observed symptom); the other two remain
+   * single-valued. A plain `string` here is not stale data — it is the
+   * normal shape for every non-multi-select branch field, and is also how
+   * every submission made before this field became multi-select is still
+   * stored (schema version 2 and earlier) — both shapes render correctly
+   * via data/questionnaires.ts's resolveAnswerLabels, which treats a
+   * scalar as a one-item selection.
    */
   observedFacts?: {
     affected?: string;
-    branchFirst?: string;
-    branchSecond?: string;
-    branchThird?: string;
+    branchFirst?: string | string[];
+    branchSecond?: string | string[];
+    branchThird?: string | string[];
     duration?: string;
     frequency?: string;
     worsening?: string;
+    /** Free text entered when the category's multi_select observation field has "other" selected. Undefined for every category without a multi_select observation field (other/unsure), and for a v2-or-earlier submission made before this field existed. */
+    symptomOther?: string;
   };
 
   priorAction?: {

@@ -28,6 +28,14 @@ export function radio(page: Page, group: keyof typeof RADIOGROUP, name: string) 
   return page.getByRole("radiogroup", { name: RADIOGROUP[group] }).getByRole("radio", { name });
 }
 
+/** Like radio(), but for a multi_select field's checkbox-role buttons — the
+ * one observable-symptom question per category (see data/questionnaires.ts's
+ * symptomSlot). Rendered inside role="group", not role="radiogroup", since
+ * more than one can be checked at once. */
+export function checkbox(page: Page, group: keyof typeof RADIOGROUP, name: string) {
+  return page.getByRole("group", { name: RADIOGROUP[group] }).getByRole("checkbox", { name });
+}
+
 export async function extractJourneyId(page: Page): Promise<string> {
   await expect(page).toHaveURL(/[?&]journey=[a-z0-9-]{8,}/);
   const url = new URL(page.url());
@@ -44,8 +52,14 @@ export async function startLeakJourneyThroughBuilding(page: Page): Promise<strin
   await page.getByRole("radio", { name: /滲水／漏水/ }).click();
   await radio(page, "affected", "天花").click();
   await radio(page, "branchFirst", "落雨時／落雨之後").click();
-  await radio(page, "branchSecond", "水印／濕痕").click();
+  await checkbox(page, "branchSecond", "水印／濕痕").click();
   await radio(page, "branchThird", "一小處").click();
+  // The "branch" step no longer auto-advances once it contains a
+  // multi_select field (branchSecond) — see
+  // questionnaireStepUsesAutomaticProgression, which deliberately requires
+  // every field in the step to be single_select. An explicit continue is
+  // now needed to reach the "safety" step.
+  await page.getByRole("button", { name: "繼續" }).click();
 
   await radio(page, "safety", "以上都冇，可以繼續").click();
   await page.getByRole("button", { name: "繼續" }).click();

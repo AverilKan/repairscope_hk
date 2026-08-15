@@ -1,4 +1,10 @@
-import { districtOptions, questionnaireFieldLabel, resolveAnswerLabel } from "@/data/questionnaires";
+import {
+  districtOptions,
+  questionnaireFieldLabel,
+  resolveAnswerLabel,
+  resolveAnswerLabels,
+  SYMPTOM_OTHER_VALUE,
+} from "@/data/questionnaires";
 import { lt, type Lang, type LocalizedText } from "./i18n";
 import type {
   ProblemBrief,
@@ -9,6 +15,44 @@ import type {
 
 function str(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+/**
+ * Like str(), but preserves an array shape — for the one branch field per
+ * category that is now multi_select (see data/questionnaires.ts's
+ * symptomSlot) and so may arrive as string[] rather than a single string.
+ * Every non-string/empty entry is dropped rather than causing the whole
+ * value to be rejected, and an array that ends up with nothing left is
+ * treated the same as never having answered at all (undefined, not []),
+ * so downstream "is this present" checks stay a single boolean test rather
+ * than needing a separate empty-array case everywhere.
+ */
+function strOrStringArray(value: unknown): string | string[] | undefined {
+  if (Array.isArray(value)) {
+    const cleaned = value.filter((entry): entry is string => typeof entry === "string" && entry.trim().length > 0);
+    return cleaned.length > 0 ? cleaned : undefined;
+  }
+  return str(value);
+}
+
+/** True when a possibly-array observedFacts value actually has content — a bare `Boolean(value)` alone would treat an (unreachable via buildRepairBrief, but not TypeScript-impossible for a hand-built test fixture) empty array as truthy. */
+function hasValue(value: string | string[] | undefined): boolean {
+  return Array.isArray(value) ? value.length > 0 : Boolean(value);
+}
+
+/**
+ * Strips the "other" raw value out of a multi_select branch answer. Its
+ * free text already gets its own labelled row (symptomOther, immediately
+ * below) — leaving the bare "Other" option label inside the joined symptom
+ * row too would be redundant with that row right next to it. Returns
+ * undefined (not []) when "other" was the only thing selected, so the
+ * caller's hasValue() gate skips the now-empty branch row entirely and
+ * shows only the symptomOther row.
+ */
+function withoutOtherValue(value: string | string[] | undefined): string | string[] | undefined {
+  if (!Array.isArray(value)) return value;
+  const filtered = value.filter((entry) => entry !== SYMPTOM_OTHER_VALUE);
+  return filtered.length > 0 ? filtered : undefined;
 }
 
 /**
@@ -255,10 +299,28 @@ export function summariseObservedFacts(
   const category = brief.category;
   const of = brief.observedFacts;
   const hasObservedFacts = Boolean(
-    of && (of.affected || of.branchFirst || of.branchSecond || of.branchThird || of.duration || of.frequency || of.worsening),
+    of &&
+      (of.affected ||
+        hasValue(of.branchFirst) ||
+        hasValue(of.branchSecond) ||
+        hasValue(of.branchThird) ||
+        of.duration ||
+        of.frequency ||
+        of.worsening),
   );
   const resolve = (fieldId: string, value: string | undefined) =>
     category ? resolveAnswerLabel(category, fieldId, value, lang) : NOT_SPECIFIED[lang];
+  // Every selected symptom joined into one row, in the field's own option
+  // order (never click order) — see resolveAnswerLabels. A scalar value
+  // (a single_select branch field, or a pre-v3 submission's stored value
+  // from before its field became multi_select) resolves to exactly one
+  // label, identical to the old single-value behaviour.
+  const joinSeparator = lang === "zh" ? "、" : ", ";
+  const resolveMulti = (fieldId: string, value: string | string[] | undefined) =>
+    category
+      ? resolveAnswerLabels(category, fieldId, withoutOtherValue(value), lang).join(joinSeparator)
+      : NOT_SPECIFIED[lang];
+  const symptomOtherLabel = lang === "zh" ? "其他情況" : "Other observation";
   // Each row is labelled with its own question text — a bare resolved
   // value like "Yes" is ambiguous on its own (see labelledFact); this is
   // the only formatting difference from the raw resolved values.
@@ -274,14 +336,22 @@ export function summariseObservedFacts(
           // two branch fields share the same raw value (e.g. all three
           // answered "unsure"), silently mislabelling the 2nd/3rd answer
           // under the 1st question.
-          ...(of!.branchFirst
-            ? [labelledFact(category, "branchFirst", resolve("branchFirst", of!.branchFirst), lang, style)]
+          ...(hasValue(withoutOtherValue(of!.branchFirst))
+            ? [labelledFact(category, "branchFirst", resolveMulti("branchFirst", of!.branchFirst), lang, style)]
             : []),
-          ...(of!.branchSecond
-            ? [labelledFact(category, "branchSecond", resolve("branchSecond", of!.branchSecond), lang, style)]
+          ...(hasValue(withoutOtherValue(of!.branchSecond))
+            ? [labelledFact(category, "branchSecond", resolveMulti("branchSecond", of!.branchSecond), lang, style)]
             : []),
-          ...(of!.branchThird
-            ? [labelledFact(category, "branchThird", resolve("branchThird", of!.branchThird), lang, style)]
+          ...(hasValue(withoutOtherValue(of!.branchThird))
+            ? [labelledFact(category, "branchThird", resolveMulti("branchThird", of!.branchThird), lang, style)]
+            : []),
+          // Free text for the multi_select observation field's "Other"
+          // option — its own row, not merged into the branch row above, so
+          // it always reads as the owner's own words rather than an
+          // invented addition to the structured list (see task section 13:
+          // this is an observation, never interpreted as a cause).
+          ...(of!.symptomOther
+            ? [`${symptomOtherLabel}${lang === "zh" ? "：" : ": "}${of!.symptomOther}`]
             : []),
           ...(includeTimeline && of!.duration
             ? [labelledFact(category, "duration", resolve("duration", of!.duration), lang, style)]
@@ -334,12 +404,21 @@ export function buildRepairBrief(draft: RepairIntakeDraft): ProblemBrief {
   // shows just its timeline facts here, with no affected/branch rows.
   const observedFacts = {
     affected: str(r.affected),
-    branchFirst: str(r.branchFirst),
-    branchSecond: str(r.branchSecond),
-    branchThird: str(r.branchThird),
+    // Exactly one of these three is this category's multi_select
+    // observation field (see data/questionnaires.ts's symptomSlot) and so
+    // may be string[]; strOrStringArray preserves whichever shape the
+    // questionnaire actually produced rather than forcing everything
+    // through the scalar-only str().
+    branchFirst: strOrStringArray(r.branchFirst),
+    branchSecond: strOrStringArray(r.branchSecond),
+    branchThird: strOrStringArray(r.branchThird),
     duration: str(r.duration),
     frequency: str(r.frequency),
     worsening: str(r.worsening),
+    // Free text for the observation field's "Other" option — undefined
+    // for other/unsure (no branch fields at all) and for any category
+    // where "Other" was not selected.
+    symptomOther: str(r.symptomOther),
   };
 
   const reportedFacts = [

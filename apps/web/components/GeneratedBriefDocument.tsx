@@ -26,12 +26,17 @@ type GeneratedBriefLike = {
   category?: string;
   observedFacts?: {
     affected?: string;
-    branchFirst?: string;
-    branchSecond?: string;
-    branchThird?: string;
+    // May be string[] — exactly one of these three is the category's
+    // multi_select observable-symptom field (see data/questionnaires.ts's
+    // symptomSlot). A plain string is still valid — every single_select
+    // branch field, and every pre-v3 submission's stored value.
+    branchFirst?: string | string[];
+    branchSecond?: string | string[];
+    branchThird?: string | string[];
     duration?: string;
     frequency?: string;
     worsening?: string;
+    symptomOther?: string;
   };
   priorAction?: { status?: string; detail?: string };
   buildingContext?: { managementContacted?: string; sharedAreaInvolved?: string };

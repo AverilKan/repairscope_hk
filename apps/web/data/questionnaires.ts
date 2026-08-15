@@ -45,6 +45,35 @@ const select = (
   display,
 });
 
+// Observable-symptom questions (audited per category — see the branches
+// map's own symptomSlot comments) allow more than one selection plus
+// "Other", since real repair situations often show more than one symptom
+// at once. "unsure" is always the ALREADY-PRESENT option value in every
+// branch category's own option list (never a second, duplicate "unsure")
+// — this only marks it as exclusiveValue; "other" is appended as a new
+// option and marked otherValue, non-exclusive.
+export const SYMPTOM_OTHER_VALUE = "other";
+const SYMPTOM_NOT_SURE_VALUE = "unsure";
+
+const multiSelect = (
+  id: string,
+  labelZh: string,
+  labelEn: string,
+  options: QuestionnaireOption[],
+  safetyRule?: SafetyRule,
+): QuestionnaireField => ({
+  id,
+  type: "multi_select",
+  label: lt(labelZh, labelEn),
+  options: [...options, option(SYMPTOM_OTHER_VALUE, "其他", "Other")],
+  required: true,
+  safetyRule,
+  display: "pill",
+  exclusiveValue: SYMPTOM_NOT_SURE_VALUE,
+  otherValue: SYMPTOM_OTHER_VALUE,
+  help: lt("可以揀多過一項", "You can select more than one"),
+});
+
 const text = (
   id: string,
   labelZh: string,
@@ -464,13 +493,38 @@ export const sharedTailFieldIds = new Set(
 // way that matters for how a submitted answer set should be interpreted —
 // persisted on every RepairSubmission (see questionnaireVersionLabel below)
 // so past submissions remain interpretable after the schema evolves.
-const CURRENT_SCHEMA_VERSION = 2;
+//
+// v2 -> v3: each category's observable-symptom branch question (see the
+// branches map's own symptomSlot) became multi_select plus "Other", so its
+// stored value may now be string[] instead of a single string — a real
+// shape/meaning change, not just new copy. An in-progress browser draft
+// stored under v2 fails the existing schemaVersion check in
+// readJourneyDraft/readJourneyBrief and is discarded in favour of a fresh
+// questionnaire, exactly the same already-accepted behaviour every prior
+// version bump has used — see docs/PUBLIC_INGESTION_LAUNCH.md. This never
+// touches already-submitted historical cases: their persisted
+// questionnaire_answers/generated_brief are read as-is (a plain string is
+// simply a one-item selection — see resolveAnswerLabels), never
+// reprocessed or invalidated.
+const CURRENT_SCHEMA_VERSION = 3;
 
 interface BranchDefinition {
   affected: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
   first: { titleZh: string; titleEn: string; options: QuestionnaireOption[]; safetyRule?: SafetyRule };
   second: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
   third: { titleZh: string; titleEn: string; options: QuestionnaireOption[] };
+  /**
+   * Which branch slot is this category's observable-symptom question
+   * ("what can you observe?") — the one converted to multi_select plus
+   * "Other" (real repair situations often show more than one symptom at
+   * once — e.g. dripping AND discoloured water). The other two slots keep
+   * a single answer: they measure timing, extent, history or status, none
+   * of which are a "select every symptom you see" question by meaning, not
+   * by position — see this file's own category-by-category reasoning in
+   * the branches map below. leak is the only category where this is
+   * "second", not "first" (leak's own first slot is a timing question).
+   */
+  symptomSlot: "first" | "second";
 }
 
 // Electrical's first branch answer can itself be an immediate safety exit
@@ -531,6 +585,11 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // leak's own first slot is a timing question ("when does it usually
+    // happen?"), not an observable-symptom one — the symptom question here
+    // is second ("what can you see?": water mark, dripping, mould,
+    // bulging — these genuinely coexist, e.g. a water mark AND mould).
+    symptomSlot: "second",
   },
   drainage: {
     affected: {
@@ -577,6 +636,10 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("what is the drainage doing?": blocked, slow, backflow, smell,
+    // noise) is the observable-symptom question — these can genuinely
+    // coexist (e.g. blocked AND smelling, or slow AND noisy).
+    symptomSlot: "first",
   },
   plumbing: {
     affected: {
@@ -623,6 +686,11 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("what can you observe?": dripping, no water, low pressure,
+    // damaged fitting, discoloured water) is the observable-symptom
+    // question — the task's own example (dripping + low pressure +
+    // discoloured water) is this exact field.
+    symptomSlot: "first",
   },
   electrical: {
     affected: {
@@ -669,6 +737,13 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("what can you observe?": no power, tripping, outlet/switch
+    // problem, light problem, burning smell/smoke/sparks) is the
+    // observable-symptom question — e.g. tripping AND an outlet problem
+    // can genuinely coexist. Carries the smell/sparks safety trigger
+    // (electricalSparksRule) regardless of what else is also selected —
+    // see domain/rules.ts's responseTriggersSafetyRule.
+    symptomSlot: "first",
   },
   aircon: {
     affected: {
@@ -714,6 +789,10 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("what can you observe?": not cooling, leaking water, unusual
+    // noise, will not turn on, unusual smell) is the observable-symptom
+    // question — not cooling AND leaking water is a common real combination.
+    symptomSlot: "first",
   },
   "door-window": {
     affected: {
@@ -761,6 +840,13 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("what can you observe?": won't close, water ingress, damaged
+    // hardware, cracked glass, damaged frame, lock problem) is the
+    // observable-symptom question — e.g. a damaged hinge AND it will not
+    // close properly commonly co-occur. second ("can it be secured
+    // safely?") is a status question, and third (sudden/gradual) is an
+    // onset question — both remain single-select.
+    symptomSlot: "first",
   },
   surface: {
     affected: {
@@ -805,6 +891,12 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("what can you observe?": crack, loose/peeling, bulging,
+    // stain/water mark, broken/dented) is the observable-symptom
+    // question — a crack AND a stain commonly coexist. second (extent)
+    // and third (a single yes/no/unsure dampness check, not itself a
+    // "select every symptom" question) remain single-select.
+    symptomSlot: "first",
   },
   bathroom: {
     affected: {
@@ -852,11 +944,31 @@ const branches: Record<string, BranchDefinition> = {
         option("unsure", "唔肯定", "Not sure"),
       ],
     },
+    // first ("主要見到咩問題？"/"what is the main problem?": leak, slow/
+    // blocked drain, loose fitting, mouldy sealant, flush/supply problem)
+    // is the observable-symptom question by meaning despite its "主要"
+    // ("main") wording — a leak AND mouldy sealant, or a slow drain AND a
+    // loose fitting, are plausible real combinations. The field's own
+    // question text is left unchanged (see this file's own scope note);
+    // the "you can select more than one" help text is what tells the
+    // owner this no longer means "pick the single main problem".
+    symptomSlot: "first",
   },
 };
 
 function branchSteps(category: string): QuestionnaireStep[] {
   const branch = branches[category];
+  const symptomFieldId = branch.symptomSlot === "first" ? "branchFirst" : "branchSecond";
+
+  const buildBranchField = (
+    fieldId: string,
+    slot: "first" | "second" | "third",
+    def: { titleZh: string; titleEn: string; options: QuestionnaireOption[]; safetyRule?: SafetyRule },
+  ): QuestionnaireField =>
+    branch.symptomSlot === slot
+      ? multiSelect(fieldId, def.titleZh, def.titleEn, def.options, def.safetyRule)
+      : select(fieldId, def.titleZh, def.titleEn, def.options, true, def.safetyRule, "pill");
+
   return [
     step(
       "affected",
@@ -875,12 +987,31 @@ function branchSteps(category: string): QuestionnaireStep[] {
       "再講三個簡單情況。",
       "Three quick facts about the problem.",
       [
-        select("branchFirst", branch.first.titleZh, branch.first.titleEn, branch.first.options, true, branch.first.safetyRule, "pill"),
-        select("branchSecond", branch.second.titleZh, branch.second.titleEn, branch.second.options, true, undefined, "pill"),
-        select("branchThird", branch.third.titleZh, branch.third.titleEn, branch.third.options, true, undefined, "pill"),
+        buildBranchField("branchFirst", "first", branch.first),
+        buildBranchField("branchSecond", "second", branch.second),
+        buildBranchField("branchThird", "third", branch.third),
+        // Companion free-text field for the symptom question's "Other"
+        // option — visible only once "other" is among the current
+        // selections (questionnaireFieldIsVisible handles a multi_select
+        // source field's array value), and automatically cleared by
+        // QuestionnaireEngine's existing changeResponse cleanup the moment
+        // "other" is deselected, the same mechanism priorDetail/
+        // evidenceKind already rely on.
+        {
+          ...text(
+            "symptomOther",
+            "其他情況",
+            "Other observation",
+            "簡單講低你見到嘅情況",
+            "Briefly describe what you are seeing",
+            true,
+            true,
+          ),
+          showWhen: { fieldId: symptomFieldId, equals: SYMPTOM_OTHER_VALUE },
+        },
       ],
-      "每題揀一項；「唔肯定」都係有效答案。",
-      "Choose one answer for each. “Not sure” is a valid answer.",
+      "揀最貼近嘅答案；其中一題可以揀多過一項，「唔肯定」都係有效答案。",
+      "Choose the closest answer for each. One of them lets you select more than one — “Not sure” is also a valid answer.",
     ),
   ];
 }
@@ -1025,6 +1156,44 @@ export function resolveAnswerLabel(
     return match ? (lang === "zh" ? match.label.zh : match.label.en) : NOT_SPECIFIED[lang];
   }
   return NOT_SPECIFIED[lang];
+}
+
+/**
+ * Same resolution as resolveAnswerLabel, but for a field that may now hold
+ * more than one selection (a category's multi_select observable-symptom
+ * field — see the branches map's own symptomSlot) — accepts either a
+ * scalar (a single_select field, or an older schema-v2-and-earlier
+ * submission's stored value, from before this field became multi_select)
+ * or an array, and always returns an array of resolved labels. A bare
+ * scalar is treated as a one-item selection, so a pre-v3 submission renders
+ * identically to how it always did.
+ *
+ * Ordering is always the field's OWN option-array order, never click/
+ * insertion order — the same selected symptoms must read in the same
+ * order everywhere they are shown (owner review, generated brief,
+ * confirmation, operator rendering). An unrecognised value is silently
+ * dropped (same "never leak a raw code" rule as resolveAnswerLabel), not
+ * substituted with a placeholder — a genuinely unresolvable entry does not
+ * shrink the count of what to expect from an otherwise-valid selection the
+ * way "Not specified" would if it stood in for it.
+ */
+export function resolveAnswerLabels(
+  category: RepairCategoryId,
+  fieldId: string,
+  value: string | string[] | undefined,
+  lang: "zh" | "en",
+): string[] {
+  const raw = Array.isArray(value) ? value : value ? [value] : [];
+  if (raw.length === 0) return [];
+  const schema = questionnaireByCategory[category];
+  for (const step of schema.steps) {
+    const field = step.fields.find((candidate) => candidate.id === fieldId);
+    if (!field?.options) continue;
+    return field.options
+      .filter((option) => raw.includes(option.value))
+      .map((option) => (lang === "zh" ? option.label.zh : option.label.en));
+  }
+  return [];
 }
 
 /**

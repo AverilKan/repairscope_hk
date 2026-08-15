@@ -153,6 +153,9 @@ test("buildRepairBrief retains every observation from a fully answered standard-
     duration: "week",
     frequency: "occasional",
     worsening: "yes",
+    // Always present in the returned shape (undefined when "Other" was not
+    // selected) — see buildRepairBrief's own observedFacts comment.
+    symptomOther: undefined,
   });
   assert.deepEqual(brief.priorAction, {
     status: "quote",
