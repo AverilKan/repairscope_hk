@@ -293,7 +293,7 @@ test("owner variant: shows the owner-review heading, category and a synthesised 
   assert.ok(screen.getByText("Please check that the information below is accurate. We’ll use the confirmed information for manual review."));
   assert.ok(screen.getByText("Water seepage / leakage"));
   // A synthesised sentence (affected + timeline), not a raw "Question: Answer" dump.
-  assert.ok(screen.getByText(/Affected: Around a window\./));
+  assert.ok(screen.getByText(/Around a window is the affected area\./));
   assert.ok(screen.getByText(/began within a week/));
   // The category-specific branch facts remain individually labelled rows
   // underneath (not fused into invented prose — see summariseSituation's
@@ -376,7 +376,7 @@ test("owner variant renders correctly in Chinese too", () => {
 
   assert.ok(screen.getByText("維修資料摘要"));
   assert.ok(screen.getByText("滲水／漏水"));
-  assert.ok(screen.getByText(/涉及：窗邊。/));
+  assert.ok(screen.getByText(/窗邊出現問題。/));
   assert.equal(screen.queryByText("RepairScope 中立簡報"), null);
 });
 

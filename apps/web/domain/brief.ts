@@ -330,15 +330,17 @@ export function summariseSituation(
 
   const sentences: string[] = [];
   if (lang === "zh") {
-    if (affected) sentences.push(`涉及：${affected}。`);
+    // "X出現問題。" reads as a plain statement of what was reported, not
+    // "涉及：X。" which is closer to a form field than a sentence.
+    if (affected) sentences.push(`${affected}出現問題。`);
     const timeline = [
-      duration ? `由${duration}開始` : undefined,
-      frequency ? `${frequency}出現` : undefined,
-      worsening ? `情況${worsening}` : undefined,
+      duration ? `${duration}開始` : undefined,
+      frequency,
+      worsening ? `而且情況${worsening}` : undefined,
     ].filter((v): v is string => Boolean(v));
     if (timeline.length > 0) sentences.push(`${timeline.join("，")}。`);
   } else {
-    if (affected) sentences.push(`Affected: ${affected}.`);
+    if (affected) sentences.push(`${affected} is the affected area.`);
     const timeline = [
       duration ? `began ${duration.toLowerCase()}` : undefined,
       frequency ? `happens ${frequency.toLowerCase()}` : undefined,

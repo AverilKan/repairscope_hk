@@ -333,10 +333,16 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
     { style: "concise", includeTimeline: false },
   );
 
+  // Always labelled, even though today's priorOptions already resolve to a
+  // specific meaning (e.g. "收到報價"/"Quotation received") rather than a
+  // bare "有"/"Yes" — a stable label prefix keeps this section readable as
+  // a statement rather than a lone value, and is the correct fallback if a
+  // stored answer is ever only yes/no.
+  const priorStatusLabel = lang === "zh" ? "之前曾經處理" : "Previous action";
   const priorDetailLabel = lang === "zh" ? "對方講法" : "What they said";
   const priorRows: string[] = brief.priorAction?.status
     ? [
-        resolve("prior", brief.priorAction.status),
+        `${priorStatusLabel}${lang === "zh" ? "：" : ": "}${resolve("prior", brief.priorAction.status)}`,
         ...(brief.priorAction.detail
           ? [`${priorDetailLabel}${lang === "zh" ? "：" : ": "}${brief.priorAction.detail}`]
           : []),

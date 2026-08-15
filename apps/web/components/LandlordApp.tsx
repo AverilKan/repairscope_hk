@@ -645,7 +645,7 @@ function BriefReview({
       <IntakeStageProgress activeStage={2} />
       <PageIntro
         eyebrow={lang === "zh" ? "維修簡報 · 分享之前先審閱" : "Contractor brief · Review before sharing"}
-        title={lang === "zh" ? "我哋將你講嘅事實整理好喇。" : "Check the facts. Keep the diagnosis open."}
+        title={lang === "zh" ? "我哋將你講嘅情況整理好喇。" : "Check the situation. Keep the diagnosis open."}
         description={
           lang === "zh"
             ? "呢份唔係診斷。請睇吓有冇事實需要更正。"
