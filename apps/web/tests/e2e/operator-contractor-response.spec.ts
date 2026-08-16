@@ -57,9 +57,9 @@ test("selecting 'Initial proposal provided' reveals the full proposal form, gate
   await expect(card.getByLabel("Price (HK$)")).toHaveCount(0);
   await card.getByLabel("Price range — minimum (HK$)").fill("500");
   await card.getByLabel("Price range — maximum (HK$)").fill("300");
-  await expect(card.getByText(/minimum price is greater than the maximum/)).toBeVisible();
+  await expect(card.getByText(/wasn.t saved/)).toBeVisible();
   await card.getByLabel("Price range — maximum (HK$)").fill("900");
-  await expect(card.getByText(/minimum price is greater than the maximum/)).toHaveCount(0);
+  await expect(card.getByText(/wasn.t saved/)).toHaveCount(0);
 
   await card.getByLabel("Price type").selectOption("no-price");
   await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveCount(0);
@@ -166,6 +166,181 @@ test("an old, pre-Slice-2 minimal contractor record (written directly to localSt
   await expect(card.getByLabel("Contractor name")).toHaveValue("Legacy Contractor");
   await expect(card.getByLabel("Current response")).toHaveValue("");
   await expect(card.getByLabel("Operator notes")).toHaveValue("Pre-Slice-2 record.");
+});
+
+// --- Slice 2 repair pass: contact-status/response-type overlap, invalid ---
+// --- price ranges (Codex audit findings) -----------------------------------
+
+test("the contact/sourcing status dropdown offers only Considering/Not contacted/Contacted — no response-outcome values", async ({
+  page,
+}) => {
+  const card = await openFirstContractorCard(page);
+  const options = await card.getByLabel("Contact / sourcing status").locator("option").allTextContents();
+  assertDeepEqualOptions(options, ["Considering", "Not contacted", "Contacted"]);
+});
+
+test("the current response dropdown offers only the five response types — no contact-progress values", async ({
+  page,
+}) => {
+  const card = await openFirstContractorCard(page);
+  const options = await card.getByLabel("Current response").locator("option").allTextContents();
+  assertDeepEqualOptions(options, [
+    "Not yet responded",
+    "Interested",
+    "Needs inspection",
+    "Needs more information",
+    "Not suitable",
+    "Initial proposal provided",
+  ]);
+});
+
+function assertDeepEqualOptions(actual: string[], expected: string[]) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`expected dropdown options ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+  }
+}
+
+test("an attempted inverted range (min=10000, max=5000) is never committed, never persists, and never survives reload — the collapsed card never shows it", async ({
+  page,
+}) => {
+  const card = await openFirstContractorCard(page);
+  await card.getByLabel("Contractor name").fill("Bad Range Co.");
+  await card.getByLabel("Current response").selectOption("proposal-provided");
+  await card.getByLabel("Price type").selectOption("range");
+  await card.getByLabel("Price range — minimum (HK$)").fill("10000");
+  // At this point min=10000 alone is a legitimate, non-inverted value (max
+  // is still unset) and does persist — the invariant only applies once
+  // BOTH bounds exist. The attempted max=5000 is what must be rejected.
+  await card.getByLabel("Price range — maximum (HK$)").fill("5000");
+  await expect(card.getByText(/wasn.t saved/)).toBeVisible();
+
+  // The rejected max never reached persisted state; the invariant
+  // (min <= max whenever both exist) is never violated because max simply
+  // stays unset rather than becoming 5000.
+  const persisted = await page.evaluate(() => {
+    const raw = window.localStorage.getItem("repairscope:operator-case:RS-MOCK01");
+    return raw ? JSON.parse(raw).contractors[0] : null;
+  });
+  expect(persisted.priceMin).toBe(10000);
+  expect(persisted.priceMax).toBeUndefined();
+
+  await page.reload();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  const reloadedCard = page.locator(".op-contractor-card").first();
+  await expect(reloadedCard).toContainText("Bad Range Co.");
+  // Collapsed summary never shows a range at all while only one bound is
+  // set — summarizeContractor requires both min and max to be numbers.
+  await expect(reloadedCard.locator(".op-contractor-card__meta")).not.toContainText("5,000");
+  await expect(reloadedCard.locator(".op-contractor-card__meta")).not.toContainText("Proposal —");
+
+  // Reopen and confirm the rejected max is still gone after reload — not
+  // silently restored from some other path.
+  await reloadedCard.getByRole("button", { name: "Edit" }).click();
+  await expect(reloadedCard.getByLabel("Price range — minimum (HK$)")).toHaveValue("10000");
+  await expect(reloadedCard.getByLabel("Price range — maximum (HK$)")).toHaveValue("");
+});
+
+test("a valid range (min=5000, max=10000) persists, survives reload, and appears correctly in the collapsed summary", async ({
+  page,
+}) => {
+  const card = await openFirstContractorCard(page);
+  await card.getByLabel("Contractor name").fill("Good Range Co.");
+  await card.getByLabel("Current response").selectOption("proposal-provided");
+  await card.getByLabel("Price type").selectOption("range");
+  await card.getByLabel("Price range — minimum (HK$)").fill("5000");
+  await card.getByLabel("Price range — maximum (HK$)").fill("10000");
+  await expect(card.getByText(/wasn.t saved/)).toHaveCount(0);
+
+  await page.reload();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+  const reloadedCard = page.locator(".op-contractor-card").first();
+  await expect(reloadedCard.locator(".op-contractor-card__meta")).toContainText("HK$5,000–HK$10,000");
+});
+
+test("min equal to max is accepted as a valid range, live in the browser", async ({ page }) => {
+  const card = await openFirstContractorCard(page);
+  await card.getByLabel("Current response").selectOption("proposal-provided");
+  await card.getByLabel("Price type").selectOption("range");
+  await card.getByLabel("Price range — minimum (HK$)").fill("7000");
+  await card.getByLabel("Price range — maximum (HK$)").fill("7000");
+  await expect(card.getByText(/wasn.t saved/)).toHaveCount(0);
+  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveValue("7000");
+  await expect(card.getByLabel("Price range — maximum (HK$)")).toHaveValue("7000");
+});
+
+test("a record already carrying an inverted range in localStorage (simulating pre-repair-pass data) is sanitized on load and never rendered as a valid proposal", async ({
+  page,
+}) => {
+  await page.goto("/operator/RS-MOCK01");
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "repairscope:operator-case:RS-MOCK01",
+      JSON.stringify({
+        caseReference: "RS-MOCK01",
+        status: "new",
+        internalNotes: "",
+        unresolvedQuestions: "",
+        ownerFollowUpQuestions: "",
+        nextAction: "",
+        contractors: [
+          {
+            id: "bad-range-1",
+            name: "Already Inverted Co.",
+            status: "contacted",
+            notes: "",
+            responseType: "proposal-provided",
+            priceType: "range",
+            priceMin: 10000,
+            priceMax: 5000,
+            proposedApproach: "Should survive normalization.",
+          },
+        ],
+      }),
+    );
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+
+  const card = page.locator(".op-contractor-card").first();
+  await expect(card).toContainText("Already Inverted Co.");
+  await expect(card.locator(".op-contractor-card__meta")).not.toContainText("10,000");
+  await expect(card.locator(".op-contractor-card__meta")).not.toContainText("5,000");
+  await expect(card.locator(".op-contractor-card__meta")).not.toContainText("Proposal —");
+
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveValue("");
+  await expect(card.getByLabel("Price range — maximum (HK$)")).toHaveValue("");
+  // Other proposal fields, unrelated to the price invariant, are untouched.
+  await expect(card.getByLabel("Proposed approach")).toHaveValue("Should survive normalization.");
+});
+
+test("a historical status='interested' record (no responseType) normalizes on load to contact status=Contacted and response=Interested, with no contradictory display", async ({
+  page,
+}) => {
+  await page.goto("/operator/RS-MOCK01");
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "repairscope:operator-case:RS-MOCK01",
+      JSON.stringify({
+        caseReference: "RS-MOCK01",
+        status: "new",
+        internalNotes: "",
+        unresolvedQuestions: "",
+        ownerFollowUpQuestions: "",
+        nextAction: "",
+        contractors: [{ id: "legacy-1", name: "Legacy Interested Co.", status: "interested", notes: "" }],
+      }),
+    );
+  });
+  await page.reload();
+  await page.getByRole("button", { name: "EN", exact: true }).click();
+
+  const card = page.locator(".op-contractor-card").first();
+  await expect(card.locator(".op-contractor-card__meta")).toContainText("Contacted");
+  await expect(card.locator(".op-contractor-card__meta")).toContainText("Interested");
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Contact / sourcing status")).toHaveValue("contacted");
+  await expect(card.getByLabel("Current response")).toHaveValue("interested");
 });
 
 test("no mutating request is made to the backend as contractor response fields are filled in", async ({ page }) => {

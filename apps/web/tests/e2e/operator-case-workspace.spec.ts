@@ -111,7 +111,7 @@ test.describe("local operator working state — the manual flow", () => {
     await page.getByRole("button", { name: "+ Add contractor" }).click();
     await expect(cards).toHaveCount(2);
     await cards.nth(1).getByLabel("Contractor name").fill("Contractor B");
-    await cards.nth(1).getByLabel("Contact / sourcing status").selectOption("declined");
+    await cards.nth(1).getByLabel("Contact / sourcing status").selectOption("not-contacted");
 
     await page.getByLabel("Next action").fill("Get a quote from Contractor A after Thursday's visit.");
     await page.getByLabel("Follow-up date (optional)").fill("2026-08-25");
@@ -144,7 +144,7 @@ test.describe("local operator working state — the manual flow", () => {
 
     await reloadedCards.nth(1).getByRole("button", { name: "Edit" }).click();
     await expect(reloadedCards.nth(1).getByLabel("Contractor name")).toHaveValue("Contractor B");
-    await expect(reloadedCards.nth(1).getByLabel("Contact / sourcing status")).toHaveValue("declined");
+    await expect(reloadedCards.nth(1).getByLabel("Contact / sourcing status")).toHaveValue("not-contacted");
 
     await reloadedCards.nth(1).getByRole("button", { name: "Remove" }).click();
     await expect(page.locator(".op-contractor-card")).toHaveCount(1);

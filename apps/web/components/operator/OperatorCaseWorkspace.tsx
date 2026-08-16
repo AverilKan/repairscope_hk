@@ -529,17 +529,47 @@ function ContractorCard({
   onRemove: () => void;
 }) {
   const responseSummary = summarizeContractor(contractor);
-  const rangeInvalid =
-    contractor.priceType === "range" &&
-    typeof contractor.priceMin === "number" &&
-    typeof contractor.priceMax === "number" &&
-    contractor.priceMin > contractor.priceMax;
+
+  // The persisted range invariant (priceMin <= priceMax) is enforced in
+  // applyContractorPatch, so an attempted edit that would invert it is
+  // never committed — see handlePriceMinChange/handlePriceMaxChange below.
+  // These two hold the operator's raw typed text ONLY while their attempt
+  // is invalid, so the input keeps showing what they typed (with an inline
+  // error) instead of silently reverting or wiping the other, still-valid
+  // bound. `null` means "not overridden — show the persisted value."
+  const [priceMinDraft, setPriceMinDraft] = useState<string | null>(null);
+  const [priceMaxDraft, setPriceMaxDraft] = useState<string | null>(null);
 
   const parseOptionalAmount = (raw: string): number | undefined => {
     if (raw === "") return undefined;
     const parsed = Number(raw);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
   };
+
+  const wouldInvertRange = (candidateMin: number | undefined, candidateMax: number | undefined): boolean =>
+    candidateMin !== undefined && candidateMax !== undefined && candidateMin > candidateMax;
+
+  const handlePriceMinChange = (raw: string) => {
+    const candidate = parseOptionalAmount(raw);
+    if (wouldInvertRange(candidate, contractor.priceMax)) {
+      setPriceMinDraft(raw);
+      return;
+    }
+    setPriceMinDraft(null);
+    onUpdate({ priceMin: candidate });
+  };
+
+  const handlePriceMaxChange = (raw: string) => {
+    const candidate = parseOptionalAmount(raw);
+    if (wouldInvertRange(contractor.priceMin, candidate)) {
+      setPriceMaxDraft(raw);
+      return;
+    }
+    setPriceMaxDraft(null);
+    onUpdate({ priceMax: candidate });
+  };
+
+  const rangeInvalid = priceMinDraft !== null || priceMaxDraft !== null;
 
   return (
     <div className="op-contractor-card">
@@ -612,11 +642,18 @@ function ContractorCard({
             Current response
             <select
               value={contractor.responseType ?? ""}
-              onChange={(event) =>
+              onChange={(event) => {
+                // Leaving proposal-provided hides the range inputs (see
+                // applyContractorPatch, which also clears the persisted
+                // priceMin/priceMax) — drop any invalid draft-in-progress
+                // with them, rather than leaving it to resurface if the
+                // operator switches back.
+                setPriceMinDraft(null);
+                setPriceMaxDraft(null);
                 onUpdate({
                   responseType: (event.target.value || undefined) as OperatorContractorResponseType | undefined,
-                })
-              }
+                });
+              }}
             >
               <option value="">Not yet responded</option>
               {OPERATOR_CONTRACTOR_RESPONSE_TYPES.map((type) => (
@@ -666,9 +703,14 @@ function ContractorCard({
                 Price type
                 <select
                   value={contractor.priceType ?? ""}
-                  onChange={(event) =>
-                    onUpdate({ priceType: (event.target.value || undefined) as OperatorPriceType | undefined })
-                  }
+                  onChange={(event) => {
+                    // Leaving "range" hides the min/max inputs and clears
+                    // them in persisted state — drop any pending invalid
+                    // draft along with them.
+                    setPriceMinDraft(null);
+                    setPriceMaxDraft(null);
+                    onUpdate({ priceType: (event.target.value || undefined) as OperatorPriceType | undefined });
+                  }}
                 >
                   <option value="">Select…</option>
                   {OPERATOR_PRICE_TYPES.map((type) => (
@@ -698,8 +740,8 @@ function ContractorCard({
                     <input
                       type="number"
                       min={0}
-                      value={contractor.priceMin ?? ""}
-                      onChange={(event) => onUpdate({ priceMin: parseOptionalAmount(event.target.value) })}
+                      value={priceMinDraft ?? contractor.priceMin ?? ""}
+                      onChange={(event) => handlePriceMinChange(event.target.value)}
                     />
                   </label>
                   <label>
@@ -707,15 +749,16 @@ function ContractorCard({
                     <input
                       type="number"
                       min={0}
-                      value={contractor.priceMax ?? ""}
-                      onChange={(event) => onUpdate({ priceMax: parseOptionalAmount(event.target.value) })}
+                      value={priceMaxDraft ?? contractor.priceMax ?? ""}
+                      onChange={(event) => handlePriceMaxChange(event.target.value)}
                     />
                   </label>
                 </div>
               )}
               {rangeInvalid && (
                 <p className="field-error" role="alert">
-                  The minimum price is greater than the maximum — check the range.
+                  The minimum price can&apos;t be greater than the maximum — this value wasn&apos;t saved. The last
+                  valid range is kept.
                 </p>
               )}
 

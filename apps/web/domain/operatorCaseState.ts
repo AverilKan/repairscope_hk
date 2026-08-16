@@ -42,16 +42,17 @@ export const OPERATOR_CASE_STATUS_LABELS: Record<OperatorCaseStatus, string> = {
   closed: "Closed",
 };
 
-export const OPERATOR_CONTRACTOR_STATUSES = [
-  "considering",
-  "not-contacted",
-  "contacted",
-  "interested",
-  "needs-more-information",
-  "needs-inspection",
-  "declined",
-  "proposal-received",
-] as const;
+// CONTACT / SOURCING STATUS — where the founder is in reaching a
+// contractor, not what the contractor actually said. Kept deliberately
+// narrow: whether the founder has engaged them at all. What the contractor
+// SAID is `responseType` below — a Codex audit of the original Slice 2 pass
+// found the two dimensions overlapping in this same field (e.g. "declined"
+// and "proposal-received" were contact statuses that were really response
+// outcomes), which let a contractor end up with two contradictory-looking
+// current states. See LEGACY_CONTRACTOR_STATUS_TO_RESPONSE_TYPE below for
+// how historical records carrying the old, wider set of values are
+// normalized rather than rejected.
+export const OPERATOR_CONTRACTOR_STATUSES = ["considering", "not-contacted", "contacted"] as const;
 
 export type OperatorContractorStatus = (typeof OPERATOR_CONTRACTOR_STATUSES)[number];
 
@@ -59,20 +60,14 @@ export const OPERATOR_CONTRACTOR_STATUS_LABELS: Record<OperatorContractorStatus,
   considering: "Considering",
   "not-contacted": "Not contacted",
   contacted: "Contacted",
-  interested: "Interested",
-  "needs-more-information": "Needs more information",
-  "needs-inspection": "Needs inspection",
-  declined: "Declined",
-  "proposal-received": "Proposal received",
 };
 
-// The structured "current response" — distinct from `status` above, which
-// tracks contact/sourcing progress (considering/not-contacted/contacted/
-// declined, plus a few legacy overlapping values kept only for backward
-// compatibility with existing localStorage records — see isValidContractor).
-// `responseType` is what actually drives the conditional fields below (see
-// RepairScope HK — Post-Intake Workflow, Slice 2). Added alongside `status`
-// rather than replacing it, so no migration of existing records is needed.
+// CURRENT CONTRACTOR RESPONSE — distinct from `status` above, which tracks
+// contact/sourcing progress only. `responseType` is what actually drives
+// the conditional fields below (see RepairScope HK — Post-Intake Workflow,
+// Slice 2). A separate field from `status` so the two dimensions can never
+// contradict each other — see the module comment above OPERATOR_CONTRACTOR_
+// STATUSES for why that distinction matters.
 export const OPERATOR_CONTRACTOR_RESPONSE_TYPES = [
   "interested",
   "needs-inspection",
@@ -89,6 +84,19 @@ export const OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS: Record<OperatorContractor
   "needs-more-information": "Needs more information",
   "not-suitable": "Not suitable",
   "proposal-provided": "Initial proposal provided",
+};
+
+/** Historical `status` values from before the Slice 2 repair pass, when the
+ * contact-status field also doubled as the response outcome. No longer
+ * selectable in the UI — recognized only so old localStorage records can be
+ * normalized (see normalizeRestoredContractor) instead of failing closed
+ * and losing the whole record. */
+const LEGACY_CONTRACTOR_STATUS_TO_RESPONSE_TYPE: Record<string, OperatorContractorResponseType> = {
+  interested: "interested",
+  "needs-more-information": "needs-more-information",
+  "needs-inspection": "needs-inspection",
+  declined: "not-suitable",
+  "proposal-received": "proposal-provided",
 };
 
 export const OPERATOR_INSPECTION_REQUIREMENTS = ["required", "recommended", "not-sure"] as const;
@@ -223,7 +231,8 @@ function isValidContractor(value: unknown): value is OperatorContractor {
     isOptionalString(value.trade) &&
     isOptionalString(value.contactReference) &&
     typeof value.status === "string" &&
-    (OPERATOR_CONTRACTOR_STATUSES as readonly string[]).includes(value.status) &&
+    ((OPERATOR_CONTRACTOR_STATUSES as readonly string[]).includes(value.status) ||
+      value.status in LEGACY_CONTRACTOR_STATUS_TO_RESPONSE_TYPE) &&
     typeof value.notes === "string" &&
     isOptionalEnum(value.responseType, OPERATOR_CONTRACTOR_RESPONSE_TYPES) &&
     isOptionalString(value.originalResponse) &&
@@ -271,7 +280,8 @@ export function readOperatorCaseState(caseReference: string): OperatorCaseState 
     const raw = window.localStorage.getItem(storageKey(caseReference));
     if (!raw) return emptyOperatorCaseState(caseReference);
     const parsed: unknown = JSON.parse(raw);
-    return isValidCaseState(parsed, caseReference) ? parsed : emptyOperatorCaseState(caseReference);
+    if (!isValidCaseState(parsed, caseReference)) return emptyOperatorCaseState(caseReference);
+    return { ...parsed, contractors: parsed.contractors.map(normalizeRestoredContractor) };
   } catch {
     return emptyOperatorCaseState(caseReference);
   }
@@ -288,6 +298,14 @@ export function writeOperatorCaseState(state: OperatorCaseState): void {
   }
 }
 
+/** A price value only ever persists if it is a finite, non-negative HK$
+ * amount — blank/unset stays undefined, invalid input (negative, NaN,
+ * Infinity) is dropped rather than stored. Applied to every price-shaped
+ * field, live or restored, so no path can smuggle in a bad number. */
+function sanitizeAmount(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
 /**
  * Merges a patch onto a contractor, then clears fields that are no longer
  * meaningful given the resulting responseType/priceType/guaranteeStatus —
@@ -298,7 +316,10 @@ export function writeOperatorCaseState(state: OperatorCaseState): void {
  * can never resurface by flipping the response type back and forth or leak
  * via a raw view of localStorage. Always re-applied on every update (not
  * only when the "triggering" key is in the patch), so it stays correct
- * however the caller constructs the patch.
+ * however the caller constructs the patch. Also enforces the price
+ * invariants below, so it doubles as the restoration-normalization pass
+ * (see normalizeRestoredContractor) with no separate rule set to keep in
+ * sync.
  */
 export function applyContractorPatch(
   contractor: OperatorContractor,
@@ -335,9 +356,52 @@ export function applyContractorPatch(
     if (merged.guaranteeStatus !== "yes") {
       merged.guaranteeDetails = undefined;
     }
+
+    // Price invariants (see the Slice 2 repair pass — Codex found an
+    // inverted range could persist, survive reload, and render as a valid
+    // proposal). Sanitize first, then check the range: an inverted range
+    // clears BOTH bounds together — there is no way to know which side the
+    // operator got wrong — while priceType and every other proposal field
+    // (approach, inclusions, guarantee, free-form response...) are left
+    // untouched. This same pass runs for restored records via
+    // normalizeRestoredContractor below, so historical bad data is
+    // sanitized the same way live edits are.
+    merged.price = sanitizeAmount(merged.price);
+    merged.priceMin = sanitizeAmount(merged.priceMin);
+    merged.priceMax = sanitizeAmount(merged.priceMax);
+    if (
+      merged.priceType === "range" &&
+      merged.priceMin !== undefined &&
+      merged.priceMax !== undefined &&
+      merged.priceMin > merged.priceMax
+    ) {
+      merged.priceMin = undefined;
+      merged.priceMax = undefined;
+    }
   }
 
   return merged;
+}
+
+/**
+ * Enforces every contractor-state invariant against a record that was just
+ * restored from localStorage, where it may predate this repair pass or
+ * contain type-valid-but-logically-stale combinations (e.g. a proposal's
+ * fields left over after an older code path failed to clear them). Two
+ * steps: (1) map a legacy `status` that used to double as a response
+ * outcome onto the current status/responseType split — an explicit,
+ * already-restored responseType always wins over a guess from the legacy
+ * status; (2) re-run applyContractorPatch with an empty patch, which
+ * re-derives every conditional-clearing and price-sanitization rule above
+ * from the record's own current fields. originalResponse and notes are
+ * never touched by either step — see applyContractorPatch's own comment.
+ */
+function normalizeRestoredContractor(contractor: OperatorContractor): OperatorContractor {
+  const legacyResponseType = LEGACY_CONTRACTOR_STATUS_TO_RESPONSE_TYPE[contractor.status];
+  const withCurrentStatus: OperatorContractor = legacyResponseType
+    ? { ...contractor, status: "contacted", responseType: contractor.responseType ?? legacyResponseType }
+    : contractor;
+  return applyContractorPatch(withCurrentStatus, {});
 }
 
 export function createOperatorContractor(name: string): OperatorContractor {

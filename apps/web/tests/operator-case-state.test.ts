@@ -345,6 +345,273 @@ test("an out-of-range or unrecognised responseType value on a restored record is
   assert.deepEqual(restored.contractors, []);
 });
 
+// --- Slice 2 repair pass: contact-status/response-type overlap, invalid ---
+// --- price ranges (Codex audit findings) -----------------------------------
+
+test("the contact/sourcing status enum now only exposes contact-progress values, not response outcomes", async () => {
+  const { OPERATOR_CONTRACTOR_STATUSES } = await import("../domain/operatorCaseState");
+  assert.deepEqual([...OPERATOR_CONTRACTOR_STATUSES], ["considering", "not-contacted", "contacted"]);
+});
+
+test("historical status='interested' with no responseType normalizes to contact status=contacted, responseType=interested", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-LEGACY1",
+    JSON.stringify({
+      caseReference: "RS-LEGACY1",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [{ id: "c1", name: "Legacy A", status: "interested", notes: "" }],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-LEGACY1");
+  assert.equal(restored.contractors[0].status, "contacted");
+  assert.equal(restored.contractors[0].responseType, "interested");
+});
+
+test("historical status='proposal-received' with no responseType normalizes to contact status=contacted, responseType=proposal-provided", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-LEGACY2",
+    JSON.stringify({
+      caseReference: "RS-LEGACY2",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [{ id: "c1", name: "Legacy B", status: "proposal-received", notes: "" }],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-LEGACY2");
+  assert.equal(restored.contractors[0].status, "contacted");
+  assert.equal(restored.contractors[0].responseType, "proposal-provided");
+});
+
+test("historical status='declined' with no responseType normalizes to contact status=contacted, responseType=not-suitable", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-LEGACY3",
+    JSON.stringify({
+      caseReference: "RS-LEGACY3",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [{ id: "c1", name: "Legacy C", status: "declined", notes: "" }],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-LEGACY3");
+  assert.equal(restored.contractors[0].status, "contacted");
+  assert.equal(restored.contractors[0].responseType, "not-suitable");
+});
+
+test("a legacy response-like status alongside an already-explicit valid responseType preserves that responseType and only normalizes the status", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-LEGACY4",
+    JSON.stringify({
+      caseReference: "RS-LEGACY4",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      // Old status says "needs-inspection", but an explicit, later
+      // responseType of "needs-more-information" was already recorded —
+      // the explicit value must win, not the legacy guess.
+      contractors: [
+        {
+          id: "c1",
+          name: "Legacy D",
+          status: "needs-inspection",
+          notes: "",
+          responseType: "needs-more-information",
+          informationNeeded: "Photos of the meter box.",
+        },
+      ],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-LEGACY4");
+  assert.equal(restored.contractors[0].status, "contacted");
+  assert.equal(restored.contractors[0].responseType, "needs-more-information");
+  assert.equal(restored.contractors[0].informationNeeded, "Photos of the meter box.");
+});
+
+test("current (non-legacy) status values considering/not-contacted/contacted are left exactly as-is by restoration", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-CURRENT1",
+    JSON.stringify({
+      caseReference: "RS-CURRENT1",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [{ id: "c1", name: "Fresh A", status: "not-contacted", notes: "" }],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-CURRENT1");
+  assert.equal(restored.contractors[0].status, "not-contacted");
+  assert.equal(restored.contractors[0].responseType, undefined);
+});
+
+test("applyContractorPatch never persists an inverted range (min=10000, max=5000) — both bounds are dropped, everything else kept", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    priceType: "range",
+    proposedApproach: "Replace the whole unit.",
+  });
+  contractor = applyContractorPatch(contractor, { priceMin: 10000, priceMax: 5000 });
+  assert.equal(contractor.priceMin, undefined);
+  assert.equal(contractor.priceMax, undefined);
+  assert.equal(contractor.priceType, "range");
+  assert.equal(contractor.proposedApproach, "Replace the whole unit.");
+});
+
+test("a valid range (min=5000, max=10000) persists normally through applyContractorPatch", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    priceType: "range",
+    priceMin: 5000,
+    priceMax: 10000,
+  });
+  assert.equal(contractor.priceMin, 5000);
+  assert.equal(contractor.priceMax, 10000);
+});
+
+test("min equal to max is a valid range, not an inversion", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    priceType: "range",
+    priceMin: 7000,
+    priceMax: 7000,
+  });
+  assert.equal(contractor.priceMin, 7000);
+  assert.equal(contractor.priceMax, 7000);
+});
+
+test("negative fixed/estimate/range values never persist via applyContractorPatch", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    priceType: "fixed",
+    price: -500,
+  });
+  assert.equal(contractor.price, undefined);
+
+  contractor = applyContractorPatch(contractor, { priceType: "range", priceMin: -100, priceMax: 200 });
+  assert.equal(contractor.priceMin, undefined);
+  assert.equal(contractor.priceMax, 200);
+});
+
+test("an inverted range does not survive a localStorage write/read round trip", async () => {
+  const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState, createOperatorContractor } =
+    await import("../domain/operatorCaseState");
+  const state = emptyOperatorCaseState("RS-000020");
+  const contractor = createOperatorContractor("Contractor A");
+  contractor.responseType = "proposal-provided";
+  contractor.priceType = "range";
+  // Simulates state that predates the invariant (e.g. hand-edited
+  // localStorage, or written by a pre-repair-pass build) — priceMin/priceMax
+  // are type-valid numbers but logically inverted.
+  contractor.priceMin = 10000;
+  contractor.priceMax = 5000;
+  state.contractors = [contractor];
+  writeOperatorCaseState(state);
+
+  const restored = readOperatorCaseState("RS-000020");
+  assert.equal(restored.contractors[0].priceMin, undefined);
+  assert.equal(restored.contractors[0].priceMax, undefined);
+  assert.equal(restored.contractors[0].priceType, "range");
+});
+
+test("a restored negative price is sanitized away rather than displayed", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-NEG1",
+    JSON.stringify({
+      caseReference: "RS-NEG1",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [
+        {
+          id: "c1",
+          name: "X",
+          status: "contacted",
+          notes: "",
+          responseType: "proposal-provided",
+          priceType: "fixed",
+          price: -1200,
+        },
+      ],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-NEG1");
+  assert.equal(restored.contractors[0].price, undefined);
+  assert.equal(restored.contractors[0].priceType, "fixed");
+});
+
+test("restored conditionally-stale fields (leftover proposal fields under a non-proposal responseType) are normalized away, while free-form response and notes survive", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-STALE1",
+    JSON.stringify({
+      caseReference: "RS-STALE1",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [
+        {
+          id: "c1",
+          name: "X",
+          status: "contacted",
+          notes: "Operator's own note.",
+          responseType: "interested",
+          // Stale — left over from before a responseType change, or a
+          // hand-edited record — must not survive restoration.
+          inspectionRequirement: "required",
+          informationNeeded: "Should not be here",
+          priceType: "fixed",
+          price: 800,
+          guaranteeStatus: "yes",
+          guaranteeDetails: "Should not be here either",
+          originalResponse: "Yes, happy to take this on.",
+        },
+      ],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-STALE1");
+  const contractor = restored.contractors[0];
+  assert.equal(contractor.responseType, "interested");
+  assert.equal(contractor.inspectionRequirement, undefined);
+  assert.equal(contractor.informationNeeded, undefined);
+  assert.equal(contractor.priceType, undefined);
+  assert.equal(contractor.price, undefined);
+  assert.equal(contractor.guaranteeStatus, undefined);
+  assert.equal(contractor.guaranteeDetails, undefined);
+  // Free-form data is never touched by normalization.
+  assert.equal(contractor.originalResponse, "Yes, happy to take this on.");
+  assert.equal(contractor.notes, "Operator's own note.");
+});
+
 test("OperatorCaseList and OperatorCaseWorkspace never import the test-only fixture module", async () => {
   const { readFile } = await import("node:fs/promises");
   const listSource = await readFile(
