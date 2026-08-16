@@ -238,7 +238,13 @@ export function OperatorCaseWorkspace({
           back to the submission. */}
       <section className="op-panel" aria-label="Owner submission">
         <h2>Owner submission (read-only)</h2>
-        <GeneratedBriefDocument brief={detail.generatedBrief} variant="operator" />
+        {/* Reuses the same concise semantic summary the owner review and
+            post-submission confirmation screens show (variant="owner") —
+            no separate operator-specific formatter. showDraftReference is
+            suppressed: that row is the pre-submission CLIENT journey UUID,
+            not a backend identifier, and would only compete with the real
+            RS-XXXXXX reference already shown in this page's own header. */}
+        <GeneratedBriefDocument brief={detail.generatedBrief} variant="owner" showDraftReference={false} />
 
         <dl className="operator-review__facts">
           <div>

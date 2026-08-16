@@ -574,6 +574,34 @@ test("owner variant: the pre-submission identifier is labelled \"Draft reference
   assert.equal(screen.queryByText(/Case reference/), null);
 });
 
+// Regression coverage for the operator-brief-alignment change: the operator
+// case workspace (components/operator/OperatorCaseWorkspace.tsx) reuses
+// this exact owner variant but must never show the pre-submission CLIENT
+// journey UUID (brief.repairId) — it already shows the real backend
+// RS-XXXXXX reference elsewhere on the page, and showing this UUID too
+// would read as a second, competing identifier. showDraftReference=false
+// is the suppression mechanism; this proves it actually removes the row
+// (not just relabels it) while leaving the rest of the summary intact.
+test("owner variant with showDraftReference=false: the draft reference row is fully absent, even though repairId is present", () => {
+  const brief = { ...fullBrief, category: "leak", repairId: "draft-abc-123" };
+  const { container } = render(
+    React.createElement(GeneratedBriefDocument, { brief, variant: "owner", showDraftReference: false }),
+  );
+  assert.equal(container.querySelector(".owner-review__ref"), null);
+  assert.equal(screen.queryByText(/Draft reference/), null);
+  assert.equal(screen.queryByText(/DRAFT-ABC-123/), null);
+  // The rest of the summary is unaffected — this is a single-row
+  // suppression, not a different rendering path.
+  assert.ok(screen.getByText("Repair summary"));
+  assert.ok(screen.getByText("Repair situation"));
+});
+
+test("owner variant defaults to showing the draft reference when showDraftReference is not passed (owner review / confirmation screens are unaffected by the new prop)", () => {
+  const brief = { ...fullBrief, category: "leak", repairId: "draft-abc-123" };
+  render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
+  assert.ok(screen.getByText(/Draft reference/));
+});
+
 test("owner variant: never renders a raw questionnaire question (？： or ?:) — uses concise summary labels instead, across every category with branch questions", () => {
   const categories = ["leak", "drainage", "plumbing", "electrical", "aircon", "door-window", "surface", "bathroom"] as const;
   for (const category of categories) {

@@ -60,6 +60,7 @@ export function GeneratedBriefDocument({
   brief,
   bare = false,
   variant = "operator",
+  showDraftReference = true,
 }: {
   brief: GeneratedBriefLike | null | undefined;
   /**
@@ -71,15 +72,31 @@ export function GeneratedBriefDocument({
   bare?: boolean;
   /**
    * "operator" (default) is the original numbered report-style layout,
-   * unchanged — used by the operator submission detail screen
-   * (components/operator/OperatorCaseWorkspace.tsx), which should keep
-   * seeing the full technical rendering. "owner" is the simplified, synthesised
-   * review shown on the owner's "Check the facts" screen
-   * (components/LandlordApp.tsx) before contact/submission — see
-   * OwnerBriefSummary below. Both variants are pure presentations of the
-   * same ProblemBrief; no data is added or removed between them.
+   * unchanged — kept for any caller that still wants the full technical
+   * grid. "owner" is the simplified, synthesised review shown on the
+   * owner's "Check the facts" screen (components/LandlordApp.tsx) before
+   * contact/submission and on the post-submission confirmation screen
+   * (components/RepairSubmissionPanel.tsx) — see OwnerBriefSummary below.
+   * The operator case workspace (components/operator/OperatorCaseWorkspace.tsx)
+   * also reuses this variant, so every reader of a brief sees the same
+   * concise presentation rather than a second, duplicated formatter. Both
+   * variants are pure presentations of the same ProblemBrief; no data is
+   * added or removed between them.
    */
   variant?: "operator" | "owner";
+  /**
+   * OwnerBriefSummary's own "Draft reference" row shows brief.repairId —
+   * the pre-submission CLIENT journey UUID (see domain/journey.ts's
+   * crypto.randomUUID()), not any backend-issued identifier. Meaningful to
+   * an owner reviewing their own in-progress draft, but not to an operator,
+   * who already has the real backend case reference (RS-XXXXXX) shown
+   * prominently elsewhere — showing this UUID there too would read as a
+   * second, competing identifier. Defaults to true (unchanged behaviour
+   * for the owner review and post-submission confirmation screens); the
+   * operator case workspace passes false. Has no effect outside
+   * variant="owner".
+   */
+  showDraftReference?: boolean;
 }) {
   const { lang, t } = useLanguage();
 
@@ -94,7 +111,7 @@ export function GeneratedBriefDocument({
   }
 
   if (variant === "owner") {
-    const content = <OwnerBriefSummary brief={brief} />;
+    const content = <OwnerBriefSummary brief={brief} showDraftReference={showDraftReference} />;
     return bare ? content : <div className="brief-document">{content}</div>;
   }
 
@@ -311,7 +328,13 @@ function BriefSection({
  * best-effort sentence is not — see summariseObservedFacts for what
  * replaced it.
  */
-function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
+function OwnerBriefSummary({
+  brief,
+  showDraftReference,
+}: {
+  brief: GeneratedBriefLike;
+  showDraftReference: boolean;
+}) {
   const { lang } = useLanguage();
   const category =
     brief.category && brief.category in questionnaireByCategory
@@ -518,7 +541,7 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
           : ": RepairScope has not independently confirmed the cause or responsibility. The actual condition may need to be inspected by a contractor."}
       </p>
 
-      {brief.repairId && (
+      {showDraftReference && brief.repairId && (
         // This is the client-side draft/journey identifier (see
         // domain/journey.ts's crypto.randomUUID()), not the backend-issued
         // case reference — that only exists once RepairSubmissionPanel's
@@ -526,7 +549,10 @@ function OwnerBriefSummary({ brief }: { brief: GeneratedBriefLike }) {
         // "Case reference" on the confirmation screen
         // (RepairSubmissionPanel.tsx). Labelling this the same thing here
         // would let an owner mistake an in-progress draft id for a real,
-        // submitted case reference.
+        // submitted case reference. Suppressed entirely (showDraftReference
+        // passed as false) in the operator case workspace, which already
+        // shows the real RS-XXXXXX reference prominently — this UUID would
+        // only read as a second, competing identifier there.
         <p className="owner-review__ref">
           {lang === "zh" ? "草稿編號 " : "Draft reference "}
           {brief.repairId.toUpperCase()}

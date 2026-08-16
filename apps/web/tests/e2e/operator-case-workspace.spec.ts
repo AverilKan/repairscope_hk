@@ -30,7 +30,7 @@ test.describe("operator case list", () => {
 });
 
 test.describe("operator case detail", () => {
-  test("opening a case renders the actual generated brief, property/access, contact and evidence metadata — no prototype terminology", async ({
+  test("opening a case renders the actual generated brief via the modern semantic summary, plus contact and evidence metadata — no prototype terminology", async ({
     page,
   }) => {
     await page.goto("/operator/RS-MOCK01");
@@ -42,10 +42,11 @@ test.describe("operator case detail", () => {
     // English section titles below, same as the pre-existing operator
     // brief-readability coverage.
     await page.getByRole("button", { name: "EN", exact: true }).click();
-    // The real generated brief (operator variant).
-    await expect(page.getByText("Reported / observed facts")).toBeVisible();
+    // The real generated brief, via the same modern semantic summary the
+    // owner review uses (variant="owner") — not the old numbered report.
+    await expect(page.getByText("Repair summary")).toBeVisible();
+    await expect(page.getByText("Repair situation")).toBeVisible();
     await expect(page.getByText("Kitchen tap leaking heavily, floor is wet.")).toBeVisible();
-    await expect(page.getByText("Property / access")).toBeVisible();
     // Contact — detail-level fields, not part of the brief itself.
     await expect(page.getByText("jamie@example.com")).toBeVisible();
     // Evidence metadata.
@@ -91,7 +92,7 @@ test.describe("local operator working state — the manual flow", () => {
 
     await page.goto("/operator/RS-MOCK01");
     await page.getByRole("button", { name: "EN", exact: true }).click();
-    await expect(page.getByText("Reported / observed facts")).toBeVisible();
+    await expect(page.getByText("Repair summary")).toBeVisible();
 
     await page.getByLabel("Internal notes").fill("Owner is responsive, prefers email.");
     await page.getByLabel("Unresolved questions").fill("Is the leak from the flat above?");
