@@ -11365,3 +11365,47 @@ select:focus {
   color: #777;
   font-size: 0.78rem;
 }
+
+.op-comparison__hint {
+  margin: 0 0 12px;
+  color: #555;
+  font-size: 0.85rem;
+}
+
+.op-comparison-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 16px;
+}
+
+.op-comparison-table {
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  min-width: 100%;
+}
+
+.op-comparison-table th,
+.op-comparison-table td {
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  border: 1px solid #e2e2e2;
+  white-space: pre-wrap;
+}
+
+.op-comparison-table thead th {
+  background: #f7f7f7;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.op-comparison-table tbody th {
+  background: #fafafa;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.op-comparison__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}

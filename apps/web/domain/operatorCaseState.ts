@@ -177,6 +177,21 @@ export interface OperatorCaseState {
   nextAction: string;
   followUpDate?: string;
   contractors: OperatorContractor[];
+
+  // Proposal comparison working notes (Slice 3) — the founder's own
+  // free-text record of what differs between proposals, what's still
+  // unclear, and neutral context for the owner. Deliberately NOT a nested
+  // object: every other working-state field on this interface is a flat
+  // optional/required string, and a nested `comparison` object would only
+  // complicate isValidCaseState/emptyOperatorCaseState for no benefit here.
+  // Optional (not defaulted to "") so pre-Slice-3 localStorage records —
+  // which never had these keys — restore cleanly with no migration; the UI
+  // treats undefined the same as an empty string. The comparison ITSELF
+  // (which contractors, their prices, approach, etc.) is never stored here
+  // — see proposalContractors below, which reads live from `contractors`.
+  comparisonKeyDifferences?: string;
+  comparisonUnresolvedQuestions?: string;
+  comparisonRepairScopeNote?: string;
 }
 
 export function emptyOperatorCaseState(caseReference: string): OperatorCaseState {
@@ -270,7 +285,10 @@ function isValidCaseState(value: unknown, caseReference: string): value is Opera
     typeof value.nextAction === "string" &&
     (value.followUpDate === undefined || typeof value.followUpDate === "string") &&
     Array.isArray(value.contractors) &&
-    value.contractors.every(isValidContractor)
+    value.contractors.every(isValidContractor) &&
+    isOptionalString(value.comparisonKeyDifferences) &&
+    isOptionalString(value.comparisonUnresolvedQuestions) &&
+    isOptionalString(value.comparisonRepairScopeNote)
   );
 }
 
@@ -402,6 +420,18 @@ function normalizeRestoredContractor(contractor: OperatorContractor): OperatorCo
     ? { ...contractor, status: "contacted", responseType: contractor.responseType ?? legacyResponseType }
     : contractor;
   return applyContractorPatch(withCurrentStatus, {});
+}
+
+/**
+ * The contractors whose CURRENT response is "Initial proposal provided" —
+ * the set the Slice 3 comparison view renders as full proposal columns.
+ * Deliberately just a filter over the existing `contractors` array: there
+ * is no separate proposal/comparison data store, so editing a contractor's
+ * price (etc.) in the Slice 2 editor is automatically reflected here on the
+ * next render — nothing to keep in sync.
+ */
+export function proposalContractors(contractors: OperatorContractor[]): OperatorContractor[] {
+  return contractors.filter((contractor) => contractor.responseType === "proposal-provided");
 }
 
 export function createOperatorContractor(name: string): OperatorContractor {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GeneratedBriefDocument } from "@/components/GeneratedBriefDocument";
+import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
 import {
   applyContractorPatch,
@@ -471,7 +472,15 @@ export function OperatorCaseWorkspace({
 
       <section className="op-panel op-panel--wide" aria-label="Proposal comparison">
         <h2>Proposal comparison</h2>
-        <p className="op-panel__placeholder">Proposal comparison is not built yet — a later slice.</p>
+        <ProposalComparison
+          contractors={local.contractors}
+          keyDifferences={local.comparisonKeyDifferences ?? ""}
+          unresolvedQuestions={local.comparisonUnresolvedQuestions ?? ""}
+          repairScopeNote={local.comparisonRepairScopeNote ?? ""}
+          onKeyDifferencesChange={(value) => updateLocalField("comparisonKeyDifferences", value)}
+          onUnresolvedQuestionsChange={(value) => updateLocalField("comparisonUnresolvedQuestions", value)}
+          onRepairScopeNoteChange={(value) => updateLocalField("comparisonRepairScopeNote", value)}
+        />
       </section>
     </div>
   );

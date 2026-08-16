@@ -612,6 +612,151 @@ test("restored conditionally-stale fields (leftover proposal fields under a non-
   assert.equal(contractor.notes, "Operator's own note.");
 });
 
+// --- Slice 3: proposal comparison workflow ---------------------------------
+
+test("proposalContractors selects only contractors whose current response is 'Initial proposal provided'", async () => {
+  const { proposalContractors, createOperatorContractor, applyContractorPatch } = await import(
+    "../domain/operatorCaseState"
+  );
+  const a = applyContractorPatch(createOperatorContractor("Contractor A"), {
+    responseType: "proposal-provided",
+    priceType: "fixed",
+    price: 5000,
+  });
+  const b = applyContractorPatch(createOperatorContractor("Contractor B"), { responseType: "interested" });
+  const c = applyContractorPatch(createOperatorContractor("Contractor C"), { responseType: "needs-inspection" });
+  const d = applyContractorPatch(createOperatorContractor("Contractor D"), {
+    responseType: "needs-more-information",
+  });
+  const e = applyContractorPatch(createOperatorContractor("Contractor E"), { responseType: "not-suitable" });
+  const f = createOperatorContractor("Contractor F"); // no response at all yet
+
+  const proposals = proposalContractors([a, b, c, d, e, f]);
+  assert.deepEqual(
+    proposals.map((p) => p.name),
+    ["Contractor A"],
+  );
+});
+
+test("proposalContractors is truthful about count against the full contractor list — three proposals among five contractors", async () => {
+  const { proposalContractors, createOperatorContractor, applyContractorPatch } = await import(
+    "../domain/operatorCaseState"
+  );
+  const proposal = () =>
+    applyContractorPatch(createOperatorContractor("P"), { responseType: "proposal-provided", priceType: "no-price" });
+  const contractors = [
+    proposal(),
+    proposal(),
+    proposal(),
+    applyContractorPatch(createOperatorContractor("Interested"), { responseType: "interested" }),
+    createOperatorContractor("Untouched"),
+  ];
+  const proposals = proposalContractors(contractors);
+  assert.equal(proposals.length, 3);
+  assert.equal(contractors.length, 5);
+});
+
+test("comparison notes (key differences, unresolved questions, RepairScope note) persist through a write/read round trip", async () => {
+  const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState } = await import(
+    "../domain/operatorCaseState"
+  );
+  const state = emptyOperatorCaseState("RS-000030");
+  state.comparisonKeyDifferences = "A replaces now at a fixed price; B wants to inspect first.";
+  state.comparisonUnresolvedQuestions = "Does B's range include materials?";
+  state.comparisonRepairScopeNote = "Both contractors are aware of the leak location.";
+  writeOperatorCaseState(state);
+
+  const restored = readOperatorCaseState("RS-000030");
+  assert.equal(restored.comparisonKeyDifferences, "A replaces now at a fixed price; B wants to inspect first.");
+  assert.equal(restored.comparisonUnresolvedQuestions, "Does B's range include materials?");
+  assert.equal(restored.comparisonRepairScopeNote, "Both contractors are aware of the leak location.");
+});
+
+test("a pre-Slice-3 case state (no comparison fields at all) restores safely, with comparison notes undefined", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-PRESLICE3",
+    JSON.stringify({
+      caseReference: "RS-PRESLICE3",
+      status: "sourcing-contractors",
+      internalNotes: "Pre-Slice-3 record.",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [
+        {
+          id: "c1",
+          name: "Contractor A",
+          status: "contacted",
+          notes: "",
+          responseType: "proposal-provided",
+          priceType: "fixed",
+          price: 5000,
+        },
+      ],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-PRESLICE3");
+  assert.equal(restored.internalNotes, "Pre-Slice-3 record.");
+  assert.equal(restored.contractors.length, 1);
+  assert.equal(restored.comparisonKeyDifferences, undefined);
+  assert.equal(restored.comparisonUnresolvedQuestions, undefined);
+  assert.equal(restored.comparisonRepairScopeNote, undefined);
+});
+
+test("editing Contractor A's price in the existing contractor record is reflected by proposalContractors with no separate comparison-proposal state to sync", async () => {
+  const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState, createOperatorContractor,
+    applyContractorPatch, proposalContractors } = await import("../domain/operatorCaseState");
+  const state = emptyOperatorCaseState("RS-000031");
+  const contractor = applyContractorPatch(createOperatorContractor("Contractor A"), {
+    responseType: "proposal-provided",
+    priceType: "fixed",
+    price: 5000,
+  });
+  state.contractors = [contractor];
+  writeOperatorCaseState(state);
+
+  let restored = readOperatorCaseState("RS-000031");
+  assert.equal(proposalContractors(restored.contractors)[0].price, 5000);
+
+  const updatedContractor = applyContractorPatch(restored.contractors[0], { price: 5500 });
+  restored.contractors = [updatedContractor];
+  writeOperatorCaseState(restored);
+
+  restored = readOperatorCaseState("RS-000031");
+  assert.equal(proposalContractors(restored.contractors)[0].price, 5500);
+});
+
+test("Contractor A's proposal changes never affect Contractor B's independently-recorded proposal", async () => {
+  const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState, createOperatorContractor,
+    applyContractorPatch, proposalContractors } = await import("../domain/operatorCaseState");
+  const state = emptyOperatorCaseState("RS-000032");
+  const a = applyContractorPatch(createOperatorContractor("Contractor A"), {
+    responseType: "proposal-provided",
+    priceType: "fixed",
+    price: 5000,
+  });
+  const b = applyContractorPatch(createOperatorContractor("Contractor B"), {
+    responseType: "proposal-provided",
+    priceType: "range",
+    priceMin: 4000,
+    priceMax: 7000,
+  });
+  state.contractors = [a, b];
+  writeOperatorCaseState(state);
+
+  let restored = readOperatorCaseState("RS-000032");
+  const updatedA = applyContractorPatch(restored.contractors.find((c) => c.id === a.id)!, { price: 9000 });
+  restored.contractors = restored.contractors.map((c) => (c.id === a.id ? updatedA : c));
+  writeOperatorCaseState(restored);
+
+  restored = readOperatorCaseState("RS-000032");
+  const proposals = proposalContractors(restored.contractors);
+  assert.equal(proposals.find((p) => p.id === a.id)!.price, 9000);
+  assert.equal(proposals.find((p) => p.id === b.id)!.priceMin, 4000);
+  assert.equal(proposals.find((p) => p.id === b.id)!.priceMax, 7000);
+});
+
 test("OperatorCaseList and OperatorCaseWorkspace never import the test-only fixture module", async () => {
   const { readFile } = await import("node:fs/promises");
   const listSource = await readFile(
