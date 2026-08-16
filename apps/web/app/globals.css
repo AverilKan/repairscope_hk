@@ -11267,3 +11267,101 @@ select:focus {
   border-radius: 4px;
   resize: vertical;
 }
+
+.op-contractor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.op-contractor-card {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 12px 14px;
+  background: #fafafa;
+}
+
+.op-contractor-card__summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.op-contractor-card__heading {
+  font-weight: 600;
+}
+
+.op-contractor-card__trade {
+  color: #666;
+  font-weight: 400;
+}
+
+.op-contractor-card__meta {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: #555;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.op-contractor-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.op-contractor-card__form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e2e2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.op-contractor-card__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.op-contractor-card__form input,
+.op-contractor-card__form select {
+  padding: 6px 8px;
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.op-contractor-card__form textarea {
+  min-height: 56px;
+  padding: 6px 8px;
+  font: inherit;
+  font-weight: 400;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  resize: vertical;
+}
+
+.op-contractor-card__row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.op-contractor-card__row > label {
+  flex: 1 1 160px;
+}
+
+.op-contractor-card__hint {
+  margin: -6px 0 10px;
+  color: #777;
+  font-size: 0.78rem;
+}

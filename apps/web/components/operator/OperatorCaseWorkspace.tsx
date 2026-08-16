@@ -4,18 +4,31 @@ import { useEffect, useState } from "react";
 import { GeneratedBriefDocument } from "@/components/GeneratedBriefDocument";
 import { StatusPill } from "@/components/SiteShell";
 import {
+  applyContractorPatch,
   createOperatorContractor,
   emptyOperatorCaseState,
   OPERATOR_CASE_STATUS_LABELS,
   OPERATOR_CASE_STATUSES,
+  OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS,
+  OPERATOR_CONTRACTOR_RESPONSE_TYPES,
   OPERATOR_CONTRACTOR_STATUS_LABELS,
   OPERATOR_CONTRACTOR_STATUSES,
+  OPERATOR_GUARANTEE_STATUS_LABELS,
+  OPERATOR_GUARANTEE_STATUSES,
+  OPERATOR_INSPECTION_REQUIREMENT_LABELS,
+  OPERATOR_INSPECTION_REQUIREMENTS,
+  OPERATOR_PRICE_TYPE_LABELS,
+  OPERATOR_PRICE_TYPES,
   readOperatorCaseState,
   writeOperatorCaseState,
   type OperatorCaseState,
   type OperatorCaseStatus,
   type OperatorContractor,
+  type OperatorContractorResponseType,
   type OperatorContractorStatus,
+  type OperatorGuaranteeStatus,
+  type OperatorInspectionRequirement,
+  type OperatorPriceType,
 } from "@/domain/operatorCaseState";
 import {
   OperatorSubmissionNotFoundError,
@@ -88,6 +101,9 @@ export function OperatorCaseWorkspace({
   // Local-only operator workflow state.
   const [local, setLocal] = useState<OperatorCaseState>(() => emptyOperatorCaseState(caseReference));
   const [localLoaded, setLocalLoaded] = useState(false);
+  // Which contractor cards are currently expanded for editing — purely a
+  // view concern, not persisted.
+  const [expandedContractorIds, setExpandedContractorIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -172,16 +188,22 @@ export function OperatorCaseWorkspace({
   };
 
   const addContractor = () => {
+    const created = createOperatorContractor("");
     setLocal((current) => ({
       ...current,
-      contractors: [...current.contractors, createOperatorContractor("")],
+      contractors: [...current.contractors, created],
     }));
+    setExpandedContractorIds((current) => new Set(current).add(created.id));
   };
 
+  // Always routes through applyContractorPatch so switching response type,
+  // price type, or guarantee status clears whatever is no longer relevant —
+  // see that function's own comment for the exact clearing policy. This
+  // patches the SAME record by id — editing never creates a new contractor.
   const updateContractor = (id: string, patch: Partial<OperatorContractor>) => {
     setLocal((current) => ({
       ...current,
-      contractors: current.contractors.map((c) => (c.id === id ? { ...c, ...patch } : c)),
+      contractors: current.contractors.map((c) => (c.id === id ? applyContractorPatch(c, patch) : c)),
     }));
   };
 
@@ -190,6 +212,20 @@ export function OperatorCaseWorkspace({
       ...current,
       contractors: current.contractors.filter((c) => c.id !== id),
     }));
+    setExpandedContractorIds((current) => {
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const toggleContractorExpanded = (id: string) => {
+    setExpandedContractorIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   if (state.phase === "loading") {
@@ -418,76 +454,18 @@ export function OperatorCaseWorkspace({
         {local.contractors.length === 0 ? (
           <p>No contractors added yet.</p>
         ) : (
-          <table className="op-contractor-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Trade</th>
-                <th>Contact reference</th>
-                <th>Status</th>
-                <th>Notes</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {local.contractors.map((contractor) => (
-                <tr key={contractor.id}>
-                  <td>
-                    <input
-                      value={contractor.name}
-                      onChange={(event) => updateContractor(contractor.id, { name: event.target.value })}
-                      aria-label="Contractor name"
-                      placeholder="Contractor name"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      value={contractor.trade ?? ""}
-                      onChange={(event) => updateContractor(contractor.id, { trade: event.target.value })}
-                      placeholder="e.g. plumber"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      value={contractor.contactReference ?? ""}
-                      onChange={(event) =>
-                        updateContractor(contractor.id, { contactReference: event.target.value })
-                      }
-                      placeholder="e.g. WhatsApp / phone note"
-                    />
-                  </td>
-                  <td>
-                    <select
-                      value={contractor.status}
-                      onChange={(event) =>
-                        updateContractor(contractor.id, {
-                          status: event.target.value as OperatorContractorStatus,
-                        })
-                      }
-                    >
-                      {OPERATOR_CONTRACTOR_STATUSES.map((status) => (
-                        <option key={status} value={status}>
-                          {OPERATOR_CONTRACTOR_STATUS_LABELS[status]}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td>
-                    <textarea
-                      value={contractor.notes}
-                      onChange={(event) => updateContractor(contractor.id, { notes: event.target.value })}
-                      placeholder="Notes copied manually from WhatsApp, calls, etc."
-                    />
-                  </td>
-                  <td>
-                    <button type="button" onClick={() => removeContractor(contractor.id)}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="op-contractor-list">
+            {local.contractors.map((contractor) => (
+              <ContractorCard
+                key={contractor.id}
+                contractor={contractor}
+                expanded={expandedContractorIds.has(contractor.id)}
+                onToggleExpanded={() => toggleContractorExpanded(contractor.id)}
+                onUpdate={(patch) => updateContractor(contractor.id, patch)}
+                onRemove={() => removeContractor(contractor.id)}
+              />
+            ))}
+          </div>
         )}
       </section>
 
@@ -495,6 +473,337 @@ export function OperatorCaseWorkspace({
         <h2>Proposal comparison</h2>
         <p className="op-panel__placeholder">Proposal comparison is not built yet — a later slice.</p>
       </section>
+    </div>
+  );
+}
+
+function formatHkDollars(amount: number): string {
+  return `HK$${amount.toLocaleString("en-HK")}`;
+}
+
+/** A short, at-a-glance line for the collapsed card — what a founder scanning
+ * the list actually wants to know without opening every contractor. */
+function summarizeContractor(contractor: OperatorContractor): string | null {
+  switch (contractor.responseType) {
+    case "interested":
+      return "Interested";
+    case "needs-inspection":
+      return contractor.inspectionRequirement
+        ? `Needs inspection — ${OPERATOR_INSPECTION_REQUIREMENT_LABELS[contractor.inspectionRequirement]}`
+        : "Needs inspection";
+    case "needs-more-information":
+      return "Needs more information";
+    case "not-suitable":
+      return "Not suitable";
+    case "proposal-provided": {
+      if (contractor.priceType === "fixed" || contractor.priceType === "estimate") {
+        if (typeof contractor.price === "number") {
+          const prefix = contractor.priceType === "estimate" ? "Est. " : "";
+          return `Proposal — ${prefix}${formatHkDollars(contractor.price)}`;
+        }
+      }
+      if (contractor.priceType === "range") {
+        const { priceMin, priceMax } = contractor;
+        if (typeof priceMin === "number" && typeof priceMax === "number") {
+          return `Proposal — ${formatHkDollars(priceMin)}–${formatHkDollars(priceMax)}`;
+        }
+      }
+      return "Proposal provided";
+    }
+    default:
+      return null;
+  }
+}
+
+function ContractorCard({
+  contractor,
+  expanded,
+  onToggleExpanded,
+  onUpdate,
+  onRemove,
+}: {
+  contractor: OperatorContractor;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  onUpdate: (patch: Partial<OperatorContractor>) => void;
+  onRemove: () => void;
+}) {
+  const responseSummary = summarizeContractor(contractor);
+  const rangeInvalid =
+    contractor.priceType === "range" &&
+    typeof contractor.priceMin === "number" &&
+    typeof contractor.priceMax === "number" &&
+    contractor.priceMin > contractor.priceMax;
+
+  const parseOptionalAmount = (raw: string): number | undefined => {
+    if (raw === "") return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  };
+
+  return (
+    <div className="op-contractor-card">
+      <div className="op-contractor-card__summary">
+        <div>
+          <div className="op-contractor-card__heading">
+            {contractor.name || "Unnamed contractor"}
+            {contractor.trade ? <span className="op-contractor-card__trade"> · {contractor.trade}</span> : null}
+          </div>
+          <p className="op-contractor-card__meta">
+            <span>{OPERATOR_CONTRACTOR_STATUS_LABELS[contractor.status]}</span>
+            {responseSummary && <span>{responseSummary}</span>}
+          </p>
+        </div>
+        <div className="op-contractor-card__actions">
+          <button type="button" onClick={onToggleExpanded}>
+            {expanded ? "Collapse" : "Edit"}
+          </button>
+          <button type="button" onClick={onRemove}>
+            Remove
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="op-contractor-card__form">
+          <label>
+            Contractor name
+            <input
+              value={contractor.name}
+              onChange={(event) => onUpdate({ name: event.target.value })}
+              aria-label="Contractor name"
+              placeholder="Contractor name"
+            />
+          </label>
+          <div className="op-contractor-card__row">
+            <label>
+              Trade
+              <input
+                value={contractor.trade ?? ""}
+                onChange={(event) => onUpdate({ trade: event.target.value })}
+                placeholder="e.g. plumber"
+              />
+            </label>
+            <label>
+              Contact reference
+              <input
+                value={contractor.contactReference ?? ""}
+                onChange={(event) => onUpdate({ contactReference: event.target.value })}
+                placeholder="e.g. WhatsApp / phone note"
+              />
+            </label>
+          </div>
+
+          <label>
+            Contact / sourcing status
+            <select
+              value={contractor.status}
+              onChange={(event) => onUpdate({ status: event.target.value as OperatorContractorStatus })}
+            >
+              {OPERATOR_CONTRACTOR_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {OPERATOR_CONTRACTOR_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            Current response
+            <select
+              value={contractor.responseType ?? ""}
+              onChange={(event) =>
+                onUpdate({
+                  responseType: (event.target.value || undefined) as OperatorContractorResponseType | undefined,
+                })
+              }
+            >
+              <option value="">Not yet responded</option>
+              {OPERATOR_CONTRACTOR_RESPONSE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {contractor.responseType === "needs-inspection" && (
+            <label>
+              Inspection requirement
+              <select
+                value={contractor.inspectionRequirement ?? ""}
+                onChange={(event) =>
+                  onUpdate({
+                    inspectionRequirement: (event.target.value || undefined) as
+                      | OperatorInspectionRequirement
+                      | undefined,
+                  })
+                }
+              >
+                <option value="">Select…</option>
+                {OPERATOR_INSPECTION_REQUIREMENTS.map((requirement) => (
+                  <option key={requirement} value={requirement}>
+                    {OPERATOR_INSPECTION_REQUIREMENT_LABELS[requirement]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {contractor.responseType === "needs-more-information" && (
+            <label>
+              What information do they need?
+              <textarea
+                value={contractor.informationNeeded ?? ""}
+                onChange={(event) => onUpdate({ informationNeeded: event.target.value })}
+              />
+            </label>
+          )}
+
+          {contractor.responseType === "proposal-provided" && (
+            <>
+              <label>
+                Price type
+                <select
+                  value={contractor.priceType ?? ""}
+                  onChange={(event) =>
+                    onUpdate({ priceType: (event.target.value || undefined) as OperatorPriceType | undefined })
+                  }
+                >
+                  <option value="">Select…</option>
+                  {OPERATOR_PRICE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {OPERATOR_PRICE_TYPE_LABELS[type]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {(contractor.priceType === "fixed" || contractor.priceType === "estimate") && (
+                <label>
+                  Price (HK$)
+                  <input
+                    type="number"
+                    min={0}
+                    value={contractor.price ?? ""}
+                    onChange={(event) => onUpdate({ price: parseOptionalAmount(event.target.value) })}
+                  />
+                </label>
+              )}
+
+              {contractor.priceType === "range" && (
+                <div className="op-contractor-card__row">
+                  <label>
+                    Price range — minimum (HK$)
+                    <input
+                      type="number"
+                      min={0}
+                      value={contractor.priceMin ?? ""}
+                      onChange={(event) => onUpdate({ priceMin: parseOptionalAmount(event.target.value) })}
+                    />
+                  </label>
+                  <label>
+                    Price range — maximum (HK$)
+                    <input
+                      type="number"
+                      min={0}
+                      value={contractor.priceMax ?? ""}
+                      onChange={(event) => onUpdate({ priceMax: parseOptionalAmount(event.target.value) })}
+                    />
+                  </label>
+                </div>
+              )}
+              {rangeInvalid && (
+                <p className="field-error" role="alert">
+                  The minimum price is greater than the maximum — check the range.
+                </p>
+              )}
+
+              <label>
+                Proposed approach
+                <textarea
+                  value={contractor.proposedApproach ?? ""}
+                  onChange={(event) => onUpdate({ proposedApproach: event.target.value })}
+                />
+              </label>
+              <label>
+                What&apos;s included
+                <textarea
+                  value={contractor.inclusions ?? ""}
+                  onChange={(event) => onUpdate({ inclusions: event.target.value })}
+                />
+              </label>
+              <label>
+                What&apos;s excluded
+                <textarea
+                  value={contractor.exclusions ?? ""}
+                  onChange={(event) => onUpdate({ exclusions: event.target.value })}
+                />
+              </label>
+              <label>
+                What could change the price
+                <textarea
+                  value={contractor.priceChangeFactors ?? ""}
+                  onChange={(event) => onUpdate({ priceChangeFactors: event.target.value })}
+                />
+              </label>
+              <label>
+                Expected duration
+                <input
+                  value={contractor.expectedDuration ?? ""}
+                  onChange={(event) => onUpdate({ expectedDuration: event.target.value })}
+                  placeholder="e.g. 1 day, 2–3 visits"
+                />
+              </label>
+              <label>
+                Guarantee
+                <select
+                  value={contractor.guaranteeStatus ?? ""}
+                  onChange={(event) =>
+                    onUpdate({
+                      guaranteeStatus: (event.target.value || undefined) as OperatorGuaranteeStatus | undefined,
+                    })
+                  }
+                >
+                  <option value="">Select…</option>
+                  {OPERATOR_GUARANTEE_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {OPERATOR_GUARANTEE_STATUS_LABELS[status]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {contractor.guaranteeStatus === "yes" && (
+                <label>
+                  Guarantee details
+                  <textarea
+                    value={contractor.guaranteeDetails ?? ""}
+                    onChange={(event) => onUpdate({ guaranteeDetails: event.target.value })}
+                  />
+                </label>
+              )}
+            </>
+          )}
+
+          <label>
+            Original contractor response — what did they say?
+            <textarea
+              value={contractor.originalResponse ?? ""}
+              onChange={(event) => onUpdate({ originalResponse: event.target.value })}
+              placeholder="Paste or paraphrase what the contractor actually said…"
+            />
+          </label>
+
+          <label>
+            Operator notes
+            <textarea
+              value={contractor.notes}
+              onChange={(event) => onUpdate({ notes: event.target.value })}
+              placeholder="Notes copied manually from WhatsApp, calls, etc."
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

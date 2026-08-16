@@ -165,6 +165,186 @@ test("a corrupted stored record falls back to an empty state instead of crashing
 // proves the OTHER half — that the real components never import the
 // test-only fixture module at all, so there is no code path by which a
 // fixture could reach the live UI regardless of API outcome.
+// --- Slice 2: manual contractor response workflow -------------------------
+
+test("a contractor's structured response fields (proposal, price, guarantee) persist through a write/read round trip", async () => {
+  const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState, createOperatorContractor } =
+    await import("../domain/operatorCaseState");
+  const state = emptyOperatorCaseState("RS-000010");
+  const contractor = createOperatorContractor("Contractor A");
+  contractor.responseType = "proposal-provided";
+  contractor.priceType = "range";
+  contractor.priceMin = 1200;
+  contractor.priceMax = 1800;
+  contractor.proposedApproach = "Replace the trap and reseal.";
+  contractor.inclusions = "Parts and labour.";
+  contractor.exclusions = "Tiling repair if needed.";
+  contractor.priceChangeFactors = "If pipe behind wall is also corroded.";
+  contractor.expectedDuration = "Half a day";
+  contractor.guaranteeStatus = "yes";
+  contractor.guaranteeDetails = "6 months on parts.";
+  contractor.originalResponse = "Can do it Thursday, HK$1200-1800 depending on what we find.";
+  state.contractors = [contractor];
+  writeOperatorCaseState(state);
+
+  const restored = readOperatorCaseState("RS-000010");
+  const restoredContractor = restored.contractors[0];
+  assert.equal(restoredContractor.responseType, "proposal-provided");
+  assert.equal(restoredContractor.priceType, "range");
+  assert.equal(restoredContractor.priceMin, 1200);
+  assert.equal(restoredContractor.priceMax, 1800);
+  assert.equal(restoredContractor.guaranteeStatus, "yes");
+  assert.equal(restoredContractor.guaranteeDetails, "6 months on parts.");
+  assert.equal(
+    restoredContractor.originalResponse,
+    "Can do it Thursday, HK$1200-1800 depending on what we find.",
+  );
+});
+
+test("an old, pre-Slice-2 minimal contractor record (no response fields at all) restores safely with all new fields undefined", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-OLD",
+    JSON.stringify({
+      caseReference: "RS-OLD",
+      status: "ready-for-sourcing",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [
+        { id: "contractor-1", name: "Legacy Contractor", status: "contacted", notes: "Old-shape record." },
+      ],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-OLD");
+  assert.equal(restored.contractors.length, 1);
+  const contractor = restored.contractors[0];
+  assert.equal(contractor.name, "Legacy Contractor");
+  assert.equal(contractor.notes, "Old-shape record.");
+  assert.equal(contractor.responseType, undefined);
+  assert.equal(contractor.priceType, undefined);
+  assert.equal(contractor.guaranteeStatus, undefined);
+});
+
+test("editing one contractor's response never affects a second, independent contractor", async () => {
+  const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState, createOperatorContractor } =
+    await import("../domain/operatorCaseState");
+  const state = emptyOperatorCaseState("RS-000011");
+  const a = createOperatorContractor("Contractor A");
+  const b = createOperatorContractor("Contractor B");
+  a.responseType = "interested";
+  a.originalResponse = "Sounds doable.";
+  b.responseType = "not-suitable";
+  b.originalResponse = "Not our trade.";
+  state.contractors = [a, b];
+  writeOperatorCaseState(state);
+
+  const restored = readOperatorCaseState("RS-000011");
+  const restoredA = restored.contractors.find((c) => c.id === a.id)!;
+  const restoredB = restored.contractors.find((c) => c.id === b.id)!;
+  assert.equal(restoredA.responseType, "interested");
+  assert.equal(restoredB.responseType, "not-suitable");
+
+  restoredA.originalResponse = "Actually, changed their mind.";
+  restored.contractors = restored.contractors.map((c) => (c.id === a.id ? restoredA : c));
+  writeOperatorCaseState(restored);
+
+  const afterEdit = readOperatorCaseState("RS-000011");
+  assert.equal(afterEdit.contractors.find((c) => c.id === a.id)!.originalResponse, "Actually, changed their mind.");
+  assert.equal(afterEdit.contractors.find((c) => c.id === b.id)!.originalResponse, "Not our trade.");
+});
+
+test("applyContractorPatch clears proposal fields when the response type changes away from 'proposal-provided'", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    priceType: "fixed",
+    price: 900,
+    proposedApproach: "Replace the valve.",
+    guaranteeStatus: "yes",
+    guaranteeDetails: "3 months.",
+  });
+  assert.equal(contractor.price, 900);
+  assert.equal(contractor.guaranteeDetails, "3 months.");
+
+  contractor = applyContractorPatch(contractor, { responseType: "needs-inspection" });
+  assert.equal(contractor.priceType, undefined);
+  assert.equal(contractor.price, undefined);
+  assert.equal(contractor.proposedApproach, undefined);
+  assert.equal(contractor.guaranteeStatus, undefined);
+  assert.equal(contractor.guaranteeDetails, undefined);
+});
+
+test("applyContractorPatch clears the price range when price type changes away from 'range', and clears the single price when moving to 'range'", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    priceType: "range",
+    priceMin: 500,
+    priceMax: 900,
+  });
+  assert.equal(contractor.priceMin, 500);
+  assert.equal(contractor.priceMax, 900);
+
+  contractor = applyContractorPatch(contractor, { priceType: "fixed", price: 700 });
+  assert.equal(contractor.priceMin, undefined);
+  assert.equal(contractor.priceMax, undefined);
+  assert.equal(contractor.price, 700);
+
+  contractor = applyContractorPatch(contractor, { priceType: "range" });
+  assert.equal(contractor.price, undefined);
+});
+
+test("applyContractorPatch clears guarantee details when guarantee status is not 'yes'", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor = applyContractorPatch(contractor, {
+    responseType: "proposal-provided",
+    guaranteeStatus: "yes",
+    guaranteeDetails: "1 year on parts and labour.",
+  });
+  assert.equal(contractor.guaranteeDetails, "1 year on parts and labour.");
+
+  contractor = applyContractorPatch(contractor, { guaranteeStatus: "not-stated" });
+  assert.equal(contractor.guaranteeDetails, undefined);
+});
+
+test("applyContractorPatch preserves the always-available originalResponse and operator notes across a response type change", async () => {
+  const { applyContractorPatch, createOperatorContractor } = await import("../domain/operatorCaseState");
+  let contractor = createOperatorContractor("Contractor A");
+  contractor.notes = "Called twice, no answer.";
+  contractor = applyContractorPatch(contractor, {
+    responseType: "needs-more-information",
+    informationNeeded: "Photos of the pipe.",
+    originalResponse: "Can you send more photos?",
+  });
+  contractor = applyContractorPatch(contractor, { responseType: "proposal-provided" });
+  assert.equal(contractor.originalResponse, "Can you send more photos?");
+  assert.equal(contractor.notes, "Called twice, no answer.");
+  assert.equal(contractor.informationNeeded, undefined);
+});
+
+test("an out-of-range or unrecognised responseType value on a restored record is rejected, falling back to an empty case state rather than crashing", async () => {
+  const { readOperatorCaseState } = await import("../domain/operatorCaseState");
+  window.localStorage.setItem(
+    "repairscope:operator-case:RS-BAD3",
+    JSON.stringify({
+      caseReference: "RS-BAD3",
+      status: "new",
+      internalNotes: "",
+      unresolvedQuestions: "",
+      ownerFollowUpQuestions: "",
+      nextAction: "",
+      contractors: [{ id: "c1", name: "X", status: "contacted", notes: "", responseType: "not-a-real-type" }],
+    }),
+  );
+  const restored = readOperatorCaseState("RS-BAD3");
+  assert.deepEqual(restored.contractors, []);
+});
+
 test("OperatorCaseList and OperatorCaseWorkspace never import the test-only fixture module", async () => {
   const { readFile } = await import("node:fs/promises");
   const listSource = await readFile(

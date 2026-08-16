@@ -100,16 +100,18 @@ test.describe("local operator working state — the manual flow", () => {
     await expect(page.getByLabel("Local workflow status")).toHaveValue("ready-for-sourcing");
 
     await page.getByRole("button", { name: "+ Add contractor" }).click();
-    const rows = page.locator(".op-contractor-table tbody tr");
-    await expect(rows).toHaveCount(1);
-    await rows.nth(0).getByLabel("Contractor name").fill("Contractor A");
-    await rows.nth(0).locator("select").selectOption("contacted");
-    await rows.nth(0).locator("textarea").fill("Called 9am, can visit Thursday.");
+    const cards = page.locator(".op-contractor-card");
+    await expect(cards).toHaveCount(1);
+    await cards.nth(0).getByLabel("Contractor name").fill("Contractor A");
+    await cards.nth(0).getByLabel("Contact / sourcing status").selectOption("contacted");
+    await cards.nth(0).getByLabel("Operator notes").fill("Called 9am, can visit Thursday.");
+    await cards.nth(0).getByLabel("Current response").selectOption("interested");
+    await cards.nth(0).getByLabel("Original contractor response — what did they say?").fill("Can visit Thursday.");
 
     await page.getByRole("button", { name: "+ Add contractor" }).click();
-    await expect(rows).toHaveCount(2);
-    await rows.nth(1).getByLabel("Contractor name").fill("Contractor B");
-    await rows.nth(1).locator("select").selectOption("declined");
+    await expect(cards).toHaveCount(2);
+    await cards.nth(1).getByLabel("Contractor name").fill("Contractor B");
+    await cards.nth(1).getByLabel("Contact / sourcing status").selectOption("declined");
 
     await page.getByLabel("Next action").fill("Get a quote from Contractor A after Thursday's visit.");
     await page.getByLabel("Follow-up date (optional)").fill("2026-08-25");
@@ -124,17 +126,30 @@ test.describe("local operator working state — the manual flow", () => {
     );
     await expect(page.getByLabel("Follow-up date (optional)")).toHaveValue("2026-08-25");
 
-    const reloadedRows = page.locator(".op-contractor-table tbody tr");
-    await expect(reloadedRows).toHaveCount(2);
-    await expect(reloadedRows.nth(0).getByLabel("Contractor name")).toHaveValue("Contractor A");
-    await expect(reloadedRows.nth(0).locator("select")).toHaveValue("contacted");
-    await expect(reloadedRows.nth(1).getByLabel("Contractor name")).toHaveValue("Contractor B");
-    await expect(reloadedRows.nth(1).locator("select")).toHaveValue("declined");
+    const reloadedCards = page.locator(".op-contractor-card");
+    await expect(reloadedCards).toHaveCount(2);
+    // Cards collapse on reload (expand/collapse is view-only, not
+    // persisted) — the collapsed summary still shows what was saved.
+    await expect(reloadedCards.nth(0)).toContainText("Contractor A");
+    await expect(reloadedCards.nth(0)).toContainText("Interested");
+    await expect(reloadedCards.nth(1)).toContainText("Contractor B");
 
-    await reloadedRows.nth(1).getByRole("button", { name: "Remove" }).click();
-    await expect(page.locator(".op-contractor-table tbody tr")).toHaveCount(1);
+    await reloadedCards.nth(0).getByRole("button", { name: "Edit" }).click();
+    await expect(reloadedCards.nth(0).getByLabel("Contractor name")).toHaveValue("Contractor A");
+    await expect(reloadedCards.nth(0).getByLabel("Contact / sourcing status")).toHaveValue("contacted");
+    await expect(reloadedCards.nth(0).getByLabel("Current response")).toHaveValue("interested");
+    await expect(
+      reloadedCards.nth(0).getByLabel("Original contractor response — what did they say?"),
+    ).toHaveValue("Can visit Thursday.");
+
+    await reloadedCards.nth(1).getByRole("button", { name: "Edit" }).click();
+    await expect(reloadedCards.nth(1).getByLabel("Contractor name")).toHaveValue("Contractor B");
+    await expect(reloadedCards.nth(1).getByLabel("Contact / sourcing status")).toHaveValue("declined");
+
+    await reloadedCards.nth(1).getByRole("button", { name: "Remove" }).click();
+    await expect(page.locator(".op-contractor-card")).toHaveCount(1);
     await page.reload();
-    await expect(page.locator(".op-contractor-table tbody tr")).toHaveCount(1);
+    await expect(page.locator(".op-contractor-card")).toHaveCount(1);
 
     expect(mutatingApiRequests).toEqual([]);
   });
