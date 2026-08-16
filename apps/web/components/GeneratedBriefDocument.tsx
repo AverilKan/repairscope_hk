@@ -7,7 +7,7 @@ import { useLanguage } from "./LanguageContext";
 
 // The single, shared rendering of a generated repair brief — used by the
 // landlord's "Check the facts" review screen (LandlordApp.tsx) and the
-// operator submission detail screen (OperatorSubmissionReview.tsx). There
+// operator submission detail screen (OperatorCaseWorkspace.tsx). There
 // is deliberately no separate operator-specific representation: an
 // operator should see exactly what the owner saw.
 //
@@ -72,8 +72,8 @@ export function GeneratedBriefDocument({
   /**
    * "operator" (default) is the original numbered report-style layout,
    * unchanged — used by the operator submission detail screen
-   * (components/OperatorSubmissionReview.tsx), which should keep seeing
-   * the full technical rendering. "owner" is the simplified, synthesised
+   * (components/operator/OperatorCaseWorkspace.tsx), which should keep
+   * seeing the full technical rendering. "owner" is the simplified, synthesised
    * review shown on the owner's "Check the facts" screen
    * (components/LandlordApp.tsx) before contact/submission — see
    * OwnerBriefSummary below. Both variants are pure presentations of the

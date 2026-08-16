@@ -1,16 +1,23 @@
-// Sample cases for the "/prototype/operator" internal case workspace (Slice
-// 1 of the local post-intake prototype). Each brief is produced with the
-// SAME buildRepairBrief() the real owner journey uses — built from a
-// hand-written RepairIntakeDraft rather than hand-faked JSON — so the data
-// is authentically shaped, not an invented shortcut. This intentionally
-// does NOT reuse services/operator/MockOperatorSubmissionService.ts's
+// TEST-ONLY sample cases for the operator case workspace (components/
+// operator/OperatorCaseWorkspace.tsx). These are NOT wired into any live
+// route — the real /operator list and detail pages always come from
+// services/operator/OperatorSubmissionService.ts (mock or real API,
+// depending on NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE). This file exists so
+// unit/e2e tests have a realistic, non-trivial ProblemBrief to render
+// without needing a live backend — each brief is produced with the SAME
+// buildRepairBrief() the real owner journey uses, built from a
+// hand-written RepairIntakeDraft rather than hand-faked JSON.
+//
+// Deliberately does NOT reuse services/operator/MockOperatorSubmissionService.ts's
 // "RS-MOCK01" fixture: that one is a pre-HK-rework fixture pinned by
 // tests/e2e/operator-brief-readability.spec.ts and must not be touched.
+// "RS-PROTO0N" references are used here specifically so a fixture used in
+// a test failure/snapshot is never mistaken for a real RS-XXXXXX case.
 
 import { buildRepairBrief } from "@/domain/brief";
 import type { ProblemBrief, RepairIntakeDraft } from "@/domain/types";
 
-export interface PrototypeCase {
+export interface OperatorCaseFixture {
   caseReference: string;
   ownerName: string;
   ownerEmail: string;
@@ -22,7 +29,7 @@ export interface PrototypeCase {
 // Case 1 — leak, WITH evidence, a prior quotation already received, a
 // fairly complete/confident set of answers.
 const leakDraft: RepairIntakeDraft = {
-  id: "proto-case-leak-01",
+  id: "fixture-case-leak-01",
   category: "leak",
   originalReport: "",
   extractedSymptoms: [],
@@ -59,7 +66,7 @@ const leakDraft: RepairIntakeDraft = {
 // Case 2 — electrical, NO evidence, nothing attempted yet, tighter/more
 // uncertain answers — exercises the sparser end of a real submission.
 const electricalDraft: RepairIntakeDraft = {
-  id: "proto-case-electrical-01",
+  id: "fixture-case-electrical-01",
   category: "electrical",
   originalReport: "",
   extractedSymptoms: [],
@@ -94,7 +101,7 @@ const electricalDraft: RepairIntakeDraft = {
 // Case 3 — drainage, mostly "not sure" answers and no building-management
 // contact yet — the messy/uncertain end of a real case.
 const drainageDraft: RepairIntakeDraft = {
-  id: "proto-case-drainage-01",
+  id: "fixture-case-drainage-01",
   category: "drainage",
   originalReport: "",
   extractedSymptoms: [],
@@ -126,7 +133,7 @@ const drainageDraft: RepairIntakeDraft = {
   updatedAt: "2026-08-15T11:47:00.000Z",
 };
 
-export const prototypeCases: PrototypeCase[] = [
+export const operatorCaseFixtures: OperatorCaseFixture[] = [
   {
     caseReference: "RS-PROTO01",
     ownerName: "陳大文",
@@ -153,6 +160,6 @@ export const prototypeCases: PrototypeCase[] = [
   },
 ];
 
-export function findPrototypeCase(caseReference: string): PrototypeCase | undefined {
-  return prototypeCases.find((entry) => entry.caseReference === caseReference);
+export function findOperatorCaseFixture(caseReference: string): OperatorCaseFixture | undefined {
+  return operatorCaseFixtures.find((entry) => entry.caseReference === caseReference);
 }

@@ -4,7 +4,7 @@ import { JSDOM } from "jsdom";
 
 // GeneratedBriefDocument is the single shared rendering of a generated
 // repair brief used by both the landlord "Check the facts" screen and the
-// operator submission detail screen (components/OperatorSubmissionReview.tsx)
+// operator submission detail screen (components/operator/OperatorCaseWorkspace.tsx)
 // — there is deliberately no second, operator-specific representation.
 // Rendered here with no LanguageProvider in the tree, so it uses the
 // default (English) language context — see components/LanguageContext.tsx.

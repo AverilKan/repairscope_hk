@@ -1,5 +1,5 @@
 import { OperatorGate } from "@/components/OperatorGate";
-import { OperatorSubmissionReview } from "@/components/OperatorSubmissionReview";
+import { OperatorCaseList } from "@/components/operator/OperatorCaseList";
 import { PageIntro, SiteShell, StatusPill } from "@/components/SiteShell";
 
 export default function OperatorPage() {
@@ -13,7 +13,7 @@ export default function OperatorPage() {
           aside={<StatusPill tone="attention">Internal tool</StatusPill>}
         />
         <OperatorGate>
-          <OperatorSubmissionReview />
+          <OperatorCaseList />
         </OperatorGate>
       </main>
     </SiteShell>
