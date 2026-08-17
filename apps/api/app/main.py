@@ -6,11 +6,12 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from app.api.routes.contractor_requests import router as contractor_requests_router
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
 from app.api.routes.repair_submissions import router as repair_submissions_router
 from app.core.config import Settings, get_settings
-from app.core.errors import ForbiddenError, NotFoundError
+from app.core.errors import ConflictError, ForbiddenError, NotFoundError
 
 logger = logging.getLogger("repairscope.api")
 
@@ -18,6 +19,24 @@ app = FastAPI(title="RepairScope API")
 app.include_router(health_router)
 app.include_router(me_router)
 app.include_router(repair_submissions_router)
+app.include_router(contractor_requests_router)
+
+# The only route family that carries a live secret directly in its path —
+# GET/POST /api/contractor-requests/{token}[/response]. Never let the raw
+# token reach an application log line (see UnexpectedErrorMiddleware
+# below); this does not control platform/uvicorn access logs, which are
+# outside this application's code — the token's short expiry, single-use
+# and revocability are the primary mitigation for that residual surface,
+# not attempting to suppress every possible place a URL might be logged.
+_CONTRACTOR_TOKEN_PATH_PREFIX = "/api/contractor-requests/"
+
+
+def _redact_path_for_logging(path: str) -> str:
+    if not path.startswith(_CONTRACTOR_TOKEN_PATH_PREFIX):
+        return path
+    remainder = path[len(_CONTRACTOR_TOKEN_PATH_PREFIX) :]
+    token_segment, separator, rest = remainder.partition("/")
+    return f"{_CONTRACTOR_TOKEN_PATH_PREFIX}<redacted>{separator}{rest}"
 
 
 def validate_production_auth_config(settings: Settings) -> None:
@@ -112,8 +131,14 @@ class UnexpectedErrorMiddleware(BaseHTTPMiddleware):
         except Exception:
             # Never include the exception message or any request data in
             # the response; the traceback goes to the server log only.
+            # The path itself is redacted for the one route family that
+            # carries a raw contractor access token in it (see
+            # _redact_path_for_logging above) — every other request's path
+            # never contains a live secret.
             logger.exception(
-                "unhandled_exception path=%s method=%s", request.url.path, request.method
+                "unhandled_exception path=%s method=%s",
+                _redact_path_for_logging(request.url.path),
+                request.method,
             )
             return JSONResponse(
                 status_code=500, content={"detail": "An unexpected server error occurred."}
@@ -135,6 +160,10 @@ def configure_error_handlers(application: FastAPI) -> None:
     @application.exception_handler(NotFoundError)
     async def not_found_error_handler(_request: Request, _exc: NotFoundError) -> JSONResponse:
         return JSONResponse(status_code=404, content={"detail": "Not found."})
+
+    @application.exception_handler(ConflictError)
+    async def conflict_error_handler(_request: Request, exc: ConflictError) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
 
     application.add_middleware(UnexpectedErrorMiddleware)
 

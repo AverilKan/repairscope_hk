@@ -1,6 +1,12 @@
-from pydantic import BaseModel, ConfigDict
+from typing import Literal
 
-from app.models.contractor_request import STAGE1_SNAPSHOT_SCHEMA_VERSION
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.models.contractor_request import (
+    CONTRACTOR_RESPONSE_SCHEMA_VERSION,
+    STAGE1_SNAPSHOT_SCHEMA_VERSION,
+)
+from app.models.enums import ContractorResponseType
 
 
 class Stage1SnapshotV1(BaseModel):
@@ -38,3 +44,146 @@ class Stage1SnapshotV1(BaseModel):
     # question — a content-free flag only; the free text itself is never
     # read by this backend at all (see app/services/stage1_snapshot.py).
     symptomOtherPresent: bool = False
+
+
+class ContractorRequestPublicView(BaseModel):
+    """The public GET response — deliberately minimal. `stage1` is
+    populated only when status is "open"; a contractor who already
+    responded never receives the previous response body back, only a
+    truthful "responded" status. Never includes the internal repair UUID,
+    the RS-xxxxxx public reference, contractor_label, client_contractor_id,
+    owner identity/contact, exact property detail, operator notes, other
+    contractors' data or any other request's data — none of those fields
+    exist on this model at all."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["open", "responded", "revoked", "expired"]
+    stage1: Stage1SnapshotV1 | None = None
+
+
+# --- Public contractor response submission ---------------------------------
+
+_SHORT_TEXT_MAX = 200
+_LONG_TEXT_MAX = 2_000
+
+
+class ContractorResponsePayload(BaseModel):
+    """The public POST body — mirrors the frontend's ContractorResponsePayload
+    field-for-field (domain/contractorResponse.ts's Omit<OperatorContractor,
+    "id"|"name"|"trade"|"contactReference"|"status"|"notes">). `extra="forbid"`
+    means an operator-only field (or any other unexpected key) is a hard
+    422, never silently dropped or accepted.
+
+    Unlike the frontend's own interactive, in-progress-typing normalization
+    (which clears stale fields as the contractor changes their answer),
+    this is validated once, at rest: a semantically invalid or internally
+    contradictory submission is REJECTED (422), never silently repaired —
+    see _check_conditional_fields below. A persisted response row therefore
+    always represents data this backend itself considers valid, not just
+    data the frontend once thought was valid before further edits."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    responseType: ContractorResponseType
+    originalResponse: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    inspectionRequirement: Literal["required", "recommended", "not-sure"] | None = None
+    informationNeeded: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    priceType: Literal["fixed", "estimate", "range", "no-price"] | None = None
+    price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    priceMin: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    priceMax: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    proposedApproach: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    inclusions: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    exclusions: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    priceChangeFactors: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+    expectedDuration: str | None = Field(default=None, max_length=_SHORT_TEXT_MAX)
+    earliestStart: str | None = Field(default=None, max_length=_SHORT_TEXT_MAX)
+    guaranteeStatus: Literal["yes", "no", "not-stated"] | None = None
+    guaranteeDetails: str | None = Field(default=None, max_length=_LONG_TEXT_MAX)
+
+    @model_validator(mode="after")
+    def _check_conditional_fields(self) -> "ContractorResponsePayload":
+        response_type = self.responseType
+        needs_inspection = ContractorResponseType.needs_inspection
+        needs_more_information = ContractorResponseType.needs_more_information
+
+        if self.inspectionRequirement is not None and response_type != needs_inspection:
+            raise ValueError(
+                "inspectionRequirement may only be set when responseType is 'needs-inspection'."
+            )
+        if response_type == needs_inspection and self.inspectionRequirement is None:
+            raise ValueError(
+                "inspectionRequirement is required when responseType is 'needs-inspection'."
+            )
+
+        if self.informationNeeded is not None and response_type != needs_more_information:
+            raise ValueError(
+                "informationNeeded may only be set when responseType is 'needs-more-information'."
+            )
+        if response_type == needs_more_information and not (self.informationNeeded or "").strip():
+            raise ValueError(
+                "informationNeeded is required when responseType is 'needs-more-information'."
+            )
+
+        proposal_only_fields_set = any(
+            value is not None
+            for value in (
+                self.priceType,
+                self.price,
+                self.priceMin,
+                self.priceMax,
+                self.proposedApproach,
+                self.inclusions,
+                self.exclusions,
+                self.priceChangeFactors,
+                self.expectedDuration,
+                self.earliestStart,
+                self.guaranteeStatus,
+                self.guaranteeDetails,
+            )
+        )
+        if response_type != ContractorResponseType.proposal_provided:
+            if proposal_only_fields_set:
+                raise ValueError(
+                    "Proposal fields may only be set when responseType is 'proposal-provided'."
+                )
+            return self
+
+        # response_type == proposal_provided from here on.
+        if self.priceType is None:
+            raise ValueError("priceType is required when responseType is 'proposal-provided'.")
+
+        if self.priceType in ("fixed", "estimate"):
+            if self.price is None:
+                raise ValueError(f"price is required when priceType is '{self.priceType}'.")
+            if self.priceMin is not None or self.priceMax is not None:
+                raise ValueError(
+                    f"priceMin/priceMax must not be set when priceType is '{self.priceType}'."
+                )
+        elif self.priceType == "range":
+            if self.price is not None:
+                raise ValueError("price must not be set when priceType is 'range'.")
+            if self.priceMin is None or self.priceMax is None:
+                raise ValueError(
+                    "priceMin and priceMax are both required when priceType is 'range'."
+                )
+            if self.priceMin > self.priceMax:
+                raise ValueError("priceMin must not be greater than priceMax.")
+        elif self.priceType == "no-price":
+            if self.price is not None or self.priceMin is not None or self.priceMax is not None:
+                raise ValueError(
+                    "price/priceMin/priceMax must not be set when priceType is 'no-price'."
+                )
+
+        if self.guaranteeStatus != "yes" and self.guaranteeDetails is not None:
+            raise ValueError("guaranteeDetails may only be set when guaranteeStatus is 'yes'.")
+
+        return self
+
+
+class ContractorResponseSubmitResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["responded"] = "responded"
+    response_schema_version: int = CONTRACTOR_RESPONSE_SCHEMA_VERSION
