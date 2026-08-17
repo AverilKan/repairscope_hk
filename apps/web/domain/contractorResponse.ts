@@ -248,3 +248,76 @@ export type {
   OperatorPriceType,
   OperatorGuaranteeStatus,
 };
+
+// --- Owner-visible proposal boundary (Commit C) ----------------------------
+//
+// The owner proposal-return preview must never surface operator-only
+// context — contactReference (e.g. a WhatsApp number), contact/sourcing
+// status, or operator notes. OwnerVisibleProposal is a Pick<> over
+// OperatorContractor (same pattern as ContractorResponsePayload above), so
+// this exclusion is structural rather than a rendering convention the
+// owner component has to remember to follow. It is a type-level view, not
+// a second persisted proposal model — toOwnerVisibleProposal is a pure
+// projection with no storage of its own.
+
+export type OwnerVisibleProposal = Pick<
+  OperatorContractor,
+  | "id"
+  | "name"
+  | "trade"
+  | "responseType"
+  | "originalResponse"
+  | "priceType"
+  | "price"
+  | "priceMin"
+  | "priceMax"
+  | "proposedApproach"
+  | "inclusions"
+  | "exclusions"
+  | "priceChangeFactors"
+  | "expectedDuration"
+  | "earliestStart"
+  | "guaranteeStatus"
+  | "guaranteeDetails"
+>;
+
+export function toOwnerVisibleProposal(contractor: OperatorContractor): OwnerVisibleProposal {
+  const {
+    id,
+    name,
+    trade,
+    responseType,
+    originalResponse,
+    priceType,
+    price,
+    priceMin,
+    priceMax,
+    proposedApproach,
+    inclusions,
+    exclusions,
+    priceChangeFactors,
+    expectedDuration,
+    earliestStart,
+    guaranteeStatus,
+    guaranteeDetails,
+  } = contractor;
+  return {
+    id,
+    name,
+    trade,
+    responseType,
+    originalResponse,
+    priceType,
+    price,
+    priceMin,
+    priceMax,
+    proposedApproach,
+    inclusions,
+    exclusions,
+    priceChangeFactors,
+    expectedDuration,
+    earliestStart,
+    guaranteeStatus,
+    guaranteeDetails,
+  };
+}

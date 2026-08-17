@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { GeneratedBriefDocument } from "@/components/GeneratedBriefDocument";
 import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
@@ -472,7 +473,12 @@ export function OperatorCaseWorkspace({
       </section>
 
       <section className="op-panel op-panel--wide" aria-label="Proposal comparison">
-        <h2>Proposal comparison</h2>
+        <div className="op-panel__heading-row">
+          <h2>Proposal comparison</h2>
+          <Link className="button button--secondary" href={`/operator/${detail.publicReference}/owner-preview`}>
+            Preview owner proposal view
+          </Link>
+        </div>
         <ProposalComparison
           contractors={local.contractors}
           keyDifferences={local.comparisonKeyDifferences ?? ""}

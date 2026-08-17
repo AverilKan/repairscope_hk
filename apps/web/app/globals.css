@@ -11611,3 +11611,137 @@ select:focus {
   margin: 6px 0 10px;
   padding-left: 18px;
 }
+
+/* --- Owner proposal-return preview (Commit C) -------------------------- */
+
+.owner-proposal-preview {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.owner-proposal-preview__header h1 {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+}
+
+.owner-proposal-preview__case {
+  margin: 0 0 20px;
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.owner-proposal-preview__empty {
+  padding: 16px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+  color: #555;
+}
+
+.owner-proposal-preview__toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.owner-proposal-preview__toggle button[aria-pressed="true"] {
+  background: #222;
+  color: #fff;
+  border-color: #222;
+}
+
+.owner-proposal-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.owner-proposal-card {
+  padding: 16px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.owner-proposal-card__heading {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.owner-proposal-card__trade {
+  color: #666;
+  font-weight: 400;
+}
+
+.owner-proposal-card__price {
+  margin: 4px 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.owner-proposal-card__approach {
+  margin: 0 0 10px;
+  color: #333;
+}
+
+.owner-proposal-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0 0 10px;
+}
+
+.owner-proposal-card__facts dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #777;
+}
+
+.owner-proposal-card__facts dd {
+  margin: 2px 0 0;
+  font-size: 0.88rem;
+}
+
+.owner-proposal-card__detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.owner-proposal-card__detail dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #555;
+}
+
+.owner-proposal-card__detail dd {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+}
+
+.owner-proposal-preview__notes {
+  margin-top: 24px;
+  padding: 16px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background: #fafafa;
+}
+
+.owner-proposal-preview__notes h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.owner-proposal-preview__notes h3 {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+}
+
+.owner-proposal-preview__notes p {
+  margin: 0 0 14px;
+  white-space: pre-wrap;
+}
