@@ -187,6 +187,126 @@ test("Stage1ContractorBrief renders priorAction from the controlled status only,
   assert.equal(withoutPrior.priorAction, undefined);
 });
 
+// Unknown/malformed issueCategory — the backend currently validates
+// issue_category as a bounded string, not a strict enum, so this module
+// must independently fail closed regardless of that (see module comment).
+
+test("an unknown issueCategory with no observations never emits the raw string, and the builder does not throw", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief(
+    { issueCategory: "SECRET_CATEGORY", generatedBrief: { category: "SECRET_CATEGORY" } },
+    "en",
+  );
+  assert.equal(brief.category, "Repair issue");
+  assert.deepEqual(brief.observedProblem, []);
+  assert.ok(!JSON.stringify(brief).includes("SECRET_CATEGORY"));
+});
+
+test("an unknown issueCategory with otherwise-populated observations does not throw, never emits the raw category, and leaks no category-specific observation values", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  assert.doesNotThrow(() => {
+    const brief = buildStage1ContractorBrief(
+      {
+        issueCategory: "SECRET_CATEGORY",
+        generatedBrief: {
+          category: "SECRET_CATEGORY",
+          observedFacts: {
+            affected: "ceiling",
+            branchFirst: "rain",
+            branchSecond: ["mark", "other"],
+            duration: "today",
+            frequency: "constant",
+            worsening: "yes",
+            symptomOther: "some other detail",
+          },
+          priorAction: { status: "attempted" },
+          hasEvidence: "yes",
+          evidenceKind: "repair-media",
+        },
+      },
+      "en",
+    );
+    const serialized = JSON.stringify(brief);
+    assert.ok(!serialized.includes("SECRET_CATEGORY"));
+    // No category-specific observation is resolved for an unrecognised
+    // category — buildObservedProblem/resolveAnswerLabel are never called
+    // with an unverified category, so these raw field values never leak
+    // either.
+    assert.deepEqual(brief.observedProblem, []);
+    assert.ok(!serialized.includes("ceiling"));
+    assert.ok(!serialized.includes("rain"));
+    assert.equal(brief.priorAction, undefined);
+    assert.equal(brief.hasEvidence, undefined);
+    assert.equal(brief.evidenceKind, undefined);
+  });
+});
+
+test("a privacy marker smuggled into issueCategory itself never appears anywhere in the output", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief(
+    { issueCategory: "SECRET_OWNER_EMAIL_jamie@example.com", generatedBrief: {} },
+    "en",
+  );
+  const serialized = JSON.stringify(brief);
+  assert.ok(!serialized.includes("SECRET_OWNER_EMAIL_jamie@example.com"));
+  assert.ok(!serialized.includes("jamie@example.com"));
+  assert.equal(brief.category, "Repair issue");
+});
+
+test("exact-unit-like text smuggled into issueCategory never appears anywhere in the output", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief({ issueCategory: "SECRET_UNIT_FLAT_12B", generatedBrief: {} }, "en");
+  const serialized = JSON.stringify(brief);
+  assert.ok(!serialized.includes("SECRET_UNIT_FLAT_12B"));
+  assert.ok(!serialized.includes("FLAT_12B"));
+  assert.equal(brief.category, "Repair issue");
+});
+
+test("an unknown district id remains fail-closed (omitted, never the raw code) — unaffected by category validation", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief(
+    { issueCategory: "leak", generatedBrief: { propertyDetails: { district: "SECRET_DISTRICT_CODE" } } },
+    "en",
+  );
+  assert.equal(brief.district, undefined);
+  assert.ok(!JSON.stringify(brief).includes("SECRET_DISTRICT_CODE"));
+});
+
+test("unknown duration/frequency/worsening/prior/evidence values resolve to a controlled 'not specified' fallback, never the raw value", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief(
+    {
+      issueCategory: "leak",
+      generatedBrief: {
+        category: "leak",
+        observedFacts: { duration: "SECRET_BOGUS_DURATION", frequency: "SECRET_BOGUS_FREQUENCY", worsening: "SECRET_BOGUS_WORSENING" },
+        priorAction: { status: "SECRET_BOGUS_PRIOR" },
+        hasEvidence: "SECRET_BOGUS_EVIDENCE",
+        evidenceKind: "SECRET_BOGUS_KIND",
+      },
+    },
+    "en",
+  );
+  const serialized = JSON.stringify(brief);
+  assert.ok(!serialized.includes("SECRET_BOGUS"));
+});
+
+test("unknown multi-select branch values are omitted, never emitted raw", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief(
+    {
+      issueCategory: "leak",
+      generatedBrief: {
+        category: "leak",
+        observedFacts: { branchSecond: ["SECRET_BOGUS_SYMPTOM_A", "SECRET_BOGUS_SYMPTOM_B"] },
+      },
+    },
+    "en",
+  );
+  const serialized = JSON.stringify(brief);
+  assert.ok(!serialized.includes("SECRET_BOGUS_SYMPTOM"));
+});
+
 test("Stage1ContractorBrief truthfully communicates enough to decide initial interest: category, district, controlled symptoms, timing/change, previous-action category and evidence availability", async () => {
   const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
   const brief = buildStage1ContractorBrief(

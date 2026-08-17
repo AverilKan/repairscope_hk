@@ -40,10 +40,39 @@
 // This is Stage 1 only. A fuller Stage 2 brief (shown only after explicit
 // owner sharing consent) is out of scope for this pass — see the
 // reconciliation report's privacy section.
+//
+// CATEGORY VALIDATION: input.issueCategory arrives as an untyped runtime
+// string (the backend currently validates issue_category as a bounded
+// string, not a strict enum — see repair_submissions.py; that is a
+// separate, not-yet-implemented hardening opportunity and is deliberately
+// NOT changed here, since this module must independently fail closed
+// regardless of backend strictness, historical data or future schema
+// drift). It is therefore never cast to RepairCategoryId and used
+// directly — isKnownCategory checks it against the actual, current
+// categoryOptions table first. An unrecognised value: never appears
+// verbatim anywhere in the output (a small controlled fallback label is
+// used instead — see FALLBACK_CATEGORY_LABEL); never causes a
+// questionnaireByCategory[...] lookup (which would throw for an unknown
+// key) — every category-specific helper below (buildObservedProblem,
+// resolveAnswerLabel for prior/hasEvidence/evidenceKind) is only ever
+// called with a category already confirmed to be a real key.
 
 import { categoryOptions, districtOptions, questionnaireFieldLabel, resolveAnswerLabel, resolveAnswerLabels, SYMPTOM_OTHER_VALUE } from "@/data/questionnaires";
 import type { Lang } from "./i18n";
 import type { RepairCategoryId } from "./types";
+
+const FALLBACK_CATEGORY_LABEL: Record<Lang, string> = {
+  en: "Repair issue",
+  zh: "維修問題",
+};
+
+/** The single runtime source of truth for "is this a real category" —
+ * the same categoryOptions table categoryLabel resolution and every
+ * category-specific step lookup below both rely on. Never trust
+ * `issueCategory as RepairCategoryId` without this check first. */
+function isKnownCategory(issueCategory: string): issueCategory is RepairCategoryId {
+  return categoryOptions.some((option) => option.value === issueCategory);
+}
 
 /** Defensive, minimal read shape for a stored generated brief — mirrors
  * GeneratedBriefDocument's own GeneratedBriefLike pattern (a brief arrives
@@ -159,27 +188,40 @@ export function buildStage1ContractorBrief(
   const brief: Stage1SourceBrief = isPlainObject(input.generatedBrief)
     ? (input.generatedBrief as Stage1SourceBrief)
     : {};
-  const category = input.issueCategory as RepairCategoryId;
 
-  const categoryLabel =
-    categoryOptions.find((option) => option.value === input.issueCategory)?.label[lang] ?? input.issueCategory;
+  // Fail closed: an unrecognised issueCategory (malformed data, historical
+  // record, future schema drift) resolves to `undefined` here, and every
+  // category-specific lookup below is gated on it — never on the raw
+  // input.issueCategory string, which is never read again past this line.
+  const knownCategory = isKnownCategory(input.issueCategory) ? input.issueCategory : undefined;
+
+  const categoryLabel = knownCategory
+    ? categoryOptions.find((option) => option.value === knownCategory)!.label[lang]
+    : FALLBACK_CATEGORY_LABEL[lang];
 
   const districtLabel = brief.propertyDetails?.district
     ? districtOptions.find((option) => option.value === brief.propertyDetails?.district)?.label[lang]
     : undefined;
 
-  const observedProblem = buildObservedProblem(category, brief.observedFacts, lang);
+  const observedProblem = knownCategory ? buildObservedProblem(knownCategory, brief.observedFacts, lang) : [];
 
-  const priorAction = brief.priorAction?.status
-    ? labelled(category, "prior", resolveAnswerLabel(category, "prior", brief.priorAction.status, lang), lang)
-    : undefined;
+  const priorAction =
+    knownCategory && brief.priorAction?.status
+      ? labelled(knownCategory, "prior", resolveAnswerLabel(knownCategory, "prior", brief.priorAction.status, lang), lang)
+      : undefined;
 
   return {
     category: categoryLabel,
     district: districtLabel,
     observedProblem,
     priorAction,
-    hasEvidence: brief.hasEvidence ? resolveAnswerLabel(category, "hasEvidence", brief.hasEvidence, lang) : undefined,
-    evidenceKind: brief.evidenceKind ? resolveAnswerLabel(category, "evidenceKind", brief.evidenceKind, lang) : undefined,
+    hasEvidence:
+      knownCategory && brief.hasEvidence
+        ? resolveAnswerLabel(knownCategory, "hasEvidence", brief.hasEvidence, lang)
+        : undefined,
+    evidenceKind:
+      knownCategory && brief.evidenceKind
+        ? resolveAnswerLabel(knownCategory, "evidenceKind", brief.evidenceKind, lang)
+        : undefined,
   };
 }
