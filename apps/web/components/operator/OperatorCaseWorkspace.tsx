@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { GeneratedBriefDocument } from "@/components/GeneratedBriefDocument";
 import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
+import { parseContractorResponseExport, type ContractorResponsePayload } from "@/domain/contractorResponse";
 import {
   applyContractorPatch,
   createOperatorContractor,
@@ -580,6 +581,45 @@ function ContractorCard({
 
   const rangeInvalid = priceMinDraft !== null || priceMaxDraft !== null;
 
+  // Import bridge (Commit B): a contractor fills in the standalone guided
+  // form and copies a small structured export; the founder pastes it here
+  // against the SAME contractor record they're already looking at. Preview
+  // before commit, then onUpdate — the same callback the manual editor
+  // above already uses — merges it via applyContractorPatch, so operator-
+  // owned fields (name/trade/contactReference/status/notes) can never be
+  // touched by an import, exactly as by manual editing.
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importPreview, setImportPreview] = useState<ContractorResponsePayload | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const previewImport = () => {
+    const result = parseContractorResponseExport(importText);
+    if (!result.ok) {
+      setImportError(result.error);
+      setImportPreview(null);
+      return;
+    }
+    setImportError(null);
+    setImportPreview(result.payload);
+  };
+
+  const confirmImport = () => {
+    if (!importPreview) return;
+    onUpdate(importPreview);
+    setImportOpen(false);
+    setImportText("");
+    setImportPreview(null);
+    setImportError(null);
+  };
+
+  const cancelImport = () => {
+    setImportOpen(false);
+    setImportText("");
+    setImportPreview(null);
+    setImportError(null);
+  };
+
   return (
     <div className="op-contractor-card">
       <div className="op-contractor-card__summary">
@@ -598,11 +638,63 @@ function ContractorCard({
           <button type="button" onClick={onToggleExpanded}>
             {expanded ? "Collapse" : "Edit"}
           </button>
+          <button type="button" onClick={() => setImportOpen((open) => !open)}>
+            {importOpen ? "Cancel import" : "Import response"}
+          </button>
           <button type="button" onClick={onRemove}>
             Remove
           </button>
         </div>
       </div>
+
+      {importOpen && (
+        <div className="op-contractor-card__import">
+          <p className="op-panel__hint">
+            Paste the response the contractor copied from their own form. Nothing is changed until you confirm —
+            this never overwrites the name, trade, contact reference, contact status or your own notes above.
+          </p>
+          <label>
+            Pasted response
+            <textarea
+              value={importText}
+              onChange={(event) => {
+                setImportText(event.target.value);
+                setImportPreview(null);
+                setImportError(null);
+              }}
+              placeholder="Paste the contractor's exported response here…"
+            />
+          </label>
+          <div className="op-contractor-card__import-actions">
+            <button type="button" onClick={previewImport} disabled={!importText.trim()}>
+              Preview
+            </button>
+            <button type="button" onClick={cancelImport}>
+              Cancel
+            </button>
+          </div>
+          {importError && (
+            <p className="field-error" role="alert">
+              {importError}
+            </p>
+          )}
+          {importPreview && (
+            <div className="op-contractor-card__import-preview">
+              <p>This will update:</p>
+              <ul>
+                {Object.entries(importPreview).map(([key, value]) => (
+                  <li key={key}>
+                    <strong>{key}</strong>: {String(value)}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" onClick={confirmImport}>
+                Confirm import
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {expanded && (
         <div className="op-contractor-card__form">

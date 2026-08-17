@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { ContractorTaskRouter } from "@/features/contractor-response/ContractorTaskRouter";
+import { ContractorResponseRoute } from "@/components/contractor/ContractorResponseRoute";
 import { SiteShell } from "@/components/SiteShell";
 
 export const metadata: Metadata = {
   title: "Contractor response",
   description:
-    "Review a private, sanitised repair brief and respond without creating an account.",
+    "Review a private sourcing summary and tell RepairScope how you'd like to respond — no account required.",
 };
 
 export default async function ContractorRespondPage({
@@ -16,7 +16,7 @@ export default async function ContractorRespondPage({
   const { token } = await params;
   return (
     <SiteShell surface="contractor">
-      <ContractorTaskRouter token={token} />
+      <ContractorResponseRoute token={token} />
     </SiteShell>
   );
 }

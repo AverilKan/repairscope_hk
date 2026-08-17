@@ -145,6 +145,37 @@ export function mergeContractorResponse(
   return applyContractorPatch(contractor, payload);
 }
 
+/** A throwaway shape used only to run applyContractorPatch's invariants
+ * from sanitizeContractorResponsePayload below — never persisted, never
+ * shown to anyone. */
+const INVARIANT_CHECK_CONTRACTOR: OperatorContractor = {
+  id: "invariant-check",
+  name: "",
+  status: "considering",
+  notes: "",
+};
+
+/**
+ * Runs a contractor-response-in-progress through the exact same price
+ * sanitisation and response-type conditional clearing as
+ * mergeContractorResponse, without needing a real OperatorContractor to
+ * merge into — this is what the contractor-facing form (Commit B) uses to
+ * enforce Slice 2's invariants (invalid range rejected, negative price
+ * rejected, stale fields cleared on branch change) while the contractor is
+ * still filling the form in, before any operator record exists to merge
+ * into.
+ */
+export function sanitizeContractorResponsePayload(payload: ContractorResponsePayload): ContractorResponsePayload {
+  const merged = applyContractorPatch(INVARIANT_CHECK_CONTRACTOR, payload);
+  const sanitized: ContractorResponsePayload = {};
+  for (const key of RESPONSE_ONLY_KEYS) {
+    if (merged[key] !== undefined) {
+      (sanitized as Record<string, unknown>)[key] = merged[key];
+    }
+  }
+  return sanitized;
+}
+
 // --- Export/import envelope (Commit B's transport bridge) -----------------
 //
 // Operator working state lives in localStorage; a contractor on another

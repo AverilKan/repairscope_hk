@@ -17,9 +17,9 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/sign-up", identifyingText: "Landlord account access" },
   { path: "/contractor", identifyingText: "CONTRACTOR RESPONSE PORTAL" },
   { path: "/contractor/quotes", identifyingText: "Account match required" },
-  { path: "/contractor/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
-  { path: "/contractor/respond/not-a-real-token", identifyingText: "INVITATION UNAVAILABLE" },
-  { path: "/respond/demo-token", identifyingText: "PRIVATE JOB BRIEF" },
+  { path: "/contractor/respond/demo-token", identifyingText: "Tell RepairScope how you'd like to respond." },
+  { path: "/contractor/respond/not-a-real-token", identifyingText: "This invitation is not available." },
+  { path: "/respond/demo-token", identifyingText: "Tell RepairScope how you'd like to respond." },
   { path: "/operator", identifyingText: "Review submitted repair briefs." },
   // Traditional Chinese is the default language for the landlord surface
   // (see components/LanguageContext.tsx) — not English. Neutral

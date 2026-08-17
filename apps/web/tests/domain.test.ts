@@ -1186,24 +1186,16 @@ test("contractor question service supports one active unanswered question", asyn
   assert.equal(first.status, "waiting_for_landlord");
 });
 
-test("contractor response is one progressive, accessible responsive route", async () => {
-  const [source, css, route, legacyRoute] = await Promise.all([
+// The old UK ContractorApp.tsx remains dormant, byte-identical reference
+// source (see the reconciliation report) — retained deliberately, not
+// deleted, so this coverage of its own characteristics stays intact even
+// though it is no longer wired to the live /contractor/respond/[token]
+// route (see the next test).
+test("the dormant UK reference ContractorApp.tsx remains a progressive, accessible responsive component", async () => {
+  const [source, css] = await Promise.all([
     readFile(new URL("../components/ContractorApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(
-      new URL("../app/contractor/respond/[token]/page.tsx", import.meta.url),
-      "utf8",
-    ),
-    readFile(
-      new URL(
-        "../app/respond/[token]/[[...path]]/page.tsx",
-        import.meta.url,
-      ),
-      "utf8",
-    ),
   ]);
-  assert.match(route, /<ContractorTaskRouter token=\{token\}/);
-  assert.match(legacyRoute, /redirect\(`\/contractor\/respond\/\$\{token\}`\)/);
   assert.doesNotMatch(source, /mockServices\.repair\.get/);
   assert.match(source, /How can you respond to this job\?/);
   assert.match(source, /role="dialog"/);
@@ -1235,6 +1227,40 @@ test("contractor response is one progressive, accessible responsive route", asyn
   assert.match(css, /@media \(max-width: 980px\)[\s\S]*\.brief-drawer/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /@media \(max-width: 760px\)[\s\S]*font-size: 16px/);
+});
+
+// RepairScope HK — "frontend structure" phase, Commit B repurposed the live
+// /contractor/respond/[token] route for a new HK contractor prototype
+// (components/contractor/ContractorResponseRoute.tsx / ContractorResponseForm.tsx)
+// built fresh against the current domain rather than adapting the UK
+// component above — see that component's own module comment. This
+// validates the NEW route's wiring and its own progressive/accessible
+// characteristics.
+test("the repurposed /contractor/respond/[token] route wires to the new HK contractor form, which is itself progressive and accessible", async () => {
+  const [source, route, legacyRoute] = await Promise.all([
+    readFile(new URL("../components/contractor/ContractorResponseForm.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/contractor/respond/[token]/page.tsx", import.meta.url),
+      "utf8",
+    ),
+    readFile(
+      new URL(
+        "../app/respond/[token]/[[...path]]/page.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  ]);
+  assert.match(route, /<ContractorResponseRoute token=\{token\}/);
+  assert.match(legacyRoute, /redirect\(`\/contractor\/respond\/\$\{token\}`\)/);
+  assert.doesNotMatch(source, /create (an )?account|password/i);
+  assert.match(source, /What happens next\?/);
+  assert.match(source, /Proposed work \/ approach/);
+  assert.match(source, /Review your response/);
+  // Progressive: an answered step collapses to a summary with a Change
+  // affordance, not everything shown flat and editable at once.
+  assert.match(source, /contractor-step--done/);
+  assert.match(source, /Change/);
 });
 
 test("contractor question progression is driven by question type", () => {
