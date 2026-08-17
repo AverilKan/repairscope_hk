@@ -1,5 +1,6 @@
 from app.models.account import Account, AccountMembership
 from app.models.base import Base
+from app.models.contractor_request import ContractorRequest
 from app.models.property import Property, PropertyAccessGrant
 from app.models.repair_submission import RepairSubmission
 from app.models.user import User, UserCapability
@@ -13,4 +14,5 @@ __all__ = [
     "Property",
     "PropertyAccessGrant",
     "RepairSubmission",
+    "ContractorRequest",
 ]

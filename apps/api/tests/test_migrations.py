@@ -18,6 +18,7 @@ EXPECTED_TABLES = {
     "properties",
     "property_access_grants",
     "repair_submissions",
+    "contractor_requests",
     "alembic_version",
 }
 

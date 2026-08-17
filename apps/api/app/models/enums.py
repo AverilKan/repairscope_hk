@@ -87,3 +87,15 @@ class SubmissionClosedReason(enum.StrEnum):
 class PreferredContactMethod(enum.StrEnum):
     email = "email"
     phone = "phone"
+
+
+class ContractorResponseType(enum.StrEnum):
+    """Mirrors the frontend's OperatorContractorResponseType (domain/
+    operatorCaseState.ts) exactly — a contractor request's response_type
+    column, set only once a contractor response has been persisted."""
+
+    interested = "interested"
+    needs_inspection = "needs-inspection"
+    needs_more_information = "needs-more-information"
+    not_suitable = "not-suitable"
+    proposal_provided = "proposal-provided"
