@@ -874,7 +874,10 @@ function LandlordAppInner({ path }: { path: string[] }) {
   let content: React.ReactNode;
   let requiresAccount = true;
   if (isLegacyProcurementDemo && isApiDataSource()) {
-    requiresAccount = false;
+    // requiresAccount stays true (the default above) — this notice
+    // replaces WHAT an authenticated visitor sees, it must never weaken
+    // the existing sign-in requirement these routes already had (see
+    // account-gate.spec.ts, which is unaffected by this branch).
     content = <LegacyDemoNotice title="Sourcing and proposal comparison" />;
   } else if (path[0] === "repairs" && path.length === 1) {
     content = <LandlordRepairsPage />;

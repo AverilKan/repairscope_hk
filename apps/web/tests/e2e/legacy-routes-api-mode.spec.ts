@@ -13,7 +13,13 @@ import { expect, test } from "@playwright/test";
 //
 //   NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE=api PLAYWRIGHT_BASE_URL=http://localhost:PORT npx playwright test tests/e2e/legacy-routes-api-mode.spec.ts
 
-const legacyRoutes = [
+// /landlord/* legacy routes sit behind the pre-existing LandlordAccountGate,
+// same as every other /landlord route — the notice replaces WHAT a signed-in
+// visitor sees there, it must never bypass the sign-in requirement (see
+// account-gate.spec.ts, and the requiresAccount fix in LandlordApp.tsx). A
+// signed-out visit here is indistinguishable from any other protected
+// landlord route: it redirects to sign-in before any notice can render.
+const gatedLegacyRoutes = [
   "/landlord/repairs",
   "/landlord/repairs/rs-1047/status",
   "/landlord/repairs/rs-1047/responses",
@@ -21,11 +27,24 @@ const legacyRoutes = [
   "/landlord/repairs/rs-1047/confirmation",
   "/landlord/repairs/rs-1047/progress",
   "/landlord/repairs/rs-1047/completed",
-  "/contractor",
-  "/contractor/quotes",
 ];
 
-for (const route of legacyRoutes) {
+for (const route of gatedLegacyRoutes) {
+  test(`${route} redirects a signed-out visitor to sign-in in API mode (auth gate is not bypassed by the legacy notice)`, async ({ page }) => {
+    await page.goto(route);
+    await expect(page).toHaveURL(/\/sign-in\?redirect_url=/);
+    // None of the old fixture-driven content leaks through pre-auth either.
+    await expect(page.getByText("Lowest submitted repair total")).toHaveCount(0);
+    await expect(page.getByText("Most complete response")).toHaveCount(0);
+  });
+}
+
+// /contractor and /contractor/quotes have no account gate — the legacy
+// notice is the only thing standing between a visitor and stale fixture
+// data, so it must render directly.
+const ungatedLegacyRoutes = ["/contractor", "/contractor/quotes"];
+
+for (const route of ungatedLegacyRoutes) {
   test(`${route} shows the reference-prototype notice, not fake fixture data, in API mode`, async ({ page }) => {
     await page.goto(route);
     await expect(page.getByText("Reference prototype", { exact: true })).toBeVisible();

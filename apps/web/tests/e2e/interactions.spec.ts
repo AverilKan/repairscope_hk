@@ -139,18 +139,15 @@ test("questionnaire draft state survives a reload (localStorage)", async ({ page
   await expect(page.getByText("天花").first()).toBeVisible();
 });
 
-test("contractor token route renders the task matching its resolved token", async ({ page }) => {
+// This route was repurposed in the "frontend structure" phase (Commit B —
+// see ContractorResponseRoute.tsx) for the new HK contractor-response
+// prototype. There is no production token architecture yet: "demo-token"
+// is a fixed alias for the RS-MOCK01 demo case, and any other token
+// resolves to a "not available" state rather than a distinct fixture UI.
+test("contractor token route resolves the demo token to the Stage-1 brief, and any other token to 'not available'", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
-  await expect(page.getByText("PRIVATE JOB BRIEF")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Electrical" })).toBeVisible();
-
-  // A different token must resolve to a different task type's UI, not the
-  // same "new opportunity" screen — proves resolution is token-driven, not
-  // a static page.
-  await page.goto("/contractor/respond/clarification-token");
-  await expect(page.getByText("More information requested")).toBeVisible();
-  await expect(page.getByText("PRIVATE JOB BRIEF")).not.toBeVisible();
+  await expect(page.getByText("Tell RepairScope how you'd like to respond.")).toBeVisible();
 
   await page.goto("/contractor/respond/not-a-real-token");
-  await expect(page.getByText("INVITATION UNAVAILABLE")).toBeVisible();
+  await expect(page.getByText("This invitation is not available.")).toBeVisible();
 });
