@@ -9,6 +9,9 @@ from starlette.types import ASGIApp
 from app.api.routes.contractor_requests import router as contractor_requests_router
 from app.api.routes.health import router as health_router
 from app.api.routes.me import router as me_router
+from app.api.routes.operator_contractor_requests import (
+    router as operator_contractor_requests_router,
+)
 from app.api.routes.repair_submissions import router as repair_submissions_router
 from app.core.config import Settings, get_settings
 from app.core.errors import ConflictError, ForbiddenError, NotFoundError
@@ -20,6 +23,7 @@ app.include_router(health_router)
 app.include_router(me_router)
 app.include_router(repair_submissions_router)
 app.include_router(contractor_requests_router)
+app.include_router(operator_contractor_requests_router)
 
 # The only route family that carries a live secret directly in its path —
 # GET/POST /api/contractor-requests/{token}[/response]. Never let the raw

@@ -1,3 +1,5 @@
+import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -187,3 +189,64 @@ class ContractorResponseSubmitResult(BaseModel):
 
     status: Literal["responded"] = "responded"
     response_schema_version: int = CONTRACTOR_RESPONSE_SCHEMA_VERSION
+
+
+# --- Authenticated operator schemas -----------------------------------
+
+_LABEL_MAX = 200
+
+
+class ContractorRequestCreateRequest(BaseModel):
+    """The ONLY input an authenticated operator may supply when creating a
+    request — never a Stage-1 snapshot, never any raw owner/case field
+    (the backend builds the snapshot itself directly from the repair
+    submission — see app/services/contractor_requests.py)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    contractor_label: str = Field(min_length=1, max_length=_LABEL_MAX)
+    client_contractor_id: str | None = Field(default=None, max_length=_LABEL_MAX)
+
+
+class ContractorRequestCreateResponse(BaseModel):
+    """`access_token` is the raw contractor access token — present in this
+    response ONLY, exactly once. It is not persisted anywhere (see
+    app/services/contractor_tokens.py) and there is no endpoint that can
+    ever return it again; if it is lost, the operator revokes this
+    request and creates a replacement."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    access_token: str
+    contractor_label: str
+    client_contractor_id: str | None
+    status: Literal["open"] = "open"
+    expires_at: datetime
+    created_at: datetime
+
+
+class ContractorRequestSummary(BaseModel):
+    """Never includes token_hash or the raw token — those fields simply
+    don't exist on this model. `contractor_label`/`client_contractor_id`
+    are operator-only reconciliation/display metadata (see
+    app/models/contractor_request.py) — this schema is only ever returned
+    to an authenticated operator, never to the public contractor-facing
+    endpoints (contrast with ContractorRequestPublicView)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    contractor_label: str
+    client_contractor_id: str | None
+    status: Literal["open", "responded", "revoked", "expired"]
+    created_at: datetime
+    expires_at: datetime
+    responded_at: datetime | None
+    revoked_at: datetime | None
+
+
+class ContractorRequestDetail(ContractorRequestSummary):
+    response_type: ContractorResponseType | None
+    response_payload: dict | None
+    response_schema_version: int | None
