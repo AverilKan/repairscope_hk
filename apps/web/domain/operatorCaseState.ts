@@ -158,6 +158,11 @@ export interface OperatorContractor {
   exclusions?: string;
   priceChangeFactors?: string;
   expectedDuration?: string;
+  /** Free text — "Tomorrow afternoon", "Within 3 days", "After inspection".
+   * Deliberately unstructured (see the reconciliation report): earliest
+   * start is a high-confidence owner decision factor with no prior HK home,
+   * but real recurring option buckets aren't proven yet. */
+  earliestStart?: string;
   guaranteeStatus?: OperatorGuaranteeStatus;
   guaranteeDetails?: string; // guaranteeStatus === "yes"
 }
@@ -262,6 +267,7 @@ function isValidContractor(value: unknown): value is OperatorContractor {
     isOptionalString(value.exclusions) &&
     isOptionalString(value.priceChangeFactors) &&
     isOptionalString(value.expectedDuration) &&
+    isOptionalString(value.earliestStart) &&
     isOptionalEnum(value.guaranteeStatus, OPERATOR_GUARANTEE_STATUSES) &&
     isOptionalString(value.guaranteeDetails)
   );
@@ -361,6 +367,7 @@ export function applyContractorPatch(
     merged.exclusions = undefined;
     merged.priceChangeFactors = undefined;
     merged.expectedDuration = undefined;
+    merged.earliestStart = undefined;
     merged.guaranteeStatus = undefined;
     merged.guaranteeDetails = undefined;
   } else {

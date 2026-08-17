@@ -98,7 +98,7 @@ test("with two proposals, both render side by side with independent, correctly f
   // B never populated "Expected duration" or "What's included" — neutral
   // missing-value convention, not "No".
   const rows = table.locator("tbody tr");
-  await expect(rows).toHaveCount(8);
+  await expect(rows).toHaveCount(9);
 });
 
 test("with three proposals, all three remain independently visible", async ({ page }) => {

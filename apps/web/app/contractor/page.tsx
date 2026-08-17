@@ -1,7 +1,15 @@
 import Link from "next/link";
+import { isApiDataSource, LegacyDemoNotice } from "@/components/LegacyDemoNotice";
 import { PageIntro, SiteShell, StatusPill } from "@/components/SiteShell";
 
 export default function ContractorLanding() {
+  if (isApiDataSource()) {
+    return (
+      <SiteShell surface="contractor">
+        <LegacyDemoNotice title="Contractor response portal" />
+      </SiteShell>
+    );
+  }
   return (
     <SiteShell surface="contractor">
       <main className="content-page">

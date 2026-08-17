@@ -591,6 +591,7 @@ function ContractorCard({
           <p className="op-contractor-card__meta">
             <span>{OPERATOR_CONTRACTOR_STATUS_LABELS[contractor.status]}</span>
             {responseSummary && <span>{responseSummary}</span>}
+            {contractor.earliestStart && <span>Earliest start: {contractor.earliestStart}</span>}
           </p>
         </div>
         <div className="op-contractor-card__actions">
@@ -805,6 +806,14 @@ function ContractorCard({
                   value={contractor.expectedDuration ?? ""}
                   onChange={(event) => onUpdate({ expectedDuration: event.target.value })}
                   placeholder="e.g. 1 day, 2–3 visits"
+                />
+              </label>
+              <label>
+                Earliest start
+                <input
+                  value={contractor.earliestStart ?? ""}
+                  onChange={(event) => onUpdate({ earliestStart: event.target.value })}
+                  placeholder="e.g. Tomorrow afternoon, within 3 days, after inspection"
                 />
               </label>
               <label>

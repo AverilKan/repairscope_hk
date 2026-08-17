@@ -76,6 +76,7 @@ const COMPARISON_ROWS: { label: string; render: (contractor: OperatorContractor)
   { label: "What's excluded", render: (c) => textOrNotStated(c.exclusions) },
   { label: "What could change the price", render: (c) => textOrNotStated(c.priceChangeFactors) },
   { label: "Expected duration", render: (c) => textOrNotStated(c.expectedDuration) },
+  { label: "Earliest start", render: (c) => textOrNotStated(c.earliestStart) },
   { label: "Guarantee", render: formatGuarantee },
   { label: "Original contractor response", render: (c) => textOrNotStated(c.originalResponse) },
 ];

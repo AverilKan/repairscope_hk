@@ -49,6 +49,7 @@ import {
   LandlordRepairsPage,
   RepairProgressPage,
 } from "./LandlordProcurementPages";
+import { isApiDataSource, LegacyDemoNotice } from "./LegacyDemoNotice";
 
 const categorySlugs = new Set<RepairCategoryId>(
   Object.keys(questionnaireByCategory) as RepairCategoryId[],
@@ -853,9 +854,29 @@ function LandlordAppInner({ path }: { path: string[] }) {
     );
   }
 
+  // The old UK reference prototype's procurement/comparison screens below
+  // (repair list, sourcing status, response comparison, selection,
+  // confirmation, progress, completed) run entirely on mock fixtures
+  // disconnected from real HK owner cases — see the reconciliation report.
+  // Left reachable in real (API) mode they would present as genuine
+  // RepairScope functionality. Gated here rather than deleted: they remain
+  // fully inspectable in local/mock mode (the default), which is also what
+  // the existing e2e suite runs against.
+  const isLegacyProcurementDemo =
+    (path[0] === "repairs" && path.length === 1) ||
+    joined.endsWith("/status") ||
+    joined.endsWith("/responses") ||
+    joined.endsWith("/selection") ||
+    joined.endsWith("/confirmation") ||
+    joined.endsWith("/progress") ||
+    joined.endsWith("/completed");
+
   let content: React.ReactNode;
   let requiresAccount = true;
-  if (path[0] === "repairs" && path.length === 1) {
+  if (isLegacyProcurementDemo && isApiDataSource()) {
+    requiresAccount = false;
+    content = <LegacyDemoNotice title="Sourcing and proposal comparison" />;
+  } else if (path[0] === "repairs" && path.length === 1) {
     content = <LandlordRepairsPage />;
   } else if (joined.endsWith("/brief")) {
     content = <BriefReviewRoute repairId={path[1] ?? ""} />;
