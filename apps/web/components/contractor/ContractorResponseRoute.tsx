@@ -50,7 +50,7 @@ function ContractorResponseRouteContent({ token }: { token: string }) {
       .then((detail) => {
         if (cancelled) return;
         const brief = buildStage1ContractorBrief(
-          { issueCategory: detail.issueCategory, generatedBrief: detail.generatedBrief, safetyFlags: detail.safetyFlags },
+          { issueCategory: detail.issueCategory, generatedBrief: detail.generatedBrief },
           "en",
         );
         setState({ phase: "ready", brief });

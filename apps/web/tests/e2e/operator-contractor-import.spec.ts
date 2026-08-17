@@ -158,6 +158,116 @@ test("Slice 3's comparison immediately reflects an imported 'Initial proposal pr
   expect(persisted.comparison).toBeUndefined();
 });
 
+test("a tampered negative price never appears in the preview — the preview shows the same normalized value that gets merged", async ({
+  page,
+}) => {
+  const card = await gotoCaseWithContractor(page);
+  await card.getByRole("button", { name: "Import response" }).click();
+  await card.locator("textarea").first().fill(
+    makeExport({
+      responseType: "proposal-provided",
+      priceType: "fixed",
+      price: -5000,
+      proposedApproach: "Replace the connector now.",
+    }),
+  );
+  await card.getByRole("button", { name: "Preview" }).click();
+  const preview = card.locator(".op-contractor-card__import-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).not.toContainText("-5000");
+
+  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Price (HK$)")).toHaveValue("");
+});
+
+test("a tampered inverted price range never appears in the preview — both bounds are cleared before preview, not after confirm", async ({
+  page,
+}) => {
+  const card = await gotoCaseWithContractor(page);
+  await card.getByRole("button", { name: "Import response" }).click();
+  await card.locator("textarea").first().fill(
+    makeExport({
+      responseType: "proposal-provided",
+      priceType: "range",
+      priceMin: 9000,
+      priceMax: 3000,
+    }),
+  );
+  await card.getByRole("button", { name: "Preview" }).click();
+  const preview = card.locator(".op-contractor-card__import-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).not.toContainText("9000");
+  await expect(preview).not.toContainText("3000");
+
+  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveValue("");
+  await expect(card.getByLabel("Price range — maximum (HK$)")).toHaveValue("");
+});
+
+test("stale proposal fields incompatible with the response type never appear in the preview", async ({ page }) => {
+  const card = await gotoCaseWithContractor(page);
+  await card.getByRole("button", { name: "Import response" }).click();
+  await card.locator("textarea").first().fill(
+    makeExport({
+      responseType: "not-suitable",
+      originalResponse: "Not my trade.",
+      // Stale proposal-only fields that should never survive for a
+      // "not-suitable" response — applyContractorPatch clears them.
+      priceType: "fixed",
+      price: 5000,
+      proposedApproach: "Replace the connector now.",
+    }),
+  );
+  await card.getByRole("button", { name: "Preview" }).click();
+  const preview = card.locator(".op-contractor-card__import-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).not.toContainText("5000");
+  await expect(preview).not.toContainText("Replace the connector now.");
+
+  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Current response")).toHaveValue("not-suitable");
+  await expect(card.getByLabel("Price (HK$)")).toHaveCount(0);
+});
+
+test("stale guarantee details without a 'Yes' guarantee status never appear in the preview", async ({ page }) => {
+  const card = await gotoCaseWithContractor(page);
+  await card.getByRole("button", { name: "Import response" }).click();
+  await card.locator("textarea").first().fill(
+    makeExport({
+      responseType: "proposal-provided",
+      priceType: "fixed",
+      price: 5000,
+      guaranteeStatus: "no",
+      guaranteeDetails: "12 months on parts and labour.",
+    }),
+  );
+  await card.getByRole("button", { name: "Preview" }).click();
+  const preview = card.locator(".op-contractor-card__import-preview");
+  await expect(preview).toBeVisible();
+  await expect(preview).not.toContainText("12 months on parts and labour.");
+
+  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Guarantee")).toHaveValue("no");
+});
+
+test("a malformed/unrecoverable payload still rejects cleanly and changes nothing on the contractor, even with normalization now running before preview", async ({
+  page,
+}) => {
+  const card = await gotoCaseWithContractor(page);
+  await card.getByRole("button", { name: "Import response" }).click();
+  await card.locator("textarea").first().fill(makeExport({ responseType: "not-a-real-type", price: -1 }));
+  await card.getByRole("button", { name: "Preview" }).click();
+  await expect(card.locator(".field-error")).toBeVisible();
+  await expect(card.locator(".op-contractor-card__import-preview")).toHaveCount(0);
+
+  await card.getByRole("button", { name: "Edit" }).click();
+  await expect(card.getByLabel("Current response")).toHaveValue("");
+});
+
 test("no mutating request is made to the backend during preview or import", async ({ page }) => {
   const mutatingApiRequests: string[] = [];
   page.on("request", (request) => {

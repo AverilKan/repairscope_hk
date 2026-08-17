@@ -14,7 +14,9 @@ test("the Stage-1 brief panel shows the sourcing summary and never shows owner-i
   await page.goto("/contractor/respond/demo-token");
   await expect(page.getByText("Tell RepairScope how you'd like to respond.")).toBeVisible();
   const briefPanel = page.locator(".contractor-brief-panel");
-  await expect(briefPanel).toContainText("plumbing");
+  // A resolved human label — the raw category id ("plumbing") is never
+  // shown (see domain/stage1ContractorBrief.ts's privacy/label hardening).
+  await expect(briefPanel).toContainText("Plumbing problem");
   await expect(briefPanel).toContainText(
     "This is a sourcing summary only — exact address, owner contact details and any other contractors are not shown at this stage.",
   );
@@ -22,6 +24,7 @@ test("the Stage-1 brief panel shows the sourcing summary and never shows owner-i
   expect(pageText).not.toContain("Jamie Landlord");
   expect(pageText).not.toContain("jamie@example.com");
   expect(pageText).not.toContain("07700900000");
+  expect(pageText).not.toMatch(/\bplumbing\b/);
 });
 
 test("an unrecognised invitation shows a clear unavailable state, not a crash", async ({ page }) => {

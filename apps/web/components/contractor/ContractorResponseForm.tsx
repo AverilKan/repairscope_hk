@@ -282,12 +282,6 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
               </dd>
             </div>
           )}
-          {brief.safetyFlags.length > 0 && (
-            <div>
-              <dt>Flags</dt>
-              <dd>{brief.safetyFlags.join(", ")}</dd>
-            </div>
-          )}
         </dl>
       </section>
 

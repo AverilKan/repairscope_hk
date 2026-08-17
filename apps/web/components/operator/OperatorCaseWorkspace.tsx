@@ -5,7 +5,11 @@ import Link from "next/link";
 import { GeneratedBriefDocument } from "@/components/GeneratedBriefDocument";
 import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
-import { parseContractorResponseExport, type ContractorResponsePayload } from "@/domain/contractorResponse";
+import {
+  parseContractorResponseExport,
+  sanitizeContractorResponsePayload,
+  type ContractorResponsePayload,
+} from "@/domain/contractorResponse";
 import {
   applyContractorPatch,
   createOperatorContractor,
@@ -607,7 +611,14 @@ function ContractorCard({
       return;
     }
     setImportError(null);
-    setImportPreview(result.payload);
+    // Normalize BEFORE preview, not just before merge — sanitize here runs
+    // the exact same applyContractorPatch invariants (price sanitisation,
+    // response-type conditional clearing) that onUpdate below will apply,
+    // so what the operator sees in the preview list is exactly what gets
+    // merged, never a raw/tampered value that then silently changes on
+    // confirm (e.g. a negative price or inverted range from a hand-edited
+    // export).
+    setImportPreview(sanitizeContractorResponsePayload(result.payload));
   };
 
   const confirmImport = () => {

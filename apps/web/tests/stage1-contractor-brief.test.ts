@@ -5,145 +5,208 @@ import test from "node:test";
 // domain/stage1ContractorBrief.ts's module comment. Real owner submissions
 // currently begin with consent_to_share_with_contractors = false; these
 // tests prove directly (by scanning the actual serialized output, not just
-// by inspecting the type) that sensitive fields cannot reach a Stage-1
-// brief, regardless of what a caller passes in.
+// by inspecting the type) that no arbitrary owner-authored free text —
+// wherever it might be embedded — can reach a Stage-1 brief, and that
+// every field present is either a controlled label or omitted.
 
-const SENSITIVE_STRINGS = [
-  "Jamie Landlord",
-  "jamie@example.com",
-  "07700900000",
-  "Sunshine Tower",
-  "12",
-  "Flat B",
-  "Ring the doorbell twice",
-  "Call security first",
-  "5B, phone 91234567",
-];
+const ALLOWED_STAGE1_KEYS = ["category", "district", "evidenceKind", "hasEvidence", "observedProblem", "priorAction"];
 
-test("Stage1ContractorBrief contains only the allowed fields", async () => {
+test("Stage1ContractorBrief contains only the allowed fields, resolved to human labels, never raw codes", async () => {
   const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
   const brief = buildStage1ContractorBrief(
     {
       issueCategory: "leak",
-      safetyFlags: ["water_uncontrolled"],
       generatedBrief: {
         category: "leak",
-        observedFacts: { affected: "ceiling", duration: "today", worsening: "getting-worse" },
-        reportedFacts: [],
-        priorAction: { status: "none" },
+        observedFacts: { affected: "ceiling", branchFirst: "rain", branchSecond: "mark", duration: "today", worsening: "yes" },
+        priorAction: { status: "attempted" },
         hasEvidence: "yes",
-        evidenceKind: "photos",
+        evidenceKind: "repair-media",
+        propertyDetails: { district: "wan-chai" },
       },
     },
     "en",
   );
-  assert.deepEqual(
-    Object.keys(brief).sort(),
-    ["category", "district", "evidenceKind", "hasEvidence", "observedProblem", "priorAction", "safetyFlags"].sort(),
-  );
-  assert.equal(brief.category, "leak");
-  assert.equal(brief.hasEvidence, "yes");
-  assert.equal(brief.evidenceKind, "photos");
-  assert.ok(Array.isArray(brief.safetyFlags));
+  assert.deepEqual(Object.keys(brief).sort(), ALLOWED_STAGE1_KEYS.sort());
+  // Human labels, not raw internal codes.
+  assert.equal(brief.category, "Water seepage / leakage");
+  assert.equal(brief.district, "Wan Chai");
+  assert.equal(brief.hasEvidence, "Yes, I can provide this later");
+  assert.equal(brief.evidenceKind, "Repair photo / video");
+  assert.ok(brief.observedProblem.some((row) => row.includes("Ceiling")));
+  assert.ok(brief.observedProblem.some((row) => row.includes("During / after rain")));
+  assert.ok(brief.observedProblem.some((row) => row.includes("Water mark")));
+  // None of the underlying raw codes ("leak", "wan-chai", "ceiling",
+  // "rain", "mark", "yes", "repair-media") leak through as bare tokens —
+  // every value above is resolved to its option label instead.
+  const serialized = JSON.stringify(brief);
+  assert.ok(!serialized.includes('"leak"'));
+  assert.ok(!serialized.includes('"wan-chai"'));
 });
 
-test("Stage1ContractorBrief excludes owner name, email, phone, exact address, floor/unit and access-contact identity even when the raw generated brief and detail object carry them", async () => {
+// Adversarial: place a unique secret marker into EVERY plausible free-text
+// source that could conceivably flow into a Stage-1 brief, then assert
+// none of them appear ANYWHERE in the serialized output — a whole-object
+// content scan, not just a check that particular top-level fields are
+// absent.
+test("Stage1ContractorBrief leaks no owner-authored free text from any source, adversarially checked", async () => {
   const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+
+  const MARKERS = {
+    ownerName: "SECRET-OWNER-NAME-7f3a",
+    ownerEmail: "secret-owner-9c1e@example.com",
+    ownerPhone: "SECRET-PHONE-91234567",
+    propertyAddress: "SECRET-ADDRESS-Sunshine-Tower",
+    building: "SECRET-BUILDING-4b2d",
+    block: "SECRET-BLOCK-A1",
+    floor: "SECRET-FLOOR-12",
+    unit: "SECRET-UNIT-B",
+    accessIdentity: "SECRET-ACCESS-CONTACT-Mrs-Chan",
+    accessPhone: "SECRET-ACCESS-PHONE-98765432",
+    symptomOther: "SECRET-SYMPTOM-OTHER-detail-e91c",
+    additionalContext: "SECRET-ADDITIONAL-CONTEXT-a02f",
+    corrections: "SECRET-CORRECTION-TEXT-c551",
+    priorActionDetail: "SECRET-PRIOR-DETAIL-call-Mrs-Chan-91234567",
+    reportedFacts: "SECRET-REPORTED-FACTS-free-text-d883",
+    generatedBriefFreeText: "SECRET-GENERATED-BRIEF-SUMMARY-99aa",
+    operatorNotes: "SECRET-OPERATOR-NOTES-internal-b77e",
+  };
+
   const brief = buildStage1ContractorBrief(
     {
       issueCategory: "leak",
-      safetyFlags: ["water_uncontrolled"],
       generatedBrief: {
         category: "leak",
-        observedFacts: { affected: "ceiling", duration: "today" },
-        reportedFacts: [],
-        // A correction that plausibly contains identifying detail — must
-        // never survive into the Stage-1 output (see module comment).
-        landlordCorrections: ["Actually it's Flat B, 5B, phone 91234567"],
+        observedFacts: {
+          affected: "ceiling",
+          branchFirst: "rain",
+          branchSecond: ["mark", "other"],
+          duration: "today",
+          worsening: "yes",
+          symptomOther: MARKERS.symptomOther,
+        },
+        reportedFacts: [MARKERS.reportedFacts],
+        landlordCorrections: [MARKERS.corrections],
+        priorAction: { status: "attempted", detail: MARKERS.priorActionDetail },
+        hasEvidence: "yes",
+        evidenceKind: "repair-media",
         propertyDetails: {
           district: "wan-chai",
-          building: "Sunshine Tower",
-          block: "A",
-          floor: "12",
-          unit: "B",
-          accessBy: "Ring the doorbell twice",
+          building: MARKERS.building,
+          block: MARKERS.block,
+          floor: MARKERS.floor,
+          unit: MARKERS.unit,
+          accessBy: MARKERS.accessIdentity,
         },
-        buildingContext: { managementContacted: "yes", sharedAreaInvolved: "no" },
         relationship: "owner-occupier",
-        additionalContext: "Call security first, ask for Mr. Chan.",
+        additionalContext: MARKERS.additionalContext,
+        originalReport: MARKERS.generatedBriefFreeText,
+        landlordName: MARKERS.ownerName,
+        landlordEmail: MARKERS.ownerEmail,
+        landlordPhone: MARKERS.ownerPhone,
+        propertyAddress: MARKERS.propertyAddress,
+        accessNotes: MARKERS.accessPhone,
+        internalReviewNotes: MARKERS.operatorNotes,
       },
-      // Simulates a caller accidentally passing the WHOLE detail object —
-      // buildStage1ContractorBrief only ever destructures issueCategory/
-      // generatedBrief/safetyFlags from its input, so excess properties are
-      // never read.
-      landlordName: "Jamie Landlord",
-      landlordEmail: "jamie@example.com",
-      landlordPhone: "07700900000",
-      propertyAddress: "Sunshine Tower, 12/B, Wan Chai",
-      accessNotes: "Ring the doorbell twice",
-      internalReviewNotes: "Owner seems anxious, be gentle.",
+      // A caller accidentally passing top-level sensitive fields too —
+      // buildStage1ContractorBrief only ever destructures
+      // issueCategory/generatedBrief from its input.
+      landlordName: MARKERS.ownerName,
+      landlordEmail: MARKERS.ownerEmail,
+      landlordPhone: MARKERS.ownerPhone,
+      propertyAddress: MARKERS.propertyAddress,
+      accessContact: MARKERS.accessIdentity,
+      accessPhone: MARKERS.accessPhone,
+      operatorNotes: MARKERS.operatorNotes,
     } as never,
     "en",
   );
 
   const serialized = JSON.stringify(brief);
-  for (const forbidden of SENSITIVE_STRINGS) {
-    assert.ok(!serialized.includes(forbidden), `Stage1ContractorBrief leaked sensitive text: "${forbidden}"`);
+  for (const [source, marker] of Object.entries(MARKERS)) {
+    assert.ok(!serialized.includes(marker), `Stage1ContractorBrief leaked "${source}" free text: "${marker}"`);
   }
-  // District alone (broad area) is allowed and expected.
-  assert.equal(brief.district, "wan-chai");
-  // But no building/block/floor/unit/access-contact fields exist on the
-  // Stage1ContractorBrief type at all — this is enforced structurally by
-  // buildStage1ContractorBrief only ever reading `.district` off
-  // propertyDetails, never `.building`/`.block`/`.floor`/`.unit`/`.accessBy`.
-  assert.deepEqual(
-    Object.keys(brief).sort(),
-    ["category", "district", "evidenceKind", "hasEvidence", "observedProblem", "priorAction", "safetyFlags"].sort(),
-  );
+
+  // Positive checks: safe controlled facts still come through.
+  assert.equal(brief.category, "Water seepage / leakage");
+  assert.equal(brief.district, "Wan Chai");
+  assert.ok(brief.observedProblem.some((row) => row.includes("Ceiling")));
+  assert.ok(brief.observedProblem.some((row) => row.includes("Water mark")));
+  // A neutral, content-free flag for the "Other" symptom — never the text.
+  assert.ok(brief.observedProblem.some((row) => row.toLowerCase().includes("other issue also reported")));
+  assert.equal(brief.priorAction, "Previous action: Repair already attempted");
+
+  // Only the allowed keys exist at all — no building/block/floor/unit/
+  // access/notes/reportedFacts/corrections field on the type.
+  assert.deepEqual(Object.keys(brief).sort(), ALLOWED_STAGE1_KEYS.sort());
 });
 
 test("Stage1ContractorBrief handles a missing/malformed generatedBrief safely — no crash, no leaked fields", async () => {
   const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
-  const brief = buildStage1ContractorBrief(
-    { issueCategory: "electrical", safetyFlags: [], generatedBrief: "not an object" },
-    "en",
-  );
-  assert.equal(brief.category, "electrical");
+  const brief = buildStage1ContractorBrief({ issueCategory: "electrical", generatedBrief: "not an object" }, "en");
+  assert.equal(brief.category, "Electrical / power problem");
   assert.deepEqual(brief.observedProblem, []);
   assert.equal(brief.district, undefined);
+  assert.equal(brief.priorAction, undefined);
 });
 
-test("Stage1ContractorBrief's observedProblem includes the owner's free-text description (reportedFacts) for an open/other category — this is the actual content being sourced, not something withheld", async () => {
+test("Stage1ContractorBrief's observedProblem for an open/other category never includes the owner's free-text description, even though that is the only content that category has", async () => {
   const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
   const brief = buildStage1ContractorBrief(
     {
       issueCategory: "other",
-      safetyFlags: [],
       generatedBrief: {
         category: "unsure",
-        reportedFacts: ["The kitchen tap is dripping constantly."],
+        reportedFacts: ["The kitchen tap is dripping constantly and I think it's the neighbour's fault."],
+        observedFacts: { duration: "today" },
       },
     },
     "en",
   );
-  assert.ok(brief.observedProblem.includes("The kitchen tap is dripping constantly."));
+  assert.ok(!JSON.stringify(brief).includes("kitchen tap"));
+  assert.ok(!JSON.stringify(brief).includes("neighbour"));
+  // The only safe structured fact available for an open category (its
+  // shared timeline) still comes through.
+  assert.ok(brief.observedProblem.some((row) => row.includes("Today")));
 });
 
-test("Stage1ContractorBrief renders priorAction as a combined status+detail string when present, and omits it entirely when absent", async () => {
+test("Stage1ContractorBrief renders priorAction from the controlled status only, and omits it entirely when absent", async () => {
   const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
   const withPrior = buildStage1ContractorBrief(
     {
       issueCategory: "plumbing",
-      safetyFlags: [],
-      generatedBrief: { priorAction: { status: "called-a-plumber", detail: "Could not attend in time." } },
+      generatedBrief: { priorAction: { status: "attempted", detail: "Called a plumber who could not attend — Mrs Chan, 91234567." } },
     },
     "en",
   );
-  assert.equal(withPrior.priorAction, "called-a-plumber — Could not attend in time.");
+  assert.equal(withPrior.priorAction, "Previous action: Repair already attempted");
+  assert.ok(!JSON.stringify(withPrior).includes("91234567"));
+  assert.ok(!JSON.stringify(withPrior).includes("Mrs Chan"));
 
-  const withoutPrior = buildStage1ContractorBrief(
-    { issueCategory: "plumbing", safetyFlags: [], generatedBrief: {} },
+  const withoutPrior = buildStage1ContractorBrief({ issueCategory: "plumbing", generatedBrief: {} }, "en");
+  assert.equal(withoutPrior.priorAction, undefined);
+});
+
+test("Stage1ContractorBrief truthfully communicates enough to decide initial interest: category, district, controlled symptoms, timing/change, previous-action category and evidence availability", async () => {
+  const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
+  const brief = buildStage1ContractorBrief(
+    {
+      issueCategory: "electrical",
+      generatedBrief: {
+        category: "electrical",
+        observedFacts: { duration: "today", frequency: "constant", worsening: "yes" },
+        priorAction: { status: "inspected" },
+        hasEvidence: "yes",
+        evidenceKind: "repair-media",
+        propertyDetails: { district: "kwun-tong" },
+      },
+    },
     "en",
   );
-  assert.equal(withoutPrior.priorAction, undefined);
+  assert.equal(brief.category, "Electrical / power problem");
+  assert.equal(brief.district, "Kwun Tong");
+  assert.ok(brief.observedProblem.length > 0);
+  assert.equal(brief.priorAction, "Previous action: Inspected only");
+  assert.equal(brief.hasEvidence, "Yes, I can provide this later");
+  assert.equal(brief.evidenceKind, "Repair photo / video");
 });
