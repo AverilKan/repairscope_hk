@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GeneratedBriefDocument } from "@/components/GeneratedBriefDocument";
+import { isApiDataSource } from "@/components/LegacyDemoNotice";
 import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
 import {
@@ -10,6 +11,11 @@ import {
   sanitizeContractorResponsePayload,
   type ContractorResponsePayload,
 } from "@/domain/contractorResponse";
+import { cacheContractorRequestLink, readCachedContractorRequestLinks } from "@/domain/contractorRequestLinkCache";
+import {
+  ContractorRequestOperatorError,
+  type ContractorRequestSummary,
+} from "@/domain/contractorRequestOperator";
 import {
   applyContractorPatch,
   createOperatorContractor,
@@ -45,6 +51,8 @@ import {
 } from "@/domain/operatorSubmission";
 import { useOperatorSubmissionService } from "@/services/operator/useOperatorSubmissionService";
 import type { OperatorSubmissionService } from "@/services/operator/OperatorSubmissionService";
+import { useContractorRequestOperatorService } from "@/services/contractor/useContractorRequestOperatorService";
+import type { ContractorRequestOperatorService } from "@/services/contractor/ContractorRequestOperatorService";
 
 const STATUS_OPTIONS: { value: Exclude<SubmissionStatus, "new">; label: string }[] = [
   { value: "reviewing", label: "Reviewing" },
@@ -89,10 +97,16 @@ type LoadState =
 export function OperatorCaseWorkspace({
   caseReference,
   service: injectedService,
+  contractorRequestService: injectedContractorRequestService,
 }: {
   caseReference: string;
   /** Test-only seam — see OperatorCaseList's own injectedService comment. */
   service?: OperatorSubmissionService;
+  /** Same test-only seam for T2 Commit 3's real contractor-request
+   * controls — lets tests exercise them without a live Clerk session
+   * (see ContractorRequestPanel below, which needs this to avoid calling
+   * useContractorRequestOperatorService's Clerk-backed hook at all). */
+  contractorRequestService?: ContractorRequestOperatorService;
 }) {
   // eslint-disable-next-line react-hooks/rules-of-hooks -- see OperatorCaseList's identical, justified pattern.
   const service = injectedService ?? useOperatorSubmissionService();
@@ -457,7 +471,11 @@ export function OperatorCaseWorkspace({
             + Add contractor
           </button>
         </div>
-        <p className="op-panel__hint">Local tracking only — no contractor accounts or invitations yet.</p>
+        <p className="op-panel__hint">
+          {isApiDataSource()
+            ? "Local tracking, plus real request links you can send a contractor (below) — see each contractor's own request history."
+            : "Local tracking only — no contractor accounts or invitations yet."}
+        </p>
         {local.contractors.length === 0 ? (
           <p>No contractors added yet.</p>
         ) : (
@@ -470,6 +488,15 @@ export function OperatorCaseWorkspace({
                 onToggleExpanded={() => toggleContractorExpanded(contractor.id)}
                 onUpdate={(patch) => updateContractor(contractor.id, patch)}
                 onRemove={() => removeContractor(contractor.id)}
+                requestLinkContext={
+                  isApiDataSource()
+                    ? {
+                        submissionId: detail.id,
+                        caseReference: detail.publicReference,
+                        service: injectedContractorRequestService,
+                      }
+                    : undefined
+                }
               />
             ))}
           </div>
@@ -541,12 +568,22 @@ function ContractorCard({
   onToggleExpanded,
   onUpdate,
   onRemove,
+  requestLinkContext,
 }: {
   contractor: OperatorContractor;
   expanded: boolean;
   onToggleExpanded: () => void;
   onUpdate: (patch: Partial<OperatorContractor>) => void;
   onRemove: () => void;
+  /** Present only in real API mode, once the real submission has loaded —
+   * see OperatorCaseWorkspace's own isApiDataSource() gate above. Absent
+   * entirely in mock mode, which keeps every existing manual-tracking/
+   * paste-import behaviour on this card unchanged. */
+  requestLinkContext?: {
+    submissionId: string;
+    caseReference: string;
+    service?: ContractorRequestOperatorService;
+  };
 }) {
   const responseSummary = summarizeContractor(contractor);
 
@@ -711,6 +748,15 @@ function ContractorCard({
             </div>
           )}
         </div>
+      )}
+
+      {requestLinkContext && (
+        <ContractorRequestPanel
+          contractor={contractor}
+          submissionId={requestLinkContext.submissionId}
+          caseReference={requestLinkContext.caseReference}
+          injectedService={requestLinkContext.service}
+        />
       )}
 
       {expanded && (
@@ -973,6 +1019,196 @@ function ContractorCard({
             />
           </label>
         </div>
+      )}
+    </div>
+  );
+}
+
+const REQUEST_STATUS_LABELS: Record<ContractorRequestSummary["status"], string> = {
+  open: "Open",
+  responded: "Responded",
+  revoked: "Revoked",
+  expired: "Expired",
+};
+
+function requestStatusTone(status: ContractorRequestSummary["status"]): "neutral" | "good" | "attention" | "ink" {
+  if (status === "responded") return "good";
+  if (status === "open") return "ink";
+  return "neutral";
+}
+
+/**
+ * Real request-link controls for ONE contractor card (T2 Commit 3) — sends
+ * a real, backend-issued request link and shows that contractor's own
+ * request history, live from the operator API. Deliberately separate from
+ * the manual "Import response" flow above: sending/revoking a link here
+ * never reads or writes OperatorContractor.status/responseType/notes/etc —
+ * only an explicit "Import response" action (existing, or its T2 Commit 4
+ * server-response counterpart) ever mutates that canonical state. The raw
+ * link itself is cached locally (domain/contractorRequestLinkCache.ts) —
+ * see that module's comment for why: the backend only ever returns the
+ * access token once, at creation.
+ */
+function ContractorRequestPanel({
+  contractor,
+  submissionId,
+  caseReference,
+  injectedService,
+}: {
+  contractor: OperatorContractor;
+  submissionId: string;
+  caseReference: string;
+  /** Test-only seam — see OperatorCaseWorkspace's own contractorRequestService comment. */
+  injectedService?: ContractorRequestOperatorService;
+}) {
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- see OperatorCaseList's identical, justified pattern.
+  const service = injectedService ?? useContractorRequestOperatorService();
+  const [requests, setRequests] = useState<ContractorRequestSummary[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sendState, setSendState] = useState<"idle" | "sending" | "error">("idle");
+  const [sendError, setSendError] = useState("");
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [justCreatedLink, setJustCreatedLink] = useState<string | null>(null);
+
+  const refresh = () => {
+    service
+      .list(submissionId)
+      .then((all) => {
+        setRequests(all.filter((r) => r.clientContractorId === contractor.id));
+        setLoadError(null);
+      })
+      .catch((error: unknown) => {
+        setLoadError(
+          error instanceof ContractorRequestOperatorError
+            ? error.message
+            : "Could not load request history.",
+        );
+      });
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    service
+      .list(submissionId)
+      .then((all) => {
+        if (cancelled) return;
+        setRequests(all.filter((r) => r.clientContractorId === contractor.id));
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setLoadError(
+          error instanceof ContractorRequestOperatorError
+            ? error.message
+            : "Could not load request history.",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [service, submissionId, contractor.id]);
+
+  const sendRequestLink = async () => {
+    setSendState("sending");
+    setSendError("");
+    setJustCreatedLink(null);
+    try {
+      const created = await service.create(submissionId, {
+        contractorLabel: contractor.name || "Unnamed contractor",
+        clientContractorId: contractor.id,
+      });
+      const rawLink = `${window.location.origin}/contractor/respond/${created.accessToken}`;
+      cacheContractorRequestLink(caseReference, {
+        requestId: created.id,
+        rawLink,
+        clientContractorId: contractor.id,
+        createdAt: created.createdAt,
+      });
+      setJustCreatedLink(rawLink);
+      setSendState("idle");
+      refresh();
+    } catch (error) {
+      setSendState("error");
+      setSendError(
+        error instanceof ContractorRequestOperatorError ? error.message : "Could not send a request link.",
+      );
+    }
+  };
+
+  const revokeRequest = async (requestId: string) => {
+    setRevokingId(requestId);
+    try {
+      await service.revoke(submissionId, requestId);
+      refresh();
+    } catch (error) {
+      setLoadError(
+        error instanceof ContractorRequestOperatorError ? error.message : "Could not revoke this request.",
+      );
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  const cachedLinks = readCachedContractorRequestLinks(caseReference);
+
+  return (
+    <div className="op-contractor-card__requests">
+      <div className="op-contractor-card__requests-heading">
+        <h4>Request links</h4>
+        <button type="button" onClick={sendRequestLink} disabled={sendState === "sending"}>
+          {sendState === "sending" ? "Sending…" : "Send request link"}
+        </button>
+      </div>
+      {sendState === "error" && (
+        <p className="field-error" role="alert">
+          {sendError}
+        </p>
+      )}
+      {justCreatedLink && (
+        <p className="op-contractor-card__requests-new-link">
+          Link ready: <code>{justCreatedLink}</code>
+        </p>
+      )}
+      {loadError && (
+        <p className="field-error" role="alert">
+          {loadError}
+        </p>
+      )}
+      {requests === null ? (
+        <p className="op-panel__hint">Loading request history…</p>
+      ) : requests.length === 0 ? (
+        <p className="op-panel__hint">No request sent to this contractor yet.</p>
+      ) : (
+        <ul className="op-contractor-card__requests-list">
+          {requests
+            .slice()
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+            .map((request) => {
+              const cached = cachedLinks.find((link) => link.requestId === request.id);
+              return (
+                <li key={request.id}>
+                  <StatusPill tone={requestStatusTone(request.status)}>
+                    {REQUEST_STATUS_LABELS[request.status]}
+                  </StatusPill>
+                  <span>Sent {formatTimestamp(request.createdAt)}</span>
+                  {request.status === "open" && cached && <code>{cached.rawLink}</code>}
+                  {request.status === "open" && !cached && (
+                    <span className="op-panel__hint">
+                      Link not available in this browser — revoke and send a new one if needed.
+                    </span>
+                  )}
+                  {request.status === "open" && (
+                    <button
+                      type="button"
+                      onClick={() => revokeRequest(request.id)}
+                      disabled={revokingId === request.id}
+                    >
+                      {revokingId === request.id ? "Revoking…" : "Revoke"}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+        </ul>
       )}
     </div>
   );

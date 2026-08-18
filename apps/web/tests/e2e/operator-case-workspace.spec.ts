@@ -153,6 +153,22 @@ test.describe("local operator working state — the manual flow", () => {
 
     expect(mutatingApiRequests).toEqual([]);
   });
+
+  test("the real 'Send request link' controls (T2 Commit 3) never render in mock mode", async ({ page }) => {
+    // Real contractor-request creation needs a real backend submission id
+    // and a real operator session — see components/operator/
+    // OperatorCaseWorkspace.tsx's own isApiDataSource() gate. Mock mode
+    // must keep this card exactly as it already is (manual tracking +
+    // paste-import only), never silently attempt a real network call
+    // against a fixture id.
+    await page.goto("/operator/RS-MOCK01");
+    await page.getByRole("button", { name: "+ Add contractor" }).click();
+    await expect(page.locator(".op-contractor-card")).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Send request link" })).toHaveCount(0);
+    await expect(page.locator(".op-contractor-card__requests")).toHaveCount(0);
+    // The existing manual/import controls remain exactly as before.
+    await expect(page.getByRole("button", { name: "Import response" })).toBeVisible();
+  });
 });
 
 test.describe("local storage isolation", () => {

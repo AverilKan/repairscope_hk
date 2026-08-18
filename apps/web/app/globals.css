@@ -11648,6 +11648,55 @@ select:focus {
   padding-left: 18px;
 }
 
+/* --- Operator "Request links" panel (T2 Commit 3) ---------------------- */
+
+.op-contractor-card__requests {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e2e2;
+}
+
+.op-contractor-card__requests-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.op-contractor-card__requests-heading h4 {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.op-contractor-card__requests-new-link {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  word-break: break-all;
+}
+
+.op-contractor-card__requests-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.op-contractor-card__requests-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 6px 0;
+}
+
+.op-contractor-card__requests-list code {
+  word-break: break-all;
+  font-size: 0.75rem;
+}
+
 /* --- Owner proposal-return preview (Commit C) -------------------------- */
 
 .owner-proposal-preview {
