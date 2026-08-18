@@ -61,12 +61,12 @@ test.describe("operator case detail", () => {
     // Evidence metadata.
     await expect(page.getByText("Two photos on my phone.")).toBeVisible();
     // Consent — visible, not editable (see the read-only test below).
-    await expect(page.getByText("同意俾人聯絡")).toBeVisible();
+    await expect(page.getByText("同意讓人聯絡")).toBeVisible();
   });
 
   test("a case reference with no matching submission shows an explicit not-found state", async ({ page }) => {
     await page.goto("/operator/RS-DOES-NOT-EXIST");
-    await expect(page.getByText(/搵唔到 RS-DOES-NOT-EXIST 呢個個案/)).toBeVisible();
+    await expect(page.getByText(/找不到個案 RS-DOES-NOT-EXIST/)).toBeVisible();
   });
 
   test("the original owner submission cannot be edited — the owner-submission section has no input, textarea or select", async ({
@@ -104,7 +104,7 @@ test.describe("local operator working state — the manual flow", () => {
     await expect(page.getByText("Repair summary")).toBeVisible();
 
     await page.getByLabel("內部備註").fill("Owner is responsive, prefers email.");
-    await page.getByLabel("未解決嘅問題").fill("Is the leak from the flat above?");
+    await page.getByLabel("未解決的問題").fill("Is the leak from the flat above?");
     await page.getByLabel("本機工作流程狀態").selectOption("ready-for-sourcing");
     await expect(page.getByLabel("本機工作流程狀態")).toHaveValue("ready-for-sourcing");
 
@@ -115,7 +115,7 @@ test.describe("local operator working state — the manual flow", () => {
     await cards.nth(0).getByLabel("聯絡／搵師傅狀態").selectOption("contacted");
     await cards.nth(0).getByLabel("操作員備註").fill("Called 9am, can visit Thursday.");
     await cards.nth(0).getByLabel("目前回覆").selectOption("interested");
-    await cards.nth(0).getByLabel("師傅原本嘅回覆 — 佢哋講咗啲乜？").fill("Can visit Thursday.");
+    await cards.nth(0).getByLabel("師傅原本的回覆 — 他們說了什麼？").fill("Can visit Thursday.");
 
     await page.getByRole("button", { name: "＋新增師傅" }).click();
     await expect(cards).toHaveCount(2);
@@ -129,7 +129,7 @@ test.describe("local operator working state — the manual flow", () => {
 
     await expect(page.getByLabel("本機工作流程狀態")).toHaveValue("ready-for-sourcing");
     await expect(page.getByLabel("內部備註")).toHaveValue("Owner is responsive, prefers email.");
-    await expect(page.getByLabel("未解決嘅問題")).toHaveValue("Is the leak from the flat above?");
+    await expect(page.getByLabel("未解決的問題")).toHaveValue("Is the leak from the flat above?");
     await expect(page.getByLabel("下一步行動")).toHaveValue(
       "Get a quote from Contractor A after Thursday's visit.",
     );
@@ -148,7 +148,7 @@ test.describe("local operator working state — the manual flow", () => {
     await expect(reloadedCards.nth(0).getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
     await expect(reloadedCards.nth(0).getByLabel("目前回覆")).toHaveValue("interested");
     await expect(
-      reloadedCards.nth(0).getByLabel("師傅原本嘅回覆 — 佢哋講咗啲乜？"),
+      reloadedCards.nth(0).getByLabel("師傅原本的回覆 — 他們說了什麼？"),
     ).toHaveValue("Can visit Thursday.");
 
     await reloadedCards.nth(1).getByRole("button", { name: "編輯" }).click();

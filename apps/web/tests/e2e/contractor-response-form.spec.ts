@@ -18,13 +18,13 @@ test("the Stage-1 brief panel shows the sourcing summary and never shows owner-i
   page,
 }) => {
   await page.goto("/contractor/respond/demo-token");
-  await expect(page.getByText("話俾 RepairScope 知你點打算處理。")).toBeVisible();
+  await expect(page.getByText("請告知 RepairScope 你打算如何處理。")).toBeVisible();
   const briefPanel = page.locator(".contractor-brief-panel");
   // A resolved human label — the raw category id ("plumbing") is never
   // shown (see domain/stage1ContractorBrief.ts's privacy/label hardening).
   await expect(briefPanel).toContainText("水喉問題");
   await expect(briefPanel).toContainText(
-    "呢個只係搵師傅階段嘅概要 — 而家未會顯示確實地址、業主聯絡資料或者其他師傅嘅資料。",
+    "此為搵師傅階段的概要 — 現階段未會顯示確實地址、業主聯絡資料或其他師傅的資料。",
   );
   const pageText = await page.locator("main").innerText();
   expect(pageText).not.toContain("Jamie Landlord");
@@ -35,14 +35,14 @@ test("the Stage-1 brief panel shows the sourcing summary and never shows owner-i
 
 test("an unrecognised invitation shows a clear unavailable state, not a crash", async ({ page }) => {
   await page.goto("/contractor/respond/not-a-real-token");
-  await expect(page.getByText("呢個邀請暫時未能使用。")).toBeVisible();
+  await expect(page.getByText("此邀請暫時未能使用。")).toBeVisible();
 });
 
 test("the 'Interested' branch is light — one free-text field then review", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "有興趣處理", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
-  await page.getByLabel("仲有冇想講嘅？").fill("Sounds doable, can start soon.");
+  await expect(page.getByRole("heading", { name: "還有沒有想說的？" })).toBeVisible();
+  await page.getByLabel("還有沒有想說的？").fill("Sounds doable, can start soon.");
   await page.getByRole("button", { name: "繼續" }).click();
   await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 });
@@ -52,8 +52,8 @@ test("the 'Needs inspection' branch captures the inspection requirement and what
   await page.getByRole("button", { name: "需要上門檢查", exact: true }).click();
   await expect(page.getByRole("heading", { name: "檢查要求" })).toBeVisible();
   await page.getByRole("button", { name: "一定要上門檢查先可以報價" }).click();
-  await expect(page.getByRole("heading", { name: "你想檢查啲乜，或者你同對方講咗啲乜？" })).toBeVisible();
-  await page.getByLabel("你想檢查啲乜，或者你同對方講咗啲乜？").fill("Need to see the pipe run.");
+  await expect(page.getByRole("heading", { name: "你想檢查什麼，或你與對方談了什麼？" })).toBeVisible();
+  await page.getByLabel("你想檢查什麼，或你與對方談了什麼？").fill("Need to see the pipe run.");
   await page.getByRole("button", { name: "繼續" }).click();
   await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 });
@@ -61,9 +61,9 @@ test("the 'Needs inspection' branch captures the inspection requirement and what
 test("the 'Needs more information' branch captures what's needed", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "需要更多資料", exact: true }).click();
-  await page.getByLabel("你需要咩資料？").fill("More photos of the ceiling.");
+  await page.getByLabel("你需要什麼資料？").fill("More photos of the ceiling.");
   await page.getByRole("button", { name: "繼續" }).click();
-  await page.getByLabel("仲有冇想講嘅？").fill("Can respond once I see those.");
+  await page.getByLabel("還有沒有想說的？").fill("Can respond once I see those.");
   await page.getByRole("button", { name: "繼續" }).click();
   await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 });
@@ -76,25 +76,25 @@ test("the 'Needs more information' branch blocks Continue on a blank or whitespa
 
   // Blank.
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("請講清楚你需要咩資料。")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "你需要咩資料？" })).toBeVisible();
+  await expect(page.getByText("請說明你需要的資料。")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "你需要什麼資料？" })).toBeVisible();
 
   // Whitespace-only.
-  await page.getByLabel("你需要咩資料？").fill("   ");
+  await page.getByLabel("你需要什麼資料？").fill("   ");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("請講清楚你需要咩資料。")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "你需要咩資料？" })).toBeVisible();
+  await expect(page.getByText("請說明你需要的資料。")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "你需要什麼資料？" })).toBeVisible();
 
   // Valid text clears the error and advances.
-  await page.getByLabel("你需要咩資料？").fill("More photos of the ceiling.");
+  await page.getByLabel("你需要什麼資料？").fill("More photos of the ceiling.");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "還有沒有想說的？" })).toBeVisible();
 });
 
 test("the 'Not suitable' branch stays minimal with an optional response", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "不適合處理", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "還有沒有想說的？" })).toBeVisible();
   await page.getByRole("button", { name: "繼續" }).click();
   await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 });
@@ -102,7 +102,7 @@ test("the 'Not suitable' branch stays minimal with an optional response", async 
 test("back/edit: a collapsed step can be changed, and the change is reflected", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "有興趣處理", exact: true }).click();
-  await page.getByLabel("仲有冇想講嘅？").fill("First answer.");
+  await page.getByLabel("還有沒有想說的？").fill("First answer.");
   await page.getByRole("button", { name: "繼續" }).click();
 
   // The first step is now collapsed with a summary + Change link.
@@ -132,7 +132,7 @@ test("proposal branch: fixed price renders a single price field and completes cl
   await page.getByRole("button", { name: "固定價格" }).click();
   await page.getByLabel("價格（港幣）").fill("5000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
 });
 
 test("proposal branch: fixed price blocks Continue with no amount entered (T2 Commit 1 contract alignment)", async ({
@@ -150,7 +150,7 @@ test("proposal branch: fixed price blocks Continue with no amount entered (T2 Co
 
   await page.getByLabel("價格（港幣）").fill("5000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
 });
 
 test("proposal branch: estimate price behaves the same as fixed (single amount field)", async ({ page }) => {
@@ -162,7 +162,7 @@ test("proposal branch: estimate price behaves the same as fixed (single amount f
   await expect(page.getByLabel("價格（港幣）")).toBeVisible();
   await page.getByLabel("價格（港幣）").fill("1800");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
 });
 
 test("proposal branch: range price renders two fields and rejects an inverted range", async ({ page }) => {
@@ -174,13 +174,13 @@ test("proposal branch: range price renders two fields and rejects an inverted ra
   await page.getByLabel("最低價（港幣）").fill("7000");
   await page.getByLabel("最高價（港幣）").fill("4000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("最低價格唔可以高過最高價格。")).toBeVisible();
+  await expect(page.getByText("最低價格不可高於最高價格。")).toBeVisible();
   // Still on the price-amount step — did not advance.
   await expect(page.getByLabel("最低價（港幣）")).toBeVisible();
 
   await page.getByLabel("最高價（港幣）").fill("9000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
 });
 
 test("proposal branch: range price blocks Continue when either bound is missing (T2 Commit 1 contract alignment)", async ({
@@ -194,24 +194,24 @@ test("proposal branch: range price blocks Continue when either bound is missing 
 
   // Neither bound filled in.
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("請輸入最低同最高價格。")).toBeVisible();
+  await expect(page.getByText("請輸入最低及最高價格。")).toBeVisible();
 
   // Only minimum filled in.
   await page.getByLabel("最低價（港幣）").fill("4000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("請輸入最低同最高價格。")).toBeVisible();
+  await expect(page.getByText("請輸入最低及最高價格。")).toBeVisible();
   await expect(page.getByLabel("最低價（港幣）")).toBeVisible();
 
   // Only maximum filled in (clear minimum first).
   await page.getByLabel("最低價（港幣）").fill("");
   await page.getByLabel("最高價（港幣）").fill("7000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("請輸入最低同最高價格。")).toBeVisible();
+  await expect(page.getByText("請輸入最低及最高價格。")).toBeVisible();
 
   // Both filled in — advances.
   await page.getByLabel("最低價（港幣）").fill("4000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
 });
 
 test("proposal branch: a valid equal price range (min === max) is accepted", async ({ page }) => {
@@ -223,7 +223,7 @@ test("proposal branch: a valid equal price range (min === max) is accepted", asy
   await page.getByLabel("最低價（港幣）").fill("5000");
   await page.getByLabel("最高價（港幣）").fill("5000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
 });
 
 test("proposal branch: negative prices are rejected (never accepted as a value)", async ({ page }) => {
@@ -242,7 +242,7 @@ test("proposal branch: 'No price yet' skips the price-amount step entirely", asy
   await page.getByLabel("建議處理方法").fill("Need to see it first.");
   await page.getByRole("button", { name: "繼續" }).click();
   await page.getByRole("button", { name: "暫時未能報價" }).click();
-  await expect(page.getByRole("heading", { name: "包括啲乜？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "包括什麼？" })).toBeVisible();
   // The price-amount step never appears as its own collapsed row — only
   // response-type, proposed-approach and price-type (whose own answer is
   // legitimately "No price yet").
@@ -262,15 +262,15 @@ test("exclusion and price-change-factor suggestion chips assist without creating
   await page.getByRole("button", { name: "固定價格" }).click();
   await page.getByLabel("價格（港幣）").fill("5000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await page.getByLabel("包括啲乜？").fill("Labour and part.");
+  await page.getByLabel("包括什麼？").fill("Labour and part.");
   await page.getByRole("button", { name: "繼續" }).click();
 
   await page.getByRole("button", { name: "+ 油漆／批盪修飾" }).click();
-  await expect(page.getByLabel("不包括啲乜？")).toHaveValue("油漆／批盪修飾");
+  await expect(page.getByLabel("不包括什麼？")).toHaveValue("油漆／批盪修飾");
   await page.getByRole("button", { name: "繼續" }).click();
 
   await page.getByRole("button", { name: "+ 隱藏損壞" }).click();
-  await expect(page.getByLabel("咩因素可能影響價格？")).toHaveValue("隱藏損壞");
+  await expect(page.getByLabel("什麼因素可能影響價格？")).toHaveValue("隱藏損壞");
 });
 
 test("guarantee: 'Yes' reveals an optional details field before advancing; 'No'/'Not stated' advance immediately", async ({
@@ -283,7 +283,7 @@ test("guarantee: 'Yes' reveals an optional details field before advancing; 'No'/
   await page.getByRole("button", { name: "固定價格" }).click();
   await page.getByLabel("價格（港幣）").fill("5000");
   await page.getByRole("button", { name: "繼續" }).click();
-  await page.getByLabel("包括啲乜？").fill("Labour and part.");
+  await page.getByLabel("包括什麼？").fill("Labour and part.");
   await page.getByRole("button", { name: "繼續" }).click();
   await page.getByRole("button", { name: "繼續" }).click(); // exclusions (optional, blank)
   await page.getByRole("button", { name: "繼續" }).click(); // price-change-factors (optional, blank)
@@ -296,7 +296,7 @@ test("guarantee: 'Yes' reveals an optional details field before advancing; 'No'/
   await expect(page.getByLabel("保養詳情")).toBeVisible();
   await page.getByLabel("保養詳情").fill("6 months on parts.");
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "還有沒有想說的？" })).toBeVisible();
 });
 
 test("final review shows a 'Prepare my response' export and the copied text parses back deterministically", async ({
@@ -304,10 +304,10 @@ test("final review shows a 'Prepare my response' export and the copied text pars
 }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "有興趣處理", exact: true }).click();
-  await page.getByLabel("仲有冇想講嘅？").fill("Sounds doable.");
+  await page.getByLabel("還有沒有想說的？").fill("Sounds doable.");
   await page.getByRole("button", { name: "繼續" }).click();
   await page.getByRole("button", { name: "準備回覆內容", exact: true }).click();
-  const exportBox = page.getByLabel("可複製嘅回覆內容");
+  const exportBox = page.getByLabel("可複製的回覆內容");
   await expect(exportBox).toBeVisible();
   const value = await exportBox.inputValue();
   const parsed = JSON.parse(value);
@@ -322,23 +322,23 @@ test("back/edit: clearing a previously-valid required answer blocks re-advanceme
 }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "需要更多資料", exact: true }).click();
-  await page.getByLabel("你需要咩資料？").fill("More photos of the ceiling.");
+  await page.getByLabel("你需要什麼資料？").fill("More photos of the ceiling.");
   await page.getByRole("button", { name: "繼續" }).click();
-  await page.getByLabel("仲有冇想講嘅？").fill("Thanks.");
+  await page.getByLabel("還有沒有想說的？").fill("Thanks.");
   await page.getByRole("button", { name: "繼續" }).click();
   await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 
   // Go back and clear the previously-valid required answer.
   const informationNeededStep = page.locator(".contractor-step--done").filter({
-    hasText: "你需要咩資料？",
+    hasText: "你需要什麼資料？",
   });
   await informationNeededStep.getByRole("button", { name: "更改" }).click();
-  await page.getByLabel("你需要咩資料？").fill("");
+  await page.getByLabel("你需要什麼資料？").fill("");
 
   // The only way back to review is through this step's own Continue gate
   // — it must still block, exactly as it did the first time.
   await page.getByRole("button", { name: "繼續" }).click();
-  await expect(page.getByText("請講清楚你需要咩資料。")).toBeVisible();
+  await expect(page.getByText("請說明你需要的資料。")).toBeVisible();
   await expect(page.getByRole("heading", { name: "查看回覆" })).not.toBeVisible();
 });
 
@@ -347,7 +347,7 @@ test("text fields enforce the backend length caps via maxLength, and long-text f
 }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "有興趣處理", exact: true }).click();
-  const field = page.getByLabel("仲有冇想講嘅？");
+  const field = page.getByLabel("還有沒有想說的？");
   await expect(field).toHaveAttribute("maxlength", "2000");
 
   // The browser itself refuses to accept more than maxLength characters
@@ -358,7 +358,7 @@ test("text fields enforce the backend length caps via maxLength, and long-text f
   await expect(field).toHaveValue(boundaryText);
   await page.getByRole("button", { name: "繼續" }).click();
   await page.getByRole("button", { name: "準備回覆內容", exact: true }).click();
-  await expect(page.getByLabel("可複製嘅回覆內容")).toBeVisible();
+  await expect(page.getByLabel("可複製的回覆內容")).toBeVisible();
 });
 
 test("short-text fields (expected duration, earliest start) enforce the 200-character backend cap via maxLength", async ({
@@ -379,7 +379,7 @@ test("mobile viewport: the contractor form is usable with no page-level horizont
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "有興趣處理", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "還有沒有想說的？" })).toBeVisible();
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );

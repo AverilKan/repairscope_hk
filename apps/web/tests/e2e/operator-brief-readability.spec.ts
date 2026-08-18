@@ -85,7 +85,7 @@ test("operator workspace retains its own operator-specific information around th
   // Contact/consent (operator-only visibility, distinct from the owner
   // summary above it).
   await expect(page.getByText("jamie@example.com")).toBeVisible();
-  await expect(page.getByText("同意俾人聯絡", { exact: false })).toBeVisible();
+  await expect(page.getByText("同意讓人聯絡", { exact: false })).toBeVisible();
 
   // Backend status controls and local workflow state both still exist,
   // clearly separated (see OperatorCaseWorkspace's own two-column layout).
@@ -111,7 +111,7 @@ test("operator status/note actions still work after the brief-rendering change",
   // OperatorCaseWorkspace's own "後台提交狀態" vs "Local
   // working notes" sections) — matched here by its fuller label to avoid
   // ambiguity between the two.
-  await page.getByLabel("內部審閱備註（會儲存喺 RepairScope）").fill("Readability regression check.");
+  await page.getByLabel("內部審閱備註（會儲存在 RepairScope）").fill("Readability regression check.");
   await page.getByRole("button", { name: "審閱中" }).click();
 
   await expect(page.getByText("審閱中", { exact: true }).first()).toBeVisible();

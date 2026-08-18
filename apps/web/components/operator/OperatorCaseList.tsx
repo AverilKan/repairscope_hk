@@ -58,7 +58,7 @@ export function OperatorCaseList({ service: injectedService }: { service?: Opera
         }, 0);
       })
       .catch(() => {
-        if (!cancelled) setError("未能載入 RepairScope 嘅維修個案。");
+        if (!cancelled) setError("未能載入 RepairScope 的維修個案。");
       });
     return () => {
       cancelled = true;
@@ -74,7 +74,7 @@ export function OperatorCaseList({ service: injectedService }: { service?: Opera
   }
 
   if (submissions === null) {
-    return <p role="status">個案載入緊…</p>;
+    return <p role="status">個案載入中…</p>;
   }
 
   if (submissions.length === 0) {

@@ -147,7 +147,7 @@ test("Slice 3's comparison immediately reflects an imported 'Initial proposal pr
   await card.getByRole("button", { name: "確認匯入" }).click();
 
   const comparison = page.locator('[aria-label="報價比較"]');
-  await expect(comparison.getByText("已經記錄咗一個報價。加多個報價先可以比較。")).toBeVisible();
+  await expect(comparison.getByText("已經記錄一個報價，需要多於一個報價才可以比較。")).toBeVisible();
   await expect(comparison.locator(".op-comparison-table")).toContainText("HK$4,000–HK$7,000");
   await expect(comparison.locator(".op-comparison-table")).toContainText("Inspect valve first.");
 

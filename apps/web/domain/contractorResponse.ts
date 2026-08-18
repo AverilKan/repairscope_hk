@@ -237,7 +237,7 @@ const SHORT_TEXT_FIELDS = [
  * Chinese; `lang` is threaded through from checkContractorResponseCompletion. */
 const FIELD_LABELS: Partial<Record<keyof ContractorResponsePayload, LocalizedText>> = {
   originalResponse: lt("你的回覆", "Your response"),
-  informationNeeded: lt("你需要嘅資料", "What information you need"),
+  informationNeeded: lt("你需要的資料", "What information you need"),
   proposedApproach: lt("建議處理方法", "Proposed approach"),
   inclusions: lt("包括項目", "What's included"),
   exclusions: lt("不包括項目", "What's excluded"),
@@ -296,7 +296,7 @@ export function checkContractorResponseCompletion(
     push(lt("請選擇檢查要求。", "Choose an inspection requirement."));
   }
   if (payload.responseType === "needs-more-information" && !isNonBlank(payload.informationNeeded)) {
-    push(lt("請講清楚你需要咩資料。", "Describe what information you need."));
+    push(lt("請說明你需要的資料。", "Describe what information you need."));
   }
   if (payload.responseType === "proposal-provided") {
     if (!payload.priceType) {
@@ -305,9 +305,9 @@ export function checkContractorResponseCompletion(
       if (!isValidAmount(payload.price)) push(lt("請輸入有效價格。", "Enter a valid price."));
     } else if (payload.priceType === "range") {
       if (!isValidAmount(payload.priceMin) || !isValidAmount(payload.priceMax)) {
-        push(lt("請輸入最低同最高價格。", "Enter both a minimum and maximum price."));
+        push(lt("請輸入最低及最高價格。", "Enter both a minimum and maximum price."));
       } else if (payload.priceMin > payload.priceMax) {
-        push(lt("最低價格唔可以高過最高價格。", "The minimum can't be greater than the maximum."));
+        push(lt("最低價格不可高於最高價格。", "The minimum can't be greater than the maximum."));
       }
     }
   }

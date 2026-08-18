@@ -56,7 +56,7 @@ test.skip(
 
 test("an open request loads the real Stage-1 brief and shows no fixture/mock content", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("話俾 RepairScope 知你點打算處理。")).toBeVisible();
+  await expect(page.getByText("請告知 RepairScope 你打算如何處理。")).toBeVisible();
   const briefPanel = page.locator(".contractor-brief-panel");
   // Default UI language is Traditional Chinese (see LanguageContext) — the
   // resolved category label is bilingual, so this asserts the raw internal
@@ -98,30 +98,30 @@ test("an unsupported Stage-1 schema version fails closed without rendering the q
     });
   });
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("呢個維修個案嘅版本呢頁未能開啟。")).toBeVisible();
+  await expect(page.getByText("此維修申請使用的版本無法在此頁面開啟。")).toBeVisible();
   await expect(page.getByRole("button", { name: "有興趣處理", exact: true })).toHaveCount(0);
   await expect(page.getByText("SECRET_OWNER_MARKER")).toHaveCount(0);
 });
 
 test("a responded request shows the already-responded state, not the form", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_RESPONDED}`);
-  await expect(page.getByText("你已經提交過呢個邀請嘅回覆。")).toBeVisible();
+  await expect(page.getByText("你已經提交過此邀請的回覆。")).toBeVisible();
   await expect(page.getByRole("button", { name: "有興趣處理", exact: true })).toHaveCount(0);
 });
 
 test("a revoked request shows the inactive-link state, not the form", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_REVOKED}`);
-  await expect(page.getByText("呢個連結已經失效。")).toBeVisible();
+  await expect(page.getByText("此連結已經失效。")).toBeVisible();
 });
 
 test("an expired request shows the same inactive-link state as revoked", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_EXPIRED}`);
-  await expect(page.getByText("呢個連結已經失效。")).toBeVisible();
+  await expect(page.getByText("此連結已經失效。")).toBeVisible();
 });
 
 test("an unknown token against the real backend shows the invalid-link state, not a crash", async ({ page }) => {
   await page.goto("/contractor/respond/definitely-not-a-real-backend-token");
-  await expect(page.getByText("呢個連結無效。")).toBeVisible();
+  await expect(page.getByText("此連結無效。")).toBeVisible();
 });
 
 test("a real GET network failure shows a truthful network-error state, never falls back to mock/demo content", async ({
@@ -129,7 +129,7 @@ test("a real GET network failure shows a truthful network-error state, never fal
 }) => {
   await page.route("**/api/contractor-requests/**", (route) => route.abort("failed"));
   await page.goto(`/contractor/respond/${TOKEN_OPEN}`);
-  await expect(page.getByText("未能載入呢個邀請。")).toBeVisible();
+  await expect(page.getByText("未能載入此邀請。")).toBeVisible();
   // Never silently substitutes the mock demo-token fixture content.
   await expect(page.getByText("水喉問題")).toHaveCount(0);
 });
@@ -152,7 +152,7 @@ test("submitting a proposal actually persists to the real backend and only then 
   }
   await expect(page.getByRole("heading", { name: "保養" })).toBeVisible();
   await page.getByRole("button", { name: "未提及", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "還有沒有想說的？" })).toBeVisible();
   await page.getByRole("button", { name: "繼續" }).click();
   await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 
@@ -163,14 +163,14 @@ test("submitting a proposal actually persists to the real backend and only then 
 
   // Reloading now proves it actually persisted server-side, not just local UI state.
   await page.reload();
-  await expect(page.getByText("你已經提交過呢個邀請嘅回覆。")).toBeVisible();
+  await expect(page.getByText("你已經提交過此邀請的回覆。")).toBeVisible();
 });
 
 test("submitting to an already-responded token surfaces the real 409 conflict, not a generic error", async ({
   page,
 }) => {
   await page.goto(`/contractor/respond/${TOKEN_RESPONDED}`);
-  await expect(page.getByText("你已經提交過呢個邀請嘅回覆。")).toBeVisible();
+  await expect(page.getByText("你已經提交過此邀請的回覆。")).toBeVisible();
 });
 
 test("no operator/private API endpoint is ever called from this public route", async ({ page }) => {
@@ -193,7 +193,7 @@ test("mobile viewport: the real API-mode contractor route renders with no page-l
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("話俾 RepairScope 知你點打算處理。")).toBeVisible();
+  await expect(page.getByText("請告知 RepairScope 你打算如何處理。")).toBeVisible();
   const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasOverflow).toBe(false);
 });

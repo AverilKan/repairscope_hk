@@ -94,7 +94,7 @@ function MockContractorResponseRouteContent({ token }: { token: string }) {
   }, [service, caseReference, lang]);
 
   if (state.phase === "loading") {
-    return <p role="status">{t(lt("邀請開啟緊…", "Opening this invitation…"))}</p>;
+    return <p role="status">{t(lt("邀請開啟中…", "Opening this invitation…"))}</p>;
   }
 
   if (state.phase === "not-found") {
@@ -102,10 +102,10 @@ function MockContractorResponseRouteContent({ token }: { token: string }) {
       <main className="content-page">
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
-          title={t(lt("呢個邀請暫時未能使用。", "This invitation is not available."))}
+          title={t(lt("此邀請暫時未能使用。", "This invitation is not available."))}
           description={t(
             lt(
-              "連結可能已經過期。本機／示範模式只認得示範個案。",
+              "連結可能已經過期。本機／示範模式僅支援示範個案。",
               "The link may be out of date. Local/demo mode only recognises the demo case.",
             ),
           )}
@@ -119,14 +119,14 @@ function MockContractorResponseRouteContent({ token }: { token: string }) {
     <main className="content-page">
       <PageIntro
         eyebrow={t(lt("師傅回覆", "Contractor response"))}
-        title={t(lt("話俾 RepairScope 知你點打算處理。", "Tell RepairScope how you'd like to respond."))}
+        title={t(lt("請告知 RepairScope 你打算如何處理。", "Tell RepairScope how you'd like to respond."))}
         description={t(
           lt(
-            "淨係需要幾分鐘。其他師傅睇唔到你嘅回覆、報價或身份。",
+            "只需要幾分鐘。其他師傅不會看到你的回覆、報價或身份。",
             "This takes a couple of minutes. Other contractors cannot see your response, price or identity.",
           ),
         )}
-        aside={<StatusPill tone="neutral">{t(lt("唔使開戶口", "No account required"))}</StatusPill>}
+        aside={<StatusPill tone="neutral">{t(lt("不需要開設帳戶", "No account required"))}</StatusPill>}
       />
       <ContractorResponseForm brief={state.brief} />
     </main>
@@ -192,7 +192,7 @@ function RealContractorResponseRoute({ token }: { token: string }) {
   }, [service, token, lang]);
 
   if (state.phase === "loading") {
-    return <p role="status">{t(lt("邀請開啟緊…", "Opening this invitation…"))}</p>;
+    return <p role="status">{t(lt("邀請開啟中…", "Opening this invitation…"))}</p>;
   }
 
   if (state.phase === "invalid") {
@@ -200,10 +200,10 @@ function RealContractorResponseRoute({ token }: { token: string }) {
       <main className="content-page">
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
-          title={t(lt("呢個連結無效。", "This link isn't valid."))}
+          title={t(lt("此連結無效。", "This link isn't valid."))}
           description={t(
             lt(
-              "連結可能已經過期或者輸入錯誤。請向 RepairScope 或者發連結俾你嘅人索取新連結。",
+              "連結可能已經過期或輸入錯誤，請向 RepairScope 或發送連結的人索取新連結。",
               "The link may be out of date or mistyped. Ask RepairScope or the person who sent it for a new one.",
             ),
           )}
@@ -218,10 +218,10 @@ function RealContractorResponseRoute({ token }: { token: string }) {
       <main className="content-page">
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
-          title={t(lt("未能載入呢個邀請。", "Couldn't load this invitation."))}
+          title={t(lt("未能載入此邀請。", "Couldn't load this invitation."))}
           description={t(
             lt(
-              "連接 RepairScope 時出咗問題，請檢查網絡連線再試一次。",
+              "連接 RepairScope 時發生問題，請檢查網絡連線後再試一次。",
               "Something went wrong reaching RepairScope. Please check your connection and try again.",
             ),
           )}
@@ -236,9 +236,14 @@ function RealContractorResponseRoute({ token }: { token: string }) {
       <main className="content-page">
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
-          title={t(lt("呢個維修個案嘅版本呢頁未能開啟。", "This repair request uses a version that this page can't open."))}
+          title={t(
+            lt(
+              "此維修申請使用的版本無法在此頁面開啟。",
+              "This repair request uses a version that this page can't open.",
+            ),
+          )}
           description={t(
-            lt("請聯絡 RepairScope 或者發連結俾你嘅人幫手。", "Ask RepairScope or the person who sent the link for help."),
+            lt("請聯絡 RepairScope 或發送連結的人協助。", "Ask RepairScope or the person who sent the link for help."),
           )}
           aside={<StatusPill tone="neutral">{t(lt("版本不支援", "Unsupported request version"))}</StatusPill>}
         />
@@ -251,8 +256,8 @@ function RealContractorResponseRoute({ token }: { token: string }) {
       <main className="content-page">
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
-          title={t(lt("你已經提交過呢個邀請嘅回覆。", "You've already submitted a response for this request."))}
-          description={t(lt("多謝你 — RepairScope 已經記錄咗你嘅回覆。", "Thank you — RepairScope has recorded your response."))}
+          title={t(lt("你已經提交過此邀請的回覆。", "You've already submitted a response for this request."))}
+          description={t(lt("多謝你 — RepairScope 已經記錄你的回覆。", "Thank you — RepairScope has recorded your response."))}
           aside={<StatusPill tone="neutral">{t(lt("已回覆", "Already responded"))}</StatusPill>}
         />
       </main>
@@ -264,9 +269,9 @@ function RealContractorResponseRoute({ token }: { token: string }) {
       <main className="content-page">
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
-          title={t(lt("呢個連結已經失效。", "This link is no longer active."))}
+          title={t(lt("此連結已經失效。", "This link is no longer active."))}
           description={t(
-            lt("請向 RepairScope 或者發連結俾你嘅人索取新連結。", "Ask RepairScope or the person who sent it for a new link."),
+            lt("請向 RepairScope 或發送連結的人索取新連結。", "Ask RepairScope or the person who sent it for a new link."),
           )}
           aside={<StatusPill tone="neutral">{t(lt("連結已失效", "Link unavailable"))}</StatusPill>}
         />
@@ -278,14 +283,14 @@ function RealContractorResponseRoute({ token }: { token: string }) {
     <main className="content-page">
       <PageIntro
         eyebrow={t(lt("師傅回覆", "Contractor response"))}
-        title={t(lt("話俾 RepairScope 知你點打算處理。", "Tell RepairScope how you'd like to respond."))}
+        title={t(lt("請告知 RepairScope 你打算如何處理。", "Tell RepairScope how you'd like to respond."))}
         description={t(
           lt(
-            "淨係需要幾分鐘。其他師傅睇唔到你嘅回覆、報價或身份。",
+            "只需要幾分鐘。其他師傅不會看到你的回覆、報價或身份。",
             "This takes a couple of minutes. Other contractors cannot see your response, price or identity.",
           ),
         )}
-        aside={<StatusPill tone="neutral">{t(lt("唔使開戶口", "No account required"))}</StatusPill>}
+        aside={<StatusPill tone="neutral">{t(lt("不需要開設帳戶", "No account required"))}</StatusPill>}
       />
       <ContractorResponseForm
         brief={state.brief}

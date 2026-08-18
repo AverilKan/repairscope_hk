@@ -19,7 +19,7 @@ test("selecting 'Needs inspection' reveals the inspection requirement field, and
   const card = await openFirstContractorCard(page);
   await card.getByLabel("目前回覆").selectOption("needs-inspection");
   await expect(card.getByLabel("檢查要求")).toBeVisible();
-  await expect(card.getByLabel("佢哋需要咩資料？")).toHaveCount(0);
+  await expect(card.getByLabel("他們需要什麼資料？")).toHaveCount(0);
   await expect(card.getByLabel("報價方式")).toHaveCount(0);
 
   await card.getByLabel("檢查要求").selectOption("required");
@@ -29,9 +29,9 @@ test("selecting 'Needs inspection' reveals the inspection requirement field, and
 test("selecting 'Needs more information' reveals the information-needed field", async ({ page }) => {
   const card = await openFirstContractorCard(page);
   await card.getByLabel("目前回覆").selectOption("needs-more-information");
-  await expect(card.getByLabel("佢哋需要咩資料？")).toBeVisible();
-  await card.getByLabel("佢哋需要咩資料？").fill("Photos of the pipe under the sink.");
-  await expect(card.getByLabel("佢哋需要咩資料？")).toHaveValue(
+  await expect(card.getByLabel("他們需要什麼資料？")).toBeVisible();
+  await card.getByLabel("他們需要什麼資料？").fill("Photos of the pipe under the sink.");
+  await expect(card.getByLabel("他們需要什麼資料？")).toHaveValue(
     "Photos of the pipe under the sink.",
   );
 });
@@ -78,7 +78,7 @@ test("selecting 'Initial proposal provided' reveals the full proposal form, gate
 
   // The free-form response and operator notes are always present, proposal
   // fields or not.
-  await expect(card.getByLabel("師傅原本嘅回覆 — 佢哋講咗啲乜？")).toBeVisible();
+  await expect(card.getByLabel("師傅原本的回覆 — 他們說了什麼？")).toBeVisible();
   await expect(card.getByLabel("操作員備註")).toBeVisible();
 });
 

@@ -16,6 +16,7 @@
 
 import { proposalContractors, type OperatorContractor } from "@/domain/operatorCaseState";
 import type { OwnerVisibleProposal } from "@/domain/contractorResponse";
+import { localize, lt, type Lang, type LocalizedText } from "@/domain/i18n";
 
 // The formatting helpers, COMPARISON_ROWS and ProposalComparisonTable below
 // are typed against OwnerVisibleProposal (a narrower Pick<> over
@@ -26,16 +27,24 @@ import type { OwnerVisibleProposal } from "@/domain/contractorResponse";
 // holds OwnerVisibleProposal values and must never even have the
 // opportunity to read contactReference/status/notes).
 
-const NOT_STATED = "Not stated";
+const NOT_STATED: LocalizedText = lt("未提供", "Not stated");
 
 // The following formatting helpers and ProposalComparisonTable are
 // exported so the owner-facing preview (components/owner/OwnerProposalPreview.tsx,
 // Commit C) can render the exact same "compare side by side" view without
 // a second proposal-comparison implementation — see that component's own
 // comment.
+//
+// LOCALIZATION (HK follow-up pass): every helper below takes an optional
+// `lang` parameter that defaults to "en" — this preserves
+// OwnerProposalPreview's existing (unchanged) English behavior for every
+// call site that doesn't pass one, while letting ProposalComparison (the
+// operator surface) pass `lang="zh"` explicitly. The underlying values
+// (price semantics, guarantee status, row ordering) are untouched — only
+// the label/text presentation is language-aware.
 
-export function textOrNotStated(value: string | undefined): string {
-  return value && value.trim() !== "" ? value : NOT_STATED;
+export function textOrNotStated(value: string | undefined, lang: Lang = "en"): string {
+  return value && value.trim() !== "" ? value : localize(NOT_STATED, lang);
 }
 
 export function formatHkDollars(amount: number): string {
@@ -45,35 +54,39 @@ export function formatHkDollars(amount: number): string {
 /** Matches the exact presentation the task specifies: "HK$1,500 fixed",
  * "HK$1,500 estimate", "HK$1,500–2,500", "No price yet" — no midpoint, no
  * average, no normalization across price types. */
-export function formatProposalPrice(contractor: OwnerVisibleProposal): string {
+export function formatProposalPrice(contractor: OwnerVisibleProposal, lang: Lang = "en"): string {
   switch (contractor.priceType) {
     case "no-price":
-      return "No price yet";
+      return localize(lt("暫時未能報價", "No price yet"), lang);
     case "fixed":
-      return typeof contractor.price === "number" ? `${formatHkDollars(contractor.price)} fixed` : NOT_STATED;
+      return typeof contractor.price === "number"
+        ? localize(lt(`${formatHkDollars(contractor.price)}（固定價格）`, `${formatHkDollars(contractor.price)} fixed`), lang)
+        : localize(NOT_STATED, lang);
     case "estimate":
-      return typeof contractor.price === "number" ? `${formatHkDollars(contractor.price)} estimate` : NOT_STATED;
+      return typeof contractor.price === "number"
+        ? localize(lt(`${formatHkDollars(contractor.price)}（估算價格）`, `${formatHkDollars(contractor.price)} estimate`), lang)
+        : localize(NOT_STATED, lang);
     case "range":
       return typeof contractor.priceMin === "number" && typeof contractor.priceMax === "number"
         ? `${formatHkDollars(contractor.priceMin)}–${formatHkDollars(contractor.priceMax)}`
-        : NOT_STATED;
+        : localize(NOT_STATED, lang);
     default:
-      return NOT_STATED;
+      return localize(NOT_STATED, lang);
   }
 }
 
-export function formatGuarantee(contractor: OwnerVisibleProposal): string {
+export function formatGuarantee(contractor: OwnerVisibleProposal, lang: Lang = "en"): string {
   if (contractor.guaranteeStatus === "yes") {
     return contractor.guaranteeDetails && contractor.guaranteeDetails.trim() !== ""
-      ? `Yes — ${contractor.guaranteeDetails}`
-      : "Yes";
+      ? localize(lt(`有 — ${contractor.guaranteeDetails}`, `Yes — ${contractor.guaranteeDetails}`), lang)
+      : localize(lt("有", "Yes"), lang);
   }
-  if (contractor.guaranteeStatus === "no") return "No";
-  return NOT_STATED;
+  if (contractor.guaranteeStatus === "no") return localize(lt("沒有", "No"), lang);
+  return localize(NOT_STATED, lang);
 }
 
-export function contractorHeading(contractor: OwnerVisibleProposal): string {
-  const name = contractor.name.trim() || "Unnamed contractor";
+export function contractorHeading(contractor: OwnerVisibleProposal, lang: Lang = "en"): string {
+  const name = contractor.name.trim() || localize(lt("未命名師傅", "Unnamed contractor"), lang);
   return contractor.trade ? `${name} · ${contractor.trade}` : name;
 }
 
@@ -85,16 +98,22 @@ export function contractorHeading(contractor: OwnerVisibleProposal): string {
 // conditional clearing), so that row would always read "Not stated" for
 // every contractor in every case. Any inspection nuance the contractor
 // actually mentioned remains visible via "Original contractor response".
-export const COMPARISON_ROWS: { label: string; render: (contractor: OwnerVisibleProposal) => string }[] = [
-  { label: "Proposed approach", render: (c) => textOrNotStated(c.proposedApproach) },
-  { label: "Price", render: formatProposalPrice },
-  { label: "What's included", render: (c) => textOrNotStated(c.inclusions) },
-  { label: "What's excluded", render: (c) => textOrNotStated(c.exclusions) },
-  { label: "What could change the price", render: (c) => textOrNotStated(c.priceChangeFactors) },
-  { label: "Expected duration", render: (c) => textOrNotStated(c.expectedDuration) },
-  { label: "Earliest start", render: (c) => textOrNotStated(c.earliestStart) },
-  { label: "Guarantee", render: formatGuarantee },
-  { label: "Original contractor response", render: (c) => textOrNotStated(c.originalResponse) },
+export const COMPARISON_ROWS: { label: LocalizedText; render: (contractor: OwnerVisibleProposal, lang?: Lang) => string }[] = [
+  { label: lt("建議處理方法", "Proposed approach"), render: (c, lang) => textOrNotStated(c.proposedApproach, lang) },
+  { label: lt("價格", "Price"), render: formatProposalPrice },
+  { label: lt("包括項目", "What's included"), render: (c, lang) => textOrNotStated(c.inclusions, lang) },
+  { label: lt("不包括項目", "What's excluded"), render: (c, lang) => textOrNotStated(c.exclusions, lang) },
+  {
+    label: lt("可能影響價格的因素", "What could change the price"),
+    render: (c, lang) => textOrNotStated(c.priceChangeFactors, lang),
+  },
+  { label: lt("預計工期", "Expected duration"), render: (c, lang) => textOrNotStated(c.expectedDuration, lang) },
+  { label: lt("最早可開始時間", "Earliest start"), render: (c, lang) => textOrNotStated(c.earliestStart, lang) },
+  { label: lt("保養", "Guarantee"), render: formatGuarantee },
+  {
+    label: lt("師傅原本的回覆", "Original contractor response"),
+    render: (c, lang) => textOrNotStated(c.originalResponse, lang),
+  },
 ];
 
 // LOCALIZATION (HK validation-pilot pass): proposalCountMessage and the
@@ -108,36 +127,46 @@ export const COMPARISON_ROWS: { label: string; render: (contractor: OwnerVisible
 // session's final report for that boundary call) — left untouched.
 function proposalCountMessage(proposalCount: number, totalCount: number): string {
   if (proposalCount === 0) return "暫時未有記錄任何師傅報價。";
-  if (proposalCount === 1) return "已經記錄咗一個報價。加多個報價先可以比較。";
-  return `${totalCount} 位師傅入面，${proposalCount} 位已提供報價。`;
+  if (proposalCount === 1) return "已經記錄一個報價，需要多於一個報價才可以比較。";
+  return `${totalCount} 位師傅之中，${proposalCount} 位已提供報價。`;
 }
 
 /** Just the topic × contractor table — no count message, no editable
  * notes. Reused by ProposalComparison (operator) and OwnerProposalPreview
  * (owner, Commit C) so there is exactly one comparison table
  * implementation. Renders nothing when `contractors` is empty; the caller
- * decides what empty-state message (if any) belongs above it. */
-export function ProposalComparisonTable({ contractors }: { contractors: OwnerVisibleProposal[] }) {
+ * decides what empty-state message (if any) belongs above it.
+ *
+ * `lang` defaults to "en" — OwnerProposalPreview does not pass one, so
+ * owner-visible rendering is byte-for-byte unchanged by this prop's
+ * addition. The operator's own ProposalComparison passes `lang="zh"`. */
+export function ProposalComparisonTable({
+  contractors,
+  lang = "en",
+}: {
+  contractors: OwnerVisibleProposal[];
+  lang?: Lang;
+}) {
   if (contractors.length === 0) return null;
   return (
     <div className="op-comparison-table-wrap">
       <table className="op-comparison-table">
         <thead>
           <tr>
-            <th scope="col">Contractor</th>
+            <th scope="col">{localize(lt("師傅", "Contractor"), lang)}</th>
             {contractors.map((contractor) => (
               <th key={contractor.id} scope="col">
-                {contractorHeading(contractor)}
+                {contractorHeading(contractor, lang)}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {COMPARISON_ROWS.map((row) => (
-            <tr key={row.label}>
-              <th scope="row">{row.label}</th>
+            <tr key={row.label.en}>
+              <th scope="row">{localize(row.label, lang)}</th>
               {contractors.map((contractor) => (
-                <td key={contractor.id}>{row.render(contractor)}</td>
+                <td key={contractor.id}>{row.render(contractor, lang)}</td>
               ))}
             </tr>
           ))}
@@ -170,22 +199,22 @@ export function ProposalComparison({
     <div className="op-comparison">
       <p className="op-comparison__hint">{proposalCountMessage(proposals.length, contractors.length)}</p>
 
-      <ProposalComparisonTable contractors={proposals} />
+      <ProposalComparisonTable contractors={proposals} lang="zh" />
 
       <label>
         主要分別
         <textarea
           value={keyDifferences}
           onChange={(event) => onKeyDifferencesChange(event.target.value)}
-          placeholder="呢啲報價實際上有咩唔同，同埋點解重要…"
+          placeholder="這些報價實際上有什麼分別，以及為何重要…"
         />
       </label>
       <label>
-        仲需要確認嘅問題
+        仍需確認的問題
         <textarea
           value={unresolvedQuestions}
           onChange={(event) => onUnresolvedQuestionsChange(event.target.value)}
-          placeholder="業主決定之前，我哋仲有咩要確認？"
+          placeholder="業主決定之前，還有什麼需要確認？"
         />
       </label>
       <label>
@@ -193,11 +222,11 @@ export function ProposalComparison({
         <textarea
           value={repairScopeNote}
           onChange={(event) => onRepairScopeNoteChange(event.target.value)}
-          placeholder="淨係寫中立嘅背景資料…"
+          placeholder="只填寫中立的背景資料…"
         />
       </label>
       <p className="op-panel__hint">
-        淨係記錄中立嘅背景資料。除非真係已經確定，否則唔好講個成因或者診斷已經確認。
+        只記錄中立的背景資料。除非已經確定，否則不要斷定成因或診斷已經確認。
       </p>
     </div>
   );

@@ -114,7 +114,7 @@ test("the founder's Key differences, Questions still unresolved and RepairScope 
 
   const comparison = page.locator('[aria-label="報價比較"]');
   await comparison.getByLabel("主要分別").fill("A proposes a fixed price now.");
-  await comparison.getByLabel("仲需要確認嘅問題").fill("Is materials cost included?");
+  await comparison.getByLabel("仍需確認的問題").fill("Is materials cost included?");
   await comparison.getByLabel("RepairScope 備註").fill("Neutral context only.");
 
   await page.getByRole("link", { name: "預覽業主報價畫面" }).click();

@@ -178,7 +178,7 @@ export function OperatorCaseWorkspace({
           setState({ phase: "not-found" });
           return;
         }
-        setState({ phase: "error", message: "未能從 RepairScope 載入呢個個案。" });
+        setState({ phase: "error", message: "未能從 RepairScope 載入此個案。" });
       });
     return () => {
       cancelled = true;
@@ -205,7 +205,7 @@ export function OperatorCaseWorkspace({
     if (state.phase !== "ready") return;
     if (status === "closed" && !closedReason) {
       setSaveStatus("error");
-      setSaveError("結束呢個個案之前，請先揀選原因。");
+      setSaveError("結束此個案之前，請先選擇原因。");
       return;
     }
     setSaveStatus("saving");
@@ -220,7 +220,7 @@ export function OperatorCaseWorkspace({
       setSaveStatus("idle");
     } catch {
       setSaveStatus("error");
-      setSaveError("未能更新呢個個案，請再試一次。");
+      setSaveError("未能更新此個案，請再試一次。");
     }
   };
 
@@ -270,13 +270,13 @@ export function OperatorCaseWorkspace({
   };
 
   if (state.phase === "loading") {
-    return <p role="status">載入緊…</p>;
+    return <p role="status">載入中…</p>;
   }
 
   if (state.phase === "not-found") {
     return (
       <p className="field-error" role="alert">
-        搵唔到 {caseReference} 呢個個案。
+        找不到個案 {caseReference}。
       </p>
     );
   }
@@ -357,12 +357,12 @@ export function OperatorCaseWorkspace({
             <dd>{detail.evidenceNotes ?? "未有描述"}</dd>
           </div>
           <div>
-            <dt>同意俾人聯絡</dt>
-            <dd>{detail.consentToContact ? "係" : "唔係"}</dd>
+            <dt>同意讓人聯絡</dt>
+            <dd>{detail.consentToContact ? "是" : "否"}</dd>
           </div>
           <div>
-            <dt>同意分享俾師傅</dt>
-            <dd>{detail.consentToShareWithContractors ? "係" : "唔係"}</dd>
+            <dt>同意分享給師傅</dt>
+            <dd>{detail.consentToShareWithContractors ? "是" : "否"}</dd>
           </div>
           <div>
             <dt>問卷版本</dt>
@@ -380,10 +380,10 @@ export function OperatorCaseWorkspace({
         <section className="op-panel" aria-label="後台提交狀態">
           <h2>後台提交狀態</h2>
           <p className="op-panel__hint">
-            已經儲存喺 RepairScope，喺任何檢視呢個個案嘅地方都會見到 — 同下面淨係喺呢部機度先見到嘅本機工作流程狀態唔同。
+            已經儲存在 RepairScope，在任何檢視此個案的地方都會見到 — 與下面只在此機器才可見的本機工作流程狀態不同。
           </p>
           <label>
-            內部審閱備註（會儲存喺 RepairScope）
+            內部審閱備註（會儲存在 RepairScope）
             <textarea
               rows={4}
               value={backendNotes}
@@ -426,7 +426,7 @@ export function OperatorCaseWorkspace({
 
         <section className="op-panel" aria-label="本機工作備註">
           <h2>本機工作備註</h2>
-          <p className="op-panel__hint">淨係留喺呢部機度 — 唔會傳送俾 RepairScope。</p>
+          <p className="op-panel__hint">只留在此機器 — 不會傳送給 RepairScope。</p>
           <label>
             本機工作流程狀態
             <select
@@ -445,23 +445,23 @@ export function OperatorCaseWorkspace({
             <textarea
               value={local.internalNotes}
               onChange={(event) => updateLocalField("internalNotes", event.target.value)}
-              placeholder="有咩想記低關於呢個個案嘅嘢…"
+              placeholder="有什麼想記下關於此個案的事…"
             />
           </label>
           <label>
-            未解決嘅問題
+            未解決的問題
             <textarea
               value={local.unresolvedQuestions}
               onChange={(event) => updateLocalField("unresolvedQuestions", event.target.value)}
-              placeholder="內部仲有咩未清楚？"
+              placeholder="內部還有什麼未清楚？"
             />
           </label>
           <label>
-            要問業主嘅問題
+            要問業主的問題
             <textarea
               value={local.ownerFollowUpQuestions}
               onChange={(event) => updateLocalField("ownerFollowUpQuestions", event.target.value)}
-              placeholder="仲有咩要問業主？"
+              placeholder="還有什麼要問業主？"
             />
           </label>
           <label>
@@ -469,7 +469,7 @@ export function OperatorCaseWorkspace({
             <textarea
               value={local.nextAction}
               onChange={(event) => updateLocalField("nextAction", event.target.value)}
-              placeholder="下一步要做咩，邊個負責？"
+              placeholder="下一步要做什麼，由誰負責？"
             />
           </label>
           <label>
@@ -483,17 +483,17 @@ export function OperatorCaseWorkspace({
         </section>
       </div>
 
-      <section className="op-panel op-panel--wide" aria-label="考慮緊嘅師傅">
+      <section className="op-panel op-panel--wide" aria-label="考慮中的師傅">
         <div className="op-panel__heading-row">
-          <h2>考慮緊嘅師傅</h2>
+          <h2>考慮中的師傅</h2>
           <button type="button" onClick={addContractor}>
             ＋新增師傅
           </button>
         </div>
         <p className="op-panel__hint">
           {isApiDataSource()
-            ? "本機記錄，仲有你可以複製俾師傅嘅真實回覆連結（下面）— 每位師傅都有自己嘅連結記錄。"
-            : "淨係本機記錄 — 暫時未有師傅戶口或邀請功能。"}
+            ? "本機記錄，另有可複製給師傅的真實回覆連結（見下面）— 每位師傅都有自己的連結記錄。"
+            : "只作本機記錄 — 暫時未有師傅帳戶或邀請功能。"}
         </p>
         {local.contractors.length === 0 ? (
           <p>暫時未有加入師傅。</p>
@@ -723,11 +723,11 @@ function ContractorCard({
       {importOpen && (
         <div className="op-contractor-card__import">
           <p className="op-panel__hint">
-            貼上師傅喺自己個表填嘅回覆。確認之前唔會有任何改動 —
-            呢個操作永遠唔會覆蓋番上面嘅名稱、行業、聯絡方式、聯絡狀態或者你自己嘅備註。
+            貼上師傅在自己表格填寫的回覆。確認之前不會有任何改動 —
+            此操作永遠不會覆蓋上面的名稱、行業、聯絡方式、聯絡狀態或你自己的備註。
           </p>
           <label>
-            貼上嘅回覆
+            貼上的回覆
             <textarea
               value={importText}
               onChange={(event) => {
@@ -735,7 +735,7 @@ function ContractorCard({
                 setImportPreview(null);
                 setImportError(null);
               }}
-              placeholder="喺呢度貼上師傅匯出嘅回覆…"
+              placeholder="在此貼上師傅匯出的回覆…"
             />
           </label>
           <div className="op-contractor-card__import-actions">
@@ -874,7 +874,7 @@ function ContractorCard({
 
           {contractor.responseType === "needs-more-information" && (
             <label>
-              佢哋需要咩資料？
+              他們需要什麼資料？
               <textarea
                 value={contractor.informationNeeded ?? ""}
                 onChange={(event) => onUpdate({ informationNeeded: event.target.value })}
@@ -942,7 +942,7 @@ function ContractorCard({
               )}
               {rangeInvalid && (
                 <p className="field-error" role="alert">
-                  最低價格唔可以高過最高價格 — 呢個數值未有儲存，會保留返上一個有效嘅範圍。
+                  最低價格不可高於最高價格 — 此數值未有儲存，會保留上一個有效的範圍。
                 </p>
               )}
 
@@ -961,7 +961,7 @@ function ContractorCard({
                 />
               </label>
               <label>
-                不包括嘅項目
+                不包括的項目
                 <textarea
                   value={contractor.exclusions ?? ""}
                   onChange={(event) => onUpdate({ exclusions: event.target.value })}
@@ -987,7 +987,7 @@ function ContractorCard({
                 <input
                   value={contractor.earliestStart ?? ""}
                   onChange={(event) => onUpdate({ earliestStart: event.target.value })}
-                  placeholder="例如：聽日下晝、3 日內、檢查之後"
+                  placeholder="例如：明天下午、3 日內、檢查之後"
                 />
               </label>
               <label>
@@ -1021,11 +1021,11 @@ function ContractorCard({
           )}
 
           <label>
-            師傅原本嘅回覆 — 佢哋講咗啲乜？
+            師傅原本的回覆 — 他們說了什麼？
             <textarea
               value={contractor.originalResponse ?? ""}
               onChange={(event) => onUpdate({ originalResponse: event.target.value })}
-              placeholder="貼上或者簡述師傅實際講嘅內容…"
+              placeholder="貼上或簡述師傅實際所講的內容…"
             />
           </label>
 
@@ -1034,7 +1034,7 @@ function ContractorCard({
             <textarea
               value={contractor.notes}
               onChange={(event) => onUpdate({ notes: event.target.value })}
-              placeholder="手動抄低嘅備註（WhatsApp、電話等）"
+              placeholder="手動記錄的備註（WhatsApp、電話等）"
             />
           </label>
         </div>
@@ -1183,7 +1183,7 @@ function ContractorRequestPanel({
       refresh();
     } catch (error) {
       setLoadError(
-        error instanceof ContractorRequestOperatorError ? error.message : "未能撤銷呢個連結。",
+        error instanceof ContractorRequestOperatorError ? error.message : "未能撤銷此連結。",
       );
     } finally {
       setRevokingId(null);
@@ -1211,8 +1211,8 @@ function ContractorRequestPanel({
       if (!parsed) {
         setReviewError(
           detail.responseSchemaVersion === 1
-            ? "未能讀取呢個回覆 — 格式未能識別。"
-            : "呢個師傅回覆使用咗不支援嘅版本，未能匯入。",
+            ? "未能讀取此回覆 — 格式未能識別。"
+            : "此師傅回覆使用了不支援的版本，未能匯入。",
         );
         return;
       }
@@ -1224,7 +1224,7 @@ function ContractorRequestPanel({
       setReviewPreview(sanitizeContractorResponsePayload(parsed));
     } catch (error) {
       setReviewError(
-        error instanceof ContractorRequestOperatorError ? error.message : "未能載入呢個回覆。",
+        error instanceof ContractorRequestOperatorError ? error.message : "未能載入此回覆。",
       );
     } finally {
       setReviewLoading(false);
@@ -1277,9 +1277,9 @@ function ContractorRequestPanel({
         </p>
       )}
       {requests === null ? (
-        <p className="op-panel__hint">回覆記錄載入緊…</p>
+        <p className="op-panel__hint">回覆記錄載入中…</p>
       ) : requests.length === 0 ? (
-        <p className="op-panel__hint">暫時未有建立過呢位師傅嘅連結。</p>
+        <p className="op-panel__hint">暫時未有為此師傅建立連結。</p>
       ) : (
         <ul className="op-contractor-card__requests-list">
           {requests
@@ -1296,7 +1296,7 @@ function ContractorRequestPanel({
                   {request.status === "open" && cached && <code>{cached.rawLink}</code>}
                   {request.status === "open" && !cached && (
                     <span className="op-panel__hint">
-                      呢個瀏覽器搵唔到連結資料 — 如有需要，可以撤銷並建立新連結。
+                      此瀏覽器找不到連結資料 — 如有需要，可以撤銷並建立新連結。
                     </span>
                   )}
                   {request.status === "open" && (
@@ -1305,7 +1305,7 @@ function ContractorRequestPanel({
                       onClick={() => revokeRequest(request.id)}
                       disabled={revokingId === request.id}
                     >
-                      {revokingId === request.id ? "撤銷緊…" : "撤銷連結"}
+                      {revokingId === request.id ? "撤銷中…" : "撤銷連結"}
                     </button>
                   )}
                   {request.status === "responded" && reviewingRequestId !== request.id && (
@@ -1315,7 +1315,7 @@ function ContractorRequestPanel({
                   )}
                   {request.status === "responded" && reviewingRequestId === request.id && (
                     <div className="op-contractor-card__requests-review">
-                      {reviewLoading && <p className="op-panel__hint">載入緊…</p>}
+                      {reviewLoading && <p className="op-panel__hint">載入中…</p>}
                       {reviewError && (
                         <p className="field-error" role="alert">
                           {reviewError}
@@ -1324,8 +1324,8 @@ function ContractorRequestPanel({
                       {reviewPreview && (
                         <div className="op-contractor-card__import-preview">
                           <p>
-                            呢個係師傅提交嘅內容。確認之前呢位師傅嘅資料唔會有任何改動 —
-                            永遠唔會覆蓋番上面嘅名稱、行業、聯絡方式、聯絡狀態或者你自己嘅備註。
+                            此為師傅提交的內容。確認之前此師傅的資料不會有任何改動 —
+                            永遠不會覆蓋上面的名稱、行業、聯絡方式、聯絡狀態或你自己的備註。
                           </p>
                           <ul>
                             {Object.entries(reviewPreview).map(([key, value]) => (
