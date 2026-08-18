@@ -31,6 +31,11 @@ import {
   type OperatorPriceType,
 } from "@/domain/operatorCaseState";
 import {
+  checkContractorResponseCompletion,
+  CONTRACTOR_RESPONSE_LONG_TEXT_MAX,
+  CONTRACTOR_RESPONSE_SHORT_TEXT_MAX,
+  isNonBlank,
+  isValidAmount,
   sanitizeContractorResponsePayload,
   serializeContractorResponseExport,
   type ContractorResponsePayload,
@@ -198,6 +203,8 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
   const [answers, setAnswers] = useState<ContractorResponsePayload>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [priceRangeError, setPriceRangeError] = useState<string | null>(null);
+  const [priceAmountError, setPriceAmountError] = useState<string | null>(null);
+  const [informationNeededError, setInformationNeededError] = useState<string | null>(null);
   const [exportedText, setExportedText] = useState<string | null>(null);
   // Range price inputs are deliberately NOT wired straight through
   // update()/sanitizeContractorResponsePayload on every keystroke — that
@@ -344,6 +351,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 value={answers.originalResponse ?? ""}
                 onChange={(event) => update({ originalResponse: event.target.value })}
                 placeholder="In your own words…"
+                maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -356,12 +364,31 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
               <textarea
                 aria-label="What information do you need?"
                 value={answers.informationNeeded ?? ""}
-                onChange={(event) => update({ informationNeeded: event.target.value })}
+                onChange={(event) => {
+                  update({ informationNeeded: event.target.value });
+                  setInformationNeededError(null);
+                }}
                 placeholder="e.g. Access to the affected area, more photos, a call with the owner…"
+                maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
-              <button type="button" onClick={advance}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isNonBlank(answers.informationNeeded)) {
+                    setInformationNeededError("Describe what information you need.");
+                    return;
+                  }
+                  setInformationNeededError(null);
+                  advance();
+                }}
+              >
                 Continue
               </button>
+              {informationNeededError && (
+                <p className="field-error" role="alert">
+                  {informationNeededError}
+                </p>
+              )}
             </>
           )}
 
@@ -372,6 +399,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 value={answers.proposedApproach ?? ""}
                 onChange={(event) => update({ proposedApproach: event.target.value })}
                 placeholder="What would you do to fix this?"
+                maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -433,7 +461,11 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 onClick={() => {
                   const min = parseOptionalAmount(rangeMinDraft);
                   const max = parseOptionalAmount(rangeMaxDraft);
-                  if (typeof min === "number" && typeof max === "number" && min > max) {
+                  if (!isValidAmount(min) || !isValidAmount(max)) {
+                    setPriceRangeError("Enter both a minimum and maximum price.");
+                    return;
+                  }
+                  if (min > max) {
                     setPriceRangeError("The minimum can't be greater than the maximum.");
                     return;
                   }
@@ -460,12 +492,30 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                   type="number"
                   min={0}
                   value={answers.price ?? ""}
-                  onChange={(event) => update({ price: parseOptionalAmount(event.target.value) })}
+                  onChange={(event) => {
+                    update({ price: parseOptionalAmount(event.target.value) });
+                    setPriceAmountError(null);
+                  }}
                 />
               </label>
-              <button type="button" onClick={advance}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isValidAmount(answers.price)) {
+                    setPriceAmountError("Enter a valid price (0 or more).");
+                    return;
+                  }
+                  setPriceAmountError(null);
+                  advance();
+                }}
+              >
                 Continue
               </button>
+              {priceAmountError && (
+                <p className="field-error" role="alert">
+                  {priceAmountError}
+                </p>
+              )}
             </>
           )}
 
@@ -475,6 +525,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 aria-label="What's included?"
                 value={answers.inclusions ?? ""}
                 onChange={(event) => update({ inclusions: event.target.value })}
+                maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -500,6 +551,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 value={answers.exclusions ?? ""}
                 onChange={(event) => update({ exclusions: event.target.value })}
                 placeholder="Optional"
+                maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -527,6 +579,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 value={answers.priceChangeFactors ?? ""}
                 onChange={(event) => update({ priceChangeFactors: event.target.value })}
                 placeholder="Optional"
+                maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -541,6 +594,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 value={answers.expectedDuration ?? ""}
                 onChange={(event) => update({ expectedDuration: event.target.value })}
                 placeholder="e.g. 2 hours, 1 day, 2–3 visits"
+                maxLength={CONTRACTOR_RESPONSE_SHORT_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -555,6 +609,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                 value={answers.earliestStart ?? ""}
                 onChange={(event) => update({ earliestStart: event.target.value })}
                 placeholder="Optional — e.g. Tomorrow afternoon, within 3 days"
+                maxLength={CONTRACTOR_RESPONSE_SHORT_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
                 Continue
@@ -590,6 +645,7 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                       value={answers.guaranteeDetails ?? ""}
                       onChange={(event) => update({ guaranteeDetails: event.target.value })}
                       placeholder="Optional — e.g. 6 months on parts"
+                      maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
                     />
                   </label>
                   <button type="button" onClick={advance}>
@@ -600,23 +656,43 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
             </div>
           )}
 
-          {currentStep === "confirm" && (
-            <div className="contractor-step__review">
-              <p>Check your answers above, then copy your response for RepairScope.</p>
-              <button
-                type="button"
-                onClick={() => setExportedText(serializeContractorResponseExport(answers))}
-              >
-                Prepare my response
-              </button>
-              {exportedText && (
-                <div className="contractor-step__export">
-                  <p>Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):</p>
-                  <textarea aria-label="Response to copy" readOnly value={exportedText} />
-                </div>
-              )}
-            </div>
-          )}
+          {currentStep === "confirm" && (() => {
+            // Full re-check of the complete payload, independent of
+            // whichever per-step gates were passed to get here — back/edit
+            // navigation must not be able to leave a stale invalid
+            // combination that only a per-step gate would have caught.
+            const completion = checkContractorResponseCompletion(answers);
+            return (
+              <div className="contractor-step__review">
+                {!completion.complete ? (
+                  <div className="contractor-step__errors" role="alert">
+                    <p>Please fix the following before continuing:</p>
+                    <ul>
+                      {completion.errors.map((error) => (
+                        <li key={error}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <>
+                    <p>Check your answers above, then copy your response for RepairScope.</p>
+                    <button
+                      type="button"
+                      onClick={() => setExportedText(serializeContractorResponseExport(answers))}
+                    >
+                      Prepare my response
+                    </button>
+                  </>
+                )}
+                {exportedText && completion.complete && (
+                  <div className="contractor-step__export">
+                    <p>Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):</p>
+                    <textarea aria-label="Response to copy" readOnly value={exportedText} />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </section>
     </div>

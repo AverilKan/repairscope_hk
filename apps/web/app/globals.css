@@ -11574,6 +11574,27 @@ select:focus {
   font-size: 0.75rem;
 }
 
+.contractor-step__errors {
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+}
+
+.contractor-step__errors p {
+  margin: 0 0 6px;
+  font-weight: 750;
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.contractor-step__errors ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  color: var(--danger);
+}
+
 /* --- Operator "Import contractor response" panel (Commit B) ----------- */
 
 .op-contractor-card__import {

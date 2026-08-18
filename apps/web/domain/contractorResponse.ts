@@ -176,6 +176,137 @@ export function sanitizeContractorResponsePayload(payload: ContractorResponsePay
   return sanitized;
 }
 
+// --- Submission completeness (T2 Commit 1) ---------------------------------
+//
+// sanitizeContractorResponsePayload (above) guarantees a payload is never
+// internally CONTRADICTORY (stale proposal fields cleared on branch change,
+// invalid price ranges cleared) — but it was never responsible for
+// guaranteeing a payload is COMPLETE enough to submit. The frozen
+// ContractorResponseForm let a contractor finalize/export a payload the
+// backend's own ContractorResponsePayload Pydantic model (apps/api/app/
+// schemas/contractor_requests.py) correctly rejects — e.g. "needs more
+// information" with a blank informationNeeded, "fixed" price with no
+// amount, a price range missing one bound. This section is the single
+// source of truth for "is this payload complete/bounded enough that the
+// real T1 API will accept it", reused both for per-step advance gating and
+// for a full final-review re-check in ContractorResponseForm (back/edit
+// must not be able to leave a stale invalid combination that a per-step
+// gate alone wouldn't catch a second time).
+//
+// Field length caps mirror apps/api/app/schemas/contractor_requests.py's
+// _SHORT_TEXT_MAX/_LONG_TEXT_MAX exactly — one named constant per bound,
+// not a scattered magic number per field.
+
+export const CONTRACTOR_RESPONSE_SHORT_TEXT_MAX = 200;
+export const CONTRACTOR_RESPONSE_LONG_TEXT_MAX = 2_000;
+
+const LONG_TEXT_FIELDS = [
+  "originalResponse",
+  "informationNeeded",
+  "proposedApproach",
+  "inclusions",
+  "exclusions",
+  "priceChangeFactors",
+  "guaranteeDetails",
+] as const satisfies readonly (keyof ContractorResponsePayload)[];
+
+const SHORT_TEXT_FIELDS = [
+  "expectedDuration",
+  "earliestStart",
+] as const satisfies readonly (keyof ContractorResponsePayload)[];
+
+/** Field-length label map only for building error text — not a second
+ * source of truth for which cap applies (that's LONG_TEXT_FIELDS/
+ * SHORT_TEXT_FIELDS above). */
+const FIELD_LABELS: Partial<Record<keyof ContractorResponsePayload, string>> = {
+  originalResponse: "Your response",
+  informationNeeded: "What information you need",
+  proposedApproach: "Proposed approach",
+  inclusions: "What's included",
+  exclusions: "What's excluded",
+  priceChangeFactors: "What could change the price",
+  guaranteeDetails: "Guarantee details",
+  expectedDuration: "Expected duration",
+  earliestStart: "Earliest start",
+};
+
+export function isNonBlank(value: string | undefined): boolean {
+  return Boolean((value ?? "").trim());
+}
+
+export function isWithinLength(value: string | undefined, maxLength: number): boolean {
+  return value === undefined || value.length <= maxLength;
+}
+
+/** True only for a finite, non-negative number — matches the backend's
+ * `Field(ge=0, allow_inf_nan=False)` exactly (zero is valid). */
+export function isValidAmount(value: number | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+export interface ContractorResponseCompletionCheck {
+  complete: boolean;
+  /** Human-readable, ready to render directly — order is stable (required
+   * fields first, then length-cap violations) but not otherwise meaningful. */
+  errors: string[];
+}
+
+/**
+ * The full submission-readiness check — every rule here has a direct
+ * counterpart in apps/api/app/schemas/contractor_requests.py's
+ * ContractorResponsePayload._check_conditional_fields, so a payload this
+ * function reports as `complete` is a payload the real T1 API accepts
+ * (assuming sanitizeContractorResponsePayload has already cleared
+ * contradictory fields, which ContractorResponseForm always runs on every
+ * edit — see its own `update()`). Does NOT re-check the "must not be set"
+ * half of the backend's conditional rules (e.g. proposal fields present
+ * on a non-proposal response) — that half is already structurally
+ * guaranteed by sanitizeContractorResponsePayload's use of
+ * applyContractorPatch, which this function assumes has already run.
+ */
+export function checkContractorResponseCompletion(
+  payload: ContractorResponsePayload,
+): ContractorResponseCompletionCheck {
+  const errors: string[] = [];
+
+  if (!payload.responseType) {
+    return { complete: false, errors: ["Choose what happens next."] };
+  }
+
+  if (payload.responseType === "needs-inspection" && !payload.inspectionRequirement) {
+    errors.push("Choose an inspection requirement.");
+  }
+  if (payload.responseType === "needs-more-information" && !isNonBlank(payload.informationNeeded)) {
+    errors.push("Describe what information you need.");
+  }
+  if (payload.responseType === "proposal-provided") {
+    if (!payload.priceType) {
+      errors.push("Choose a price type.");
+    } else if (payload.priceType === "fixed" || payload.priceType === "estimate") {
+      if (!isValidAmount(payload.price)) errors.push("Enter a valid price.");
+    } else if (payload.priceType === "range") {
+      if (!isValidAmount(payload.priceMin) || !isValidAmount(payload.priceMax)) {
+        errors.push("Enter both a minimum and maximum price.");
+      } else if (payload.priceMin > payload.priceMax) {
+        errors.push("The minimum can't be greater than the maximum.");
+      }
+    }
+  }
+
+  for (const field of LONG_TEXT_FIELDS) {
+    if (!isWithinLength(payload[field], CONTRACTOR_RESPONSE_LONG_TEXT_MAX)) {
+      errors.push(`${FIELD_LABELS[field]} is too long (max ${CONTRACTOR_RESPONSE_LONG_TEXT_MAX} characters).`);
+    }
+  }
+  for (const field of SHORT_TEXT_FIELDS) {
+    if (!isWithinLength(payload[field], CONTRACTOR_RESPONSE_SHORT_TEXT_MAX)) {
+      errors.push(`${FIELD_LABELS[field]} is too long (max ${CONTRACTOR_RESPONSE_SHORT_TEXT_MAX} characters).`);
+    }
+  }
+
+  return { complete: errors.length === 0, errors };
+}
+
 // --- Export/import envelope (Commit B's transport bridge) -----------------
 //
 // Operator working state lives in localStorage; a contractor on another

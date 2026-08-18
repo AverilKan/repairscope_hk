@@ -62,6 +62,29 @@ test("the 'Needs more information' branch captures what's needed", async ({ page
   await expect(page.getByRole("heading", { name: "Review your response" })).toBeVisible();
 });
 
+test("the 'Needs more information' branch blocks Continue on a blank or whitespace-only answer (T2 Commit 1 contract alignment)", async ({
+  page,
+}) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Needs more information", exact: true }).click();
+
+  // Blank.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Describe what information you need.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What information do you need?" })).toBeVisible();
+
+  // Whitespace-only.
+  await page.getByLabel("What information do you need?").fill("   ");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Describe what information you need.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What information do you need?" })).toBeVisible();
+
+  // Valid text clears the error and advances.
+  await page.getByLabel("What information do you need?").fill("More photos of the ceiling.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Anything else you'd like to say?" })).toBeVisible();
+});
+
 test("the 'Not suitable' branch stays minimal with an optional response", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "Not suitable", exact: true }).click();
@@ -106,6 +129,24 @@ test("proposal branch: fixed price renders a single price field and completes cl
   await expect(page.getByRole("heading", { name: "What's included?" })).toBeVisible();
 });
 
+test("proposal branch: fixed price blocks Continue with no amount entered (T2 Commit 1 contract alignment)", async ({
+  page,
+}) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Initial proposal provided", exact: true }).click();
+  await page.getByLabel("Proposed work / approach").fill("Replace connector.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Fixed price" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Enter a valid price (0 or more).")).toBeVisible();
+  // Still on the price-amount step — did not advance.
+  await expect(page.getByLabel("Price (HK$)")).toBeVisible();
+
+  await page.getByLabel("Price (HK$)").fill("5000");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "What's included?" })).toBeVisible();
+});
+
 test("proposal branch: estimate price behaves the same as fixed (single amount field)", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
   await page.getByRole("button", { name: "Initial proposal provided", exact: true }).click();
@@ -132,6 +173,49 @@ test("proposal branch: range price renders two fields and rejects an inverted ra
   await expect(page.getByLabel("Minimum (HK$)")).toBeVisible();
 
   await page.getByLabel("Maximum (HK$)").fill("9000");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "What's included?" })).toBeVisible();
+});
+
+test("proposal branch: range price blocks Continue when either bound is missing (T2 Commit 1 contract alignment)", async ({
+  page,
+}) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Initial proposal provided", exact: true }).click();
+  await page.getByLabel("Proposed work / approach").fill("Inspect valve first.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Range" }).click();
+
+  // Neither bound filled in.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Enter both a minimum and maximum price.")).toBeVisible();
+
+  // Only minimum filled in.
+  await page.getByLabel("Minimum (HK$)").fill("4000");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Enter both a minimum and maximum price.")).toBeVisible();
+  await expect(page.getByLabel("Minimum (HK$)")).toBeVisible();
+
+  // Only maximum filled in (clear minimum first).
+  await page.getByLabel("Minimum (HK$)").fill("");
+  await page.getByLabel("Maximum (HK$)").fill("7000");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Enter both a minimum and maximum price.")).toBeVisible();
+
+  // Both filled in — advances.
+  await page.getByLabel("Minimum (HK$)").fill("4000");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "What's included?" })).toBeVisible();
+});
+
+test("proposal branch: a valid equal price range (min === max) is accepted", async ({ page }) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Initial proposal provided", exact: true }).click();
+  await page.getByLabel("Proposed work / approach").fill("Inspect valve first.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Range" }).click();
+  await page.getByLabel("Minimum (HK$)").fill("5000");
+  await page.getByLabel("Maximum (HK$)").fill("5000");
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "What's included?" })).toBeVisible();
 });
@@ -225,6 +309,64 @@ test("final review shows a 'Prepare my response' export and the copied text pars
   expect(parsed.version).toBe(1);
   expect(parsed.response.responseType).toBe("interested");
   expect(parsed.response.originalResponse).toBe("Sounds doable.");
+});
+
+test("back/edit: clearing a previously-valid required answer blocks re-advancement — cannot reach a stale invalid final state (T2 Commit 1)", async ({
+  page,
+}) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Needs more information", exact: true }).click();
+  await page.getByLabel("What information do you need?").fill("More photos of the ceiling.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Anything else you'd like to say?").fill("Thanks.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Review your response" })).toBeVisible();
+
+  // Go back and clear the previously-valid required answer.
+  const informationNeededStep = page.locator(".contractor-step--done").filter({
+    hasText: "What information do you need?",
+  });
+  await informationNeededStep.getByRole("button", { name: "Change" }).click();
+  await page.getByLabel("What information do you need?").fill("");
+
+  // The only way back to review is through this step's own Continue gate
+  // — it must still block, exactly as it did the first time.
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByText("Describe what information you need.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review your response" })).not.toBeVisible();
+});
+
+test("text fields enforce the backend length caps via maxLength, and long-text fields accept boundary-length input", async ({
+  page,
+}) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Interested", exact: true }).click();
+  const field = page.getByLabel("Anything else you'd like to say?");
+  await expect(field).toHaveAttribute("maxlength", "2000");
+
+  // The browser itself refuses to accept more than maxLength characters
+  // when typed/filled via `fill`, which sets the DOM value directly and
+  // is still bounded by the maxLength attribute for a controlled input.
+  const boundaryText = "x".repeat(2000);
+  await field.fill(boundaryText);
+  await expect(field).toHaveValue(boundaryText);
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Prepare my response" }).click();
+  await expect(page.getByLabel("Response to copy")).toBeVisible();
+});
+
+test("short-text fields (expected duration, earliest start) enforce the 200-character backend cap via maxLength", async ({
+  page,
+}) => {
+  await page.goto("/contractor/respond/demo-token");
+  await page.getByRole("button", { name: "Initial proposal provided", exact: true }).click();
+  await page.getByLabel("Proposed work / approach").fill("Replace connector.");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "No price yet" }).click();
+  await page.getByRole("button", { name: "Continue" }).click(); // inclusions (optional, blank)
+  await page.getByRole("button", { name: "Continue" }).click(); // exclusions (optional, blank)
+  await page.getByRole("button", { name: "Continue" }).click(); // price-change-factors (optional, blank)
+  await expect(page.getByLabel("Expected duration")).toHaveAttribute("maxlength", "200");
 });
 
 test("mobile viewport: the contractor form is usable with no page-level horizontal overflow", async ({ page }) => {
