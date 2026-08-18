@@ -27,9 +27,13 @@
 
 import {
   applyContractorPatch,
+  OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS,
   OPERATOR_CONTRACTOR_RESPONSE_TYPES,
+  OPERATOR_GUARANTEE_STATUS_LABELS,
   OPERATOR_GUARANTEE_STATUSES,
+  OPERATOR_INSPECTION_REQUIREMENT_LABELS,
   OPERATOR_INSPECTION_REQUIREMENTS,
+  OPERATOR_PRICE_TYPE_LABELS,
   OPERATOR_PRICE_TYPES,
   type OperatorContractor,
   type OperatorContractorResponseType,
@@ -480,4 +484,125 @@ export function toOwnerVisibleProposal(contractor: OperatorContractor): OwnerVis
     guaranteeStatus,
     guaranteeDetails,
   };
+}
+
+// --- Operator preview formatter (HK localization follow-up) ---------------
+//
+// The paste-import preview and the received-server-response review preview
+// (both in components/operator/OperatorCaseWorkspace.tsx) previously
+// rendered a ContractorResponsePayload via raw `Object.entries(...)` +
+// `String(value)`, leaking canonical field keys ("responseType") and enum
+// identifiers ("proposal-provided") directly into normal operator UI. This
+// is the ONE shared formatter both preview sites use instead — it never
+// mutates the payload it's given (display-only), reuses the SAME enum
+// label maps already established elsewhere (OPERATOR_CONTRACTOR_RESPONSE_
+// TYPE_LABELS etc. from ./operatorCaseState) rather than inventing a second
+// vocabulary, and only ever reads response fields — it has no access to
+// operator-owned fields (id/name/trade/contactReference/status/notes)
+// because ContractorResponsePayload structurally excludes them.
+//
+// PREVIEW_FIELD_LABELS is deliberately separate from FIELD_LABELS above:
+// FIELD_LABELS is used in contractor-facing validation copy ("你的回覆太
+// 長…", addressed to the contractor themselves), while this preview is
+// operator-facing — an operator reading "你的回覆" here would misread it as
+// referring to their OWN input rather than what the contractor said, so
+// this preview instead reuses the audience-neutral phrasing already
+// established in the operator's own manual editor (see ContractorCard's
+// "師傅原本的回覆" field in OperatorCaseWorkspace.tsx).
+const PREVIEW_FIELD_LABELS: Record<keyof ContractorResponsePayload, LocalizedText> = {
+  responseType: lt("回覆類型", "Response type"),
+  originalResponse: lt("師傅原本的回覆", "Contractor's original response"),
+  inspectionRequirement: lt("上門檢查要求", "Inspection requirement"),
+  informationNeeded: lt("所需補充資料", "Information needed"),
+  priceType: lt("報價類型", "Price type"),
+  price: lt("價格", "Price"),
+  priceMin: lt("最低價格", "Minimum price"),
+  priceMax: lt("最高價格", "Maximum price"),
+  proposedApproach: lt("建議處理方法", "Proposed approach"),
+  inclusions: lt("包括項目", "Inclusions"),
+  exclusions: lt("不包括項目", "Exclusions"),
+  priceChangeFactors: lt("可能影響價格的因素", "Factors that could change the price"),
+  expectedDuration: lt("預計工期", "Expected duration"),
+  earliestStart: lt("最早可開始時間", "Earliest start"),
+  guaranteeStatus: lt("保養", "Guarantee"),
+  guaranteeDetails: lt("保養詳情", "Guarantee details"),
+};
+
+const PREVIEW_PRICE_RANGE_LABEL = lt("價格範圍", "Price range");
+
+function formatPreviewHkDollars(amount: number): string {
+  return `HK$${amount.toLocaleString("en-HK")}`;
+}
+
+export interface ContractorResponsePreviewRow {
+  /** The canonical field this row was derived from — for React keys and
+   * tests, never rendered directly. */
+  key: keyof ContractorResponsePayload;
+  label: string;
+  value: string;
+}
+
+/**
+ * Turns a (already sanitized) ContractorResponsePayload into display-only
+ * rows: Traditional Chinese labels, localized enum values, HK-dollar price
+ * formatting, and a combined "price range" row when both bounds are
+ * present — never the raw payload itself. Fields that are absent/blank are
+ * omitted entirely rather than rendered as "undefined" or blank, matching
+ * the response-type-conditional shape sanitizeContractorResponsePayload
+ * already guarantees (e.g. a "not-suitable" response naturally has no
+ * price fields to show).
+ *
+ * Used identically by both the paste-import preview and the server-
+ * response review preview — the ONE place either preview's display logic
+ * lives, so the two call sites can never drift into inconsistent labels.
+ */
+export function formatContractorResponsePreview(
+  payload: ContractorResponsePayload,
+  lang: Lang,
+): ContractorResponsePreviewRow[] {
+  const rows: ContractorResponsePreviewRow[] = [];
+  const push = (key: keyof ContractorResponsePayload, value: string | undefined) => {
+    if (value === undefined || value === "") return;
+    rows.push({ key, label: localize(PREVIEW_FIELD_LABELS[key], lang), value });
+  };
+
+  push(
+    "responseType",
+    payload.responseType ? localize(OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[payload.responseType], lang) : undefined,
+  );
+  push("originalResponse", payload.originalResponse);
+  push(
+    "inspectionRequirement",
+    payload.inspectionRequirement
+      ? localize(OPERATOR_INSPECTION_REQUIREMENT_LABELS[payload.inspectionRequirement], lang)
+      : undefined,
+  );
+  push("informationNeeded", payload.informationNeeded);
+  push("priceType", payload.priceType ? localize(OPERATOR_PRICE_TYPE_LABELS[payload.priceType], lang) : undefined);
+
+  if (payload.priceType === "range" && isValidAmount(payload.priceMin) && isValidAmount(payload.priceMax)) {
+    rows.push({
+      key: "priceMin",
+      label: localize(PREVIEW_PRICE_RANGE_LABEL, lang),
+      value: `${formatPreviewHkDollars(payload.priceMin)}–${formatPreviewHkDollars(payload.priceMax)}`,
+    });
+  } else {
+    push("price", isValidAmount(payload.price) ? formatPreviewHkDollars(payload.price) : undefined);
+    push("priceMin", isValidAmount(payload.priceMin) ? formatPreviewHkDollars(payload.priceMin) : undefined);
+    push("priceMax", isValidAmount(payload.priceMax) ? formatPreviewHkDollars(payload.priceMax) : undefined);
+  }
+
+  push("proposedApproach", payload.proposedApproach);
+  push("inclusions", payload.inclusions);
+  push("exclusions", payload.exclusions);
+  push("priceChangeFactors", payload.priceChangeFactors);
+  push("expectedDuration", payload.expectedDuration);
+  push("earliestStart", payload.earliestStart);
+  push(
+    "guaranteeStatus",
+    payload.guaranteeStatus ? localize(OPERATOR_GUARANTEE_STATUS_LABELS[payload.guaranteeStatus], lang) : undefined,
+  );
+  push("guaranteeDetails", payload.guaranteeDetails);
+
+  return rows;
 }

@@ -95,3 +95,30 @@ export class ContractorRequestOperatorServerError extends ContractorRequestOpera
     this.name = "ContractorRequestOperatorServerError";
   }
 }
+
+/**
+ * UI-boundary error localization (HK localization follow-up) — maps the
+ * three DIFFERENTIATED, meaningful ContractorRequestOperatorError states
+ * (unauthenticated/forbidden/not-found) to specific Chinese copy the
+ * operator can act on. Anything else — a network failure, an unexpected
+ * server error, or a raw non-domain exception — falls back to the
+ * caller-supplied generic Chinese message rather than ever surfacing
+ * error.message (which may carry raw English/backend detail text — see
+ * ContractorRequestOperatorServerError). Does not change what gets thrown
+ * or how the request layer behaves — display only. Lives here (not in
+ * OperatorCaseWorkspace.tsx, which the test suite cannot import directly —
+ * see tests/contractor-response-review-import.test.ts's own comment on the
+ * pre-existing @clerk/nextjs/jsdom limitation) so it stays unit-testable.
+ */
+export function describeContractorRequestOperatorError(error: unknown, fallback: string): string {
+  if (error instanceof ContractorRequestOperatorUnauthenticatedError) {
+    return "你未登入 RepairScope，請重新登入。";
+  }
+  if (error instanceof ContractorRequestOperatorForbiddenError) {
+    return "此帳戶未有操作員權限。";
+  }
+  if (error instanceof ContractorRequestOperatorNotFoundError) {
+    return "找不到此師傅回覆連結。";
+  }
+  return fallback;
+}

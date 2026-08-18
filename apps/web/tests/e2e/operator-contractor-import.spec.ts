@@ -18,7 +18,7 @@ async function gotoCaseWithContractor(page: import("@playwright/test").Page) {
   await card.getByLabel("師傅名稱").fill("Fortune Plumbing Co.");
   await card.getByLabel("行業").fill("Plumber");
   await card.getByLabel("聯絡方式").fill("WhatsApp 9123 4567");
-  await card.getByLabel("聯絡／搵師傅狀態").selectOption("contacted");
+  await card.getByLabel("聯絡／尋找師傅狀態").selectOption("contacted");
   await card.getByLabel("操作員備註").fill("Called twice, very responsive.");
   await card.getByRole("button", { name: "收合" }).click();
   return card;
@@ -48,7 +48,7 @@ test("importing a response preserves the contractor's name, trade, contact refer
   await expect(card.getByLabel("師傅名稱")).toHaveValue("Fortune Plumbing Co.");
   await expect(card.getByLabel("行業")).toHaveValue("Plumber");
   await expect(card.getByLabel("聯絡方式")).toHaveValue("WhatsApp 9123 4567");
-  await expect(card.getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+  await expect(card.getByLabel("聯絡／尋找師傅狀態")).toHaveValue("contacted");
   await expect(card.getByLabel("操作員備註")).toHaveValue("Called twice, very responsive.");
   await expect(card.getByLabel("目前回覆")).toHaveValue("proposal-provided");
   await expect(card.getByLabel("價格（港幣）")).toHaveValue("5000");
@@ -75,7 +75,7 @@ test("an operator-only field embedded in a hand-crafted import payload (e.g. nam
 
   await card.getByRole("button", { name: "編輯" }).click();
   await expect(card.getByLabel("師傅名稱")).toHaveValue("Fortune Plumbing Co.");
-  await expect(card.getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+  await expect(card.getByLabel("聯絡／尋找師傅狀態")).toHaveValue("contacted");
   await expect(card.getByLabel("操作員備註")).toHaveValue("Called twice, very responsive.");
   await expect(card.getByLabel("目前回覆")).toHaveValue("interested");
 });
@@ -266,6 +266,51 @@ test("a malformed/unrecoverable payload still rejects cleanly and changes nothin
 
   await card.getByRole("button", { name: "編輯" }).click();
   await expect(card.getByLabel("目前回覆")).toHaveValue("");
+});
+
+test("the paste-import preview renders localized Chinese labels and enum values, never the raw canonical keys/identifiers (Codex localization audit)", async ({
+  page,
+}) => {
+  const card = await gotoCaseWithContractor(page);
+  await card.getByRole("button", { name: "匯入回覆" }).click();
+  await card.locator("textarea").first().fill(
+    makeExport({
+      responseType: "proposal-provided",
+      priceType: "fixed",
+      price: 5000,
+      proposedApproach: "Replace the connector now.",
+      earliestStart: "Tomorrow afternoon",
+      guaranteeStatus: "yes",
+    }),
+  );
+  await card.getByRole("button", { name: "預覽" }).click();
+  const preview = card.locator(".op-contractor-card__import-preview");
+  await expect(preview).toBeVisible();
+  const previewText = await preview.innerText();
+
+  // Localized field labels.
+  expect(previewText).toContain("回覆類型");
+  expect(previewText).toContain("報價類型");
+  expect(previewText).toContain("建議處理方法");
+  expect(previewText).toContain("最早可開始時間");
+  expect(previewText).toContain("保養");
+  // Localized enum values.
+  expect(previewText).toContain("提供初步報價");
+  expect(previewText).toContain("固定價格");
+  expect(previewText).toContain("HK$5,000");
+
+  // Never the raw canonical field keys or enum identifiers.
+  for (const raw of ["responseType", "priceType", "proposedApproach", "earliestStart", "guaranteeStatus", "proposal-provided", "fixed"]) {
+    expect(previewText).not.toContain(raw);
+  }
+
+  // Confirm still writes the exact canonical values — display localization
+  // never translated the stored/domain data.
+  await card.getByRole("button", { name: "確認匯入" }).click();
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("目前回覆")).toHaveValue("proposal-provided");
+  await expect(card.getByLabel("報價方式")).toHaveValue("fixed");
+  await expect(card.getByLabel("價格（港幣）")).toHaveValue("5000");
 });
 
 test("no mutating request is made to the backend during preview or import", async ({ page }) => {

@@ -166,6 +166,29 @@ test("submitting a proposal actually persists to the real backend and only then 
   await expect(page.getByText("你已經提交過此邀請的回覆。")).toBeVisible();
 });
 
+test("an unexpected 500 on submit shows a generic Chinese error, never the raw backend response text (Codex localization audit)", async ({
+  page,
+}) => {
+  await page.route("**/api/contractor-requests/*/response", (route) => {
+    if (route.request().method() === "POST") {
+      return route.fulfill({ status: 500, contentType: "text/plain", body: "Internal Server Error: traceback at line 42" });
+    }
+    return route.continue();
+  });
+
+  await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
+  await page.getByRole("button", { name: "有興趣處理", exact: true }).click();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
+
+  await page.getByRole("button", { name: "提交回覆" }).click();
+  const errorText = await page.locator(".field-error").innerText();
+  expect(errorText).toContain("提交回覆時發生問題，請再試一次。");
+  expect(errorText).not.toContain("Internal Server Error");
+  expect(errorText).not.toContain("traceback");
+  expect(errorText).not.toMatch(/HTTP 500/);
+});
+
 test("submitting to an already-responded token surfaces the real 409 conflict, not a generic error", async ({
   page,
 }) => {

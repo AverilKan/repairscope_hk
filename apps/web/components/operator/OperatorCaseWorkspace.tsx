@@ -7,6 +7,7 @@ import { isApiDataSource } from "@/components/LegacyDemoNotice";
 import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
 import {
+  formatContractorResponsePreview,
   parseContractorResponseExport,
   parseSupportedContractorResponsePayload,
   sanitizeContractorResponsePayload,
@@ -14,7 +15,7 @@ import {
 } from "@/domain/contractorResponse";
 import { cacheContractorRequestLink, readCachedContractorRequestLinks } from "@/domain/contractorRequestLinkCache";
 import {
-  ContractorRequestOperatorError,
+  describeContractorRequestOperatorError,
   type ContractorRequestSummary,
 } from "@/domain/contractorRequestOperator";
 import {
@@ -753,11 +754,11 @@ function ContractorCard({
           )}
           {importPreview && (
             <div className="op-contractor-card__import-preview">
-              <p>呢次會更新：</p>
+              <p>此次會更新：</p>
               <ul>
-                {Object.entries(importPreview).map(([key, value]) => (
-                  <li key={key}>
-                    <strong>{key}</strong>: {String(value)}
+                {formatContractorResponsePreview(importPreview, "zh").map((row) => (
+                  <li key={row.key}>
+                    <strong>{row.label}</strong>：{row.value}
                   </li>
                 ))}
               </ul>
@@ -810,7 +811,7 @@ function ContractorCard({
           </div>
 
           <label>
-            聯絡／搵師傅狀態
+            聯絡／尋找師傅狀態
             <select
               value={contractor.status}
               onChange={(event) => onUpdate({ status: event.target.value as OperatorContractorStatus })}
@@ -1115,11 +1116,7 @@ function ContractorRequestPanel({
         setLoadError(null);
       })
       .catch((error: unknown) => {
-        setLoadError(
-          error instanceof ContractorRequestOperatorError
-            ? error.message
-            : "未能載入回覆記錄。",
-        );
+        setLoadError(describeContractorRequestOperatorError(error, "未能載入回覆記錄。"));
       });
   };
 
@@ -1133,11 +1130,7 @@ function ContractorRequestPanel({
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        setLoadError(
-          error instanceof ContractorRequestOperatorError
-            ? error.message
-            : "未能載入回覆記錄。",
-        );
+        setLoadError(describeContractorRequestOperatorError(error, "未能載入回覆記錄。"));
       });
     return () => {
       cancelled = true;
@@ -1171,7 +1164,7 @@ function ContractorRequestPanel({
     } catch (error) {
       setSendState("error");
       setSendError(
-        error instanceof ContractorRequestOperatorError ? error.message : "未能建立回覆連結。",
+        describeContractorRequestOperatorError(error, "未能建立回覆連結。"),
       );
     }
   };
@@ -1183,7 +1176,7 @@ function ContractorRequestPanel({
       refresh();
     } catch (error) {
       setLoadError(
-        error instanceof ContractorRequestOperatorError ? error.message : "未能撤銷此連結。",
+        describeContractorRequestOperatorError(error, "未能撤銷此連結。"),
       );
     } finally {
       setRevokingId(null);
@@ -1224,7 +1217,7 @@ function ContractorRequestPanel({
       setReviewPreview(sanitizeContractorResponsePayload(parsed));
     } catch (error) {
       setReviewError(
-        error instanceof ContractorRequestOperatorError ? error.message : "未能載入此回覆。",
+        describeContractorRequestOperatorError(error, "未能載入此回覆。"),
       );
     } finally {
       setReviewLoading(false);
@@ -1258,7 +1251,7 @@ function ContractorRequestPanel({
       <div className="op-contractor-card__requests-heading">
         <h4>師傅回覆連結</h4>
         <button type="button" onClick={sendRequestLink} disabled={sendState === "sending"}>
-          {sendState === "sending" ? "建立緊連結…" : "建立回覆連結"}
+          {sendState === "sending" ? "正在建立連結…" : "建立回覆連結"}
         </button>
       </div>
       {sendState === "error" && (
@@ -1328,9 +1321,9 @@ function ContractorRequestPanel({
                             永遠不會覆蓋上面的名稱、行業、聯絡方式、聯絡狀態或你自己的備註。
                           </p>
                           <ul>
-                            {Object.entries(reviewPreview).map(([key, value]) => (
-                              <li key={key}>
-                                <strong>{key}</strong>: {String(value)}
+                            {formatContractorResponsePreview(reviewPreview, "zh").map((row) => (
+                              <li key={row.key}>
+                                <strong>{row.label}</strong>：{row.value}
                               </li>
                             ))}
                           </ul>

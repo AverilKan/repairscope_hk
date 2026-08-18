@@ -175,7 +175,7 @@ test("the contact/sourcing status dropdown offers only Considering/Not contacted
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  const options = await card.getByLabel("聯絡／搵師傅狀態").locator("option").allTextContents();
+  const options = await card.getByLabel("聯絡／尋找師傅狀態").locator("option").allTextContents();
   assertDeepEqualOptions(options, ["考慮中", "未聯絡", "已聯絡"]);
 });
 
@@ -339,7 +339,7 @@ test("a historical status='interested' record (no responseType) normalizes on lo
   await expect(card.locator(".op-contractor-card__meta")).toContainText("已聯絡");
   await expect(card.locator(".op-contractor-card__meta")).toContainText("有興趣處理");
   await card.getByRole("button", { name: "編輯" }).click();
-  await expect(card.getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+  await expect(card.getByLabel("聯絡／尋找師傅狀態")).toHaveValue("contacted");
   await expect(card.getByLabel("目前回覆")).toHaveValue("interested");
 });
 

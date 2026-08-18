@@ -236,9 +236,21 @@ type SubmitState =
   | { phase: "terminal"; message: LocalizedText; tone: "success" | "error" }
   | { phase: "error"; message: string };
 
-function describeSubmitError(error: unknown, lang: Lang): string {
-  if (error instanceof Error && error.message) return error.message;
-  return localize(lt("提交回覆時發生問題，請再試一次。", "Something went wrong sending your response. Please try again."), lang);
+/**
+ * UI-boundary error localization (HK localization follow-up) — the
+ * lifecycle-differentiated outcomes (revoked/expired/already-responded/
+ * reconciliation-failed) are already handled as named outcomes by
+ * submitOutcomeState below, never as thrown exceptions; anything that
+ * reaches here is a genuinely unexpected failure (network error, an
+ * unvalidated 4xx/5xx escaping submitResponseWithReconciliation, or any
+ * other JS error) — always a generic Chinese message, never the raw
+ * (English) Error.message, which may carry backend detail text.
+ */
+function describeSubmitError(lang: Lang): string {
+  return localize(
+    lt("提交回覆時發生問題，請再試一次。", "Something went wrong sending your response. Please try again."),
+    lang,
+  );
 }
 
 // Terminal/error copy audited for lifecycle truthfulness (see the T2 Codex
@@ -367,7 +379,7 @@ export function ContractorResponseForm({
         <p className="contractor-brief-panel__hint">
           {t(
             lt(
-              "此為搵師傅階段的概要 — 現階段未會顯示確實地址、業主聯絡資料或其他師傅的資料。",
+              "此為尋找師傅階段的概要 — 現階段未會顯示確實地址、業主聯絡資料或其他師傅的資料。",
               "This is a sourcing summary only — exact address, owner contact details and any other contractors are not shown at this stage.",
             ),
           )}
@@ -728,7 +740,7 @@ export function ContractorResponseForm({
                 aria-label={t(lt("最早可開始時間", "Earliest start"))}
                 value={answers.earliestStart ?? ""}
                 onChange={(event) => update({ earliestStart: event.target.value })}
-                placeholder={t(lt("可不填 — 例如：聽日下晝、3 日內", "Optional — e.g. Tomorrow afternoon, within 3 days"))}
+                placeholder={t(lt("可不填 — 例如：明天下午、3 日內", "Optional — e.g. Tomorrow afternoon, within 3 days"))}
                 maxLength={CONTRACTOR_RESPONSE_SHORT_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
@@ -817,8 +829,8 @@ export function ContractorResponseForm({
                             try {
                               const outcome = await submission.submit(answers);
                               setSubmitState(submitOutcomeState(outcome));
-                            } catch (error) {
-                              setSubmitState({ phase: "error", message: describeSubmitError(error, lang) });
+                            } catch {
+                              setSubmitState({ phase: "error", message: describeSubmitError(lang) });
                             }
                           }}
                         >

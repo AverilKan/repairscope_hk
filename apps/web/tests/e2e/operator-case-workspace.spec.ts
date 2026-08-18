@@ -29,7 +29,7 @@ test.describe("operator case list", () => {
     await expect(row.getByText("plumbing")).toBeVisible();
     // Two distinct status cells — the backend's own SubmissionStatus
     // (rendered via StatusPill) and the local workflow status (rendered
-    // via .op-case-status-pill, Chinese labels like "新個案"/"可開始搵師傅")
+    // via .op-case-status-pill, Chinese labels like "新個案"/"可開始尋找師傅")
     // — never conflated into one value.
     await expect(row.locator("td:nth-child(7) .status-pill")).toBeVisible();
     await expect(row.locator("td:nth-child(8) .op-case-status-pill")).toBeVisible();
@@ -112,7 +112,7 @@ test.describe("local operator working state — the manual flow", () => {
     const cards = page.locator(".op-contractor-card");
     await expect(cards).toHaveCount(1);
     await cards.nth(0).getByLabel("師傅名稱").fill("Contractor A");
-    await cards.nth(0).getByLabel("聯絡／搵師傅狀態").selectOption("contacted");
+    await cards.nth(0).getByLabel("聯絡／尋找師傅狀態").selectOption("contacted");
     await cards.nth(0).getByLabel("操作員備註").fill("Called 9am, can visit Thursday.");
     await cards.nth(0).getByLabel("目前回覆").selectOption("interested");
     await cards.nth(0).getByLabel("師傅原本的回覆 — 他們說了什麼？").fill("Can visit Thursday.");
@@ -120,7 +120,7 @@ test.describe("local operator working state — the manual flow", () => {
     await page.getByRole("button", { name: "＋新增師傅" }).click();
     await expect(cards).toHaveCount(2);
     await cards.nth(1).getByLabel("師傅名稱").fill("Contractor B");
-    await cards.nth(1).getByLabel("聯絡／搵師傅狀態").selectOption("not-contacted");
+    await cards.nth(1).getByLabel("聯絡／尋找師傅狀態").selectOption("not-contacted");
 
     await page.getByLabel("下一步行動").fill("Get a quote from Contractor A after Thursday's visit.");
     await page.getByLabel("跟進日期（可不填）").fill("2026-08-25");
@@ -145,7 +145,7 @@ test.describe("local operator working state — the manual flow", () => {
 
     await reloadedCards.nth(0).getByRole("button", { name: "編輯" }).click();
     await expect(reloadedCards.nth(0).getByLabel("師傅名稱")).toHaveValue("Contractor A");
-    await expect(reloadedCards.nth(0).getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+    await expect(reloadedCards.nth(0).getByLabel("聯絡／尋找師傅狀態")).toHaveValue("contacted");
     await expect(reloadedCards.nth(0).getByLabel("目前回覆")).toHaveValue("interested");
     await expect(
       reloadedCards.nth(0).getByLabel("師傅原本的回覆 — 他們說了什麼？"),
@@ -153,7 +153,7 @@ test.describe("local operator working state — the manual flow", () => {
 
     await reloadedCards.nth(1).getByRole("button", { name: "編輯" }).click();
     await expect(reloadedCards.nth(1).getByLabel("師傅名稱")).toHaveValue("Contractor B");
-    await expect(reloadedCards.nth(1).getByLabel("聯絡／搵師傅狀態")).toHaveValue("not-contacted");
+    await expect(reloadedCards.nth(1).getByLabel("聯絡／尋找師傅狀態")).toHaveValue("not-contacted");
 
     await reloadedCards.nth(1).getByRole("button", { name: "移除" }).click();
     await expect(page.locator(".op-contractor-card")).toHaveCount(1);

@@ -24,7 +24,7 @@ test("the Stage-1 brief panel shows the sourcing summary and never shows owner-i
   // shown (see domain/stage1ContractorBrief.ts's privacy/label hardening).
   await expect(briefPanel).toContainText("水喉問題");
   await expect(briefPanel).toContainText(
-    "此為搵師傅階段的概要 — 現階段未會顯示確實地址、業主聯絡資料或其他師傅的資料。",
+    "此為尋找師傅階段的概要 — 現階段未會顯示確實地址、業主聯絡資料或其他師傅的資料。",
   );
   const pageText = await page.locator("main").innerText();
   expect(pageText).not.toContain("Jamie Landlord");
