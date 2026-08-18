@@ -5,7 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import ConflictError
 from app.models.contractor_request import STAGE1_SNAPSHOT_SCHEMA_VERSION, ContractorRequest
 from app.models.repair_submission import RepairSubmission
-from app.repositories.contractor_requests import create_contractor_request
+from app.repositories.contractor_requests import (
+    create_contractor_request,
+    try_revoke_contractor_request,
+)
 from app.services.contractor_request_lifecycle import DEFAULT_CONTRACTOR_REQUEST_TTL_DAYS
 from app.services.contractor_tokens import generate_access_token, hash_access_token
 from app.services.stage1_snapshot import build_stage1_snapshot
@@ -55,16 +58,34 @@ async def revoke_contractor_request(
     public endpoints regardless of revoked_at). RESPONDED -> rejected: a
     committed response is historical fact and revocation must never
     pretend to undo it (see app/services/contractor_request_lifecycle.py's
-    derive_status precedence, which this mirrors)."""
+    derive_status precedence, which this mirrors).
+
+    The caller's `contractor_request` object exists only to supply
+    id/repair_submission_id (already validated for existence and case
+    isolation by whatever lookup produced it — see
+    app/api/routes/operator_contractor_requests.py's
+    _get_request_scoped_to_submission_or_404). Its responded_at/revoked_at
+    fields are NEVER read to decide whether to write: that in-memory state
+    can be stale the instant after it was loaded (a concurrent contractor
+    submission could commit in between), which is exactly the race this
+    function must not reproduce. try_revoke_contractor_request's atomic
+    conditional UPDATE is the sole authority for whether the write
+    happens; a read is used again only *after* that write attempt, to
+    report the correct outcome — never to gate the write itself."""
+    wrote = await try_revoke_contractor_request(
+        session, contractor_request.id, contractor_request.repair_submission_id, now=now
+    )
+    await session.refresh(contractor_request)
+    if wrote:
+        return contractor_request
+
     if contractor_request.responded_at is not None:
         raise ConflictError(
             "Cannot revoke a contractor request that has already been responded to."
         )
-    if contractor_request.revoked_at is None:
-        contractor_request.revoked_at = now
-        session.add(contractor_request)
-        await session.commit()
-        await session.refresh(contractor_request)
+    # Otherwise the WHERE clause failed only because revoked_at was
+    # already set — revoking an already-revoked request is idempotent
+    # success, not an error.
     return contractor_request
 
 

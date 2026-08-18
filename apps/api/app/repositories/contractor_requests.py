@@ -80,3 +80,33 @@ async def try_submit_contractor_response(
     result = await session.execute(statement)
     await session.commit()
     return result.rowcount == 1
+
+
+async def try_revoke_contractor_request(
+    session: AsyncSession,
+    request_id: uuid.UUID,
+    repair_submission_id: uuid.UUID,
+    *,
+    now: datetime,
+) -> bool:
+    """Atomic revoke — mirrors try_submit_contractor_response exactly: the
+    WHERE clause (not an earlier read) is the sole authority for whether
+    this write happens. Scoped by repair_submission_id too, so case
+    isolation is re-enforced by the write itself, not only by whatever
+    read the caller used to look the row up first. Returns True if this
+    call set revoked_at; False if the row no longer matches (already
+    responded to, or already revoked) — the caller then does a read-after
+    to determine which of those it was, never to decide whether to write."""
+    statement = (
+        update(ContractorRequest)
+        .where(
+            ContractorRequest.id == request_id,
+            ContractorRequest.repair_submission_id == repair_submission_id,
+            ContractorRequest.responded_at.is_(None),
+            ContractorRequest.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
+    result = await session.execute(statement)
+    await session.commit()
+    return result.rowcount == 1

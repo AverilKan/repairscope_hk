@@ -38,6 +38,20 @@ router = APIRouter(prefix="/api/contractor-requests", tags=["contractor-requests
 _MAX_REQUEST_BODY_BYTES = 20_000
 
 
+def _parse_content_length(value: str) -> int | None:
+    """Returns the parsed Content-Length in bytes, or None if the header
+    value is not a valid non-negative integer. A real Content-Length is
+    never negative or non-numeric — a caller sending "abc" or "-1" is
+    sending a malformed request, not something to silently ignore or
+    (worse) let reach a bare `int(...)` call that raises ValueError
+    straight into an unhandled 500."""
+    try:
+        parsed = int(value)
+    except ValueError:
+        return None
+    return parsed if parsed >= 0 else None
+
+
 def _safe_validation_error_detail(error: ValidationError) -> list[dict]:
     """A rejected non-finite price (see ContractorResponsePayload's
     allow_inf_nan=False) makes Pydantic echo the raw inf/nan value back in
@@ -105,10 +119,18 @@ async def submit_contractor_response(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ) -> ContractorResponseSubmitResult:
-    content_length = request.headers.get("content-length")
-    if content_length is not None and int(content_length) > _MAX_REQUEST_BODY_BYTES:
-        raise HTTPException(status_code=413, detail="Request body too large.")
+    content_length_header = request.headers.get("content-length")
+    if content_length_header is not None:
+        content_length = _parse_content_length(content_length_header)
+        if content_length is None:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header.")
+        if content_length > _MAX_REQUEST_BODY_BYTES:
+            raise HTTPException(status_code=413, detail="Request body too large.")
 
+    # Content-Length is never trusted as the sole body-size defense — a
+    # client could send a small/absent header and a large body anyway, so
+    # the actual received length is always re-checked regardless of what
+    # the header claimed (or whether it was even valid).
     body = await request.body()
     if len(body) > _MAX_REQUEST_BODY_BYTES:
         raise HTTPException(status_code=413, detail="Request body too large.")

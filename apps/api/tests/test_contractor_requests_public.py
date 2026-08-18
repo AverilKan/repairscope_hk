@@ -474,6 +474,66 @@ async def test_oversized_body_is_rejected(client, db_session):
     assert response.status_code in (413, 422)
 
 
+# --- Content-Length handling (never a bare int() crash) --------------------
+
+
+async def test_non_numeric_content_length_is_rejected_cleanly_not_a_500(client, db_session):
+    submission = await _make_submission(db_session)
+    token, _ = await _make_request(db_session, submission)
+
+    response = await client.post(
+        f"/api/contractor-requests/{token}/response",
+        content=b"{}",
+        headers={"Content-Length": "abc", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 400
+    assert response.status_code != 500
+
+
+async def test_negative_content_length_is_rejected_cleanly_not_a_500(client, db_session):
+    submission = await _make_submission(db_session)
+    token, _ = await _make_request(db_session, submission)
+
+    response = await client.post(
+        f"/api/contractor-requests/{token}/response",
+        content=b"{}",
+        headers={"Content-Length": "-5", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 400
+    assert response.status_code != 500
+
+
+async def test_over_limit_numeric_content_length_is_rejected_as_too_large(client, db_session):
+    submission = await _make_submission(db_session)
+    token, _ = await _make_request(db_session, submission)
+
+    # The header alone claims an oversized body — must be rejected before
+    # (or regardless of) reading the (here, tiny) actual body.
+    response = await client.post(
+        f"/api/contractor-requests/{token}/response",
+        content=b"{}",
+        headers={"Content-Length": "999999", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
+async def test_fake_low_content_length_with_actually_oversized_body_is_still_rejected(
+    client, db_session
+):
+    # Content-Length is never trusted as the sole defense — even if a
+    # caller lies with a small header value, the real received body size
+    # is what's authoritative.
+    submission = await _make_submission(db_session)
+    token, _ = await _make_request(db_session, submission)
+
+    response = await client.post(
+        f"/api/contractor-requests/{token}/response",
+        content=b"x" * 30_000,
+        headers={"Content-Length": "5", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 413
+
+
 # --- No raw token ever persisted -------------------------------------------
 
 

@@ -48,15 +48,20 @@ class ContractorRequest(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # resolve locally (cleared storage, different browser, removed
     # contractor), the operator simply falls back to manual selection —
     # see the architecture review's client_contractor_id analysis.
-    client_contractor_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Length matches ContractorRequestCreateRequest's _LABEL_MAX (see
+    # app/schemas/contractor_requests.py) — the DB constraint mirrors the
+    # API contract rather than silently allowing more than the schema
+    # ever permits a caller to submit.
+    client_contractor_id: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     # Operator-authenticated, operator-only display/reconciliation label —
     # "who did I send this to?" (e.g. "ABC Plumbing"). NOT contractor
     # identity, NOT authentication, NOT a directory entry. Required at
     # creation time (an operator always knows who they're sending a request
     # to) so a request is identifiable even if client_contractor_id no
-    # longer resolves to anything locally.
-    contractor_label: Mapped[str] = mapped_column(String, nullable=False)
+    # longer resolves to anything locally. Same 200-character bound as
+    # client_contractor_id above, for the same reason.
+    contractor_label: Mapped[str] = mapped_column(String(200), nullable=False)
 
     # SHA-256 hex digest (64 chars) of the raw access token — the raw value
     # is never persisted anywhere (see app/services/contractor_tokens.py).
