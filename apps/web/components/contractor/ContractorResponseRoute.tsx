@@ -26,7 +26,10 @@ import { isApiDataSource } from "@/components/LegacyDemoNotice";
 import { useLanguage } from "@/components/LanguageContext";
 import { buildStage1ContractorBrief, type Stage1ContractorBrief } from "@/domain/stage1ContractorBrief";
 import { stage1ContractorBriefFromSnapshot } from "@/domain/stage1SnapshotAdapter";
-import { ContractorRequestNotFoundError } from "@/domain/contractorRequestPublic";
+import {
+  ContractorRequestNotFoundError,
+  ContractorRequestUnsupportedStage1VersionError,
+} from "@/domain/contractorRequestPublic";
 import { useOperatorSubmissionService } from "@/services/operator/useOperatorSubmissionService";
 import { useContractorRequestPublicService } from "@/services/contractor/useContractorRequestPublicService";
 import { ContractorResponseForm } from "./ContractorResponseForm";
@@ -115,6 +118,7 @@ function MockContractorResponseRouteContent({ token }: { token: string }) {
 type RealLoadState =
   | { phase: "loading" }
   | { phase: "invalid" }
+  | { phase: "unsupported" }
   | { phase: "network-error" }
   | { phase: "open"; brief: Stage1ContractorBrief }
   | { phase: "responded" }
@@ -157,7 +161,9 @@ function RealContractorResponseRoute({ token }: { token: string }) {
         setState(
           error instanceof ContractorRequestNotFoundError
             ? { phase: "invalid" }
-            : { phase: "network-error" },
+            : error instanceof ContractorRequestUnsupportedStage1VersionError
+              ? { phase: "unsupported" }
+              : { phase: "network-error" },
         );
       });
     return () => {
@@ -190,6 +196,19 @@ function RealContractorResponseRoute({ token }: { token: string }) {
           title="Couldn't load this invitation."
           description="Something went wrong reaching RepairScope. Please check your connection and try again."
           aside={<StatusPill tone="neutral">Try again</StatusPill>}
+        />
+      </main>
+    );
+  }
+
+  if (state.phase === "unsupported") {
+    return (
+      <main className="content-page">
+        <PageIntro
+          eyebrow="Contractor response"
+          title="This repair request uses a version that this page can't open."
+          description="Ask RepairScope or the person who sent the link for help."
+          aside={<StatusPill tone="neutral">Unsupported request version</StatusPill>}
         />
       </main>
     );
@@ -232,9 +251,7 @@ function RealContractorResponseRoute({ token }: { token: string }) {
       <ContractorResponseForm
         brief={state.brief}
         submission={{
-          submit: async (payload) => {
-            await service.submitResponse(token, payload);
-          },
+          submit: (payload) => service.submitResponseWithReconciliation(token, payload),
         }}
       />
     </main>

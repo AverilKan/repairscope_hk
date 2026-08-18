@@ -18,7 +18,7 @@
 // operator workspace (Commit B's "Import contractor response" action).
 
 import { useState } from "react";
-import { ContractorRequestConflictError } from "@/domain/contractorRequestPublic";
+import type { ContractorResponseSubmissionOutcome } from "@/domain/contractorRequestPublic";
 import {
   OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS,
   OPERATOR_CONTRACTOR_RESPONSE_TYPES,
@@ -207,7 +207,7 @@ function answerSummary(stepId: StepId, answers: ContractorResponsePayload): stri
  * error classes) and resolve only after the real T1 API has persisted the
  * response. */
 export interface ContractorResponseFormSubmission {
-  submit: (payload: ContractorResponsePayload) => Promise<void>;
+  submit: (payload: ContractorResponsePayload) => Promise<ContractorResponseSubmissionOutcome>;
   /** Secondary debug escape hatch only — copy/export must not be the
    * primary real-mode completion flow, so this defaults to hidden. */
   showExportFallback?: boolean;
@@ -217,12 +217,49 @@ type SubmitState =
   | { phase: "idle" }
   | { phase: "submitting" }
   | { phase: "success" }
-  | { phase: "conflict"; message: string }
+  | { phase: "terminal"; message: string; tone: "success" | "error" }
   | { phase: "error"; message: string };
 
 function describeSubmitError(error: unknown): string {
   if (error instanceof Error && error.message) return error.message;
   return "Something went wrong sending your response. Please try again.";
+}
+
+function submitOutcomeState(outcome: ContractorResponseSubmissionOutcome): SubmitState {
+  switch (outcome) {
+    case "submitted":
+      return { phase: "success" };
+    case "already-responded":
+      return {
+        phase: "terminal",
+        tone: "success",
+        message: "You've already submitted a response for this request. Thank you.",
+      };
+    case "revoked":
+      return {
+        phase: "terminal",
+        tone: "error",
+        message: "This request was revoked before RepairScope recorded your response. Ask for a new link.",
+      };
+    case "expired":
+      return {
+        phase: "terminal",
+        tone: "error",
+        message: "This request expired before RepairScope recorded your response. Ask for a new link.",
+      };
+    case "open-conflict":
+      return {
+        phase: "terminal",
+        tone: "error",
+        message: "RepairScope could not accept this response. Please try again.",
+      };
+    case "reconciliation-failed":
+      return {
+        phase: "terminal",
+        tone: "error",
+        message: "We couldn't confirm whether RepairScope recorded your response. Please try again.",
+      };
+  }
 }
 
 export function ContractorResponseForm({
@@ -712,8 +749,11 @@ export function ContractorResponseForm({
                       <p role="status" className="contractor-step__submit-success">
                         Response submitted. Thank you.
                       </p>
-                    ) : submitState.phase === "conflict" ? (
-                      <p role="status" className="contractor-step__submit-success">
+                    ) : submitState.phase === "terminal" ? (
+                      <p
+                        role={submitState.tone === "error" ? "alert" : "status"}
+                        className={submitState.tone === "success" ? "contractor-step__submit-success" : "field-error"}
+                      >
                         {submitState.message}
                       </p>
                     ) : (
@@ -725,16 +765,9 @@ export function ContractorResponseForm({
                           onClick={async () => {
                             setSubmitState({ phase: "submitting" });
                             try {
-                              await submission.submit(answers);
-                              setSubmitState({ phase: "success" });
+                              const outcome = await submission.submit(answers);
+                              setSubmitState(submitOutcomeState(outcome));
                             } catch (error) {
-                              if (error instanceof ContractorRequestConflictError) {
-                                setSubmitState({
-                                  phase: "conflict",
-                                  message: "You've already submitted a response for this request. Thank you.",
-                                });
-                                return;
-                              }
                               setSubmitState({ phase: "error", message: describeSubmitError(error) });
                             }
                           }}

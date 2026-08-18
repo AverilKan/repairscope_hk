@@ -49,6 +49,8 @@ export type ContractorResponsePayload = Omit<
   "id" | "name" | "trade" | "contactReference" | "status" | "notes"
 >;
 
+export const SUPPORTED_CONTRACTOR_RESPONSE_SCHEMA_VERSION = 1;
+
 const RESPONSE_ONLY_KEYS = [
   "responseType",
   "originalResponse",
@@ -125,6 +127,18 @@ export function parseContractorResponsePayload(value: unknown): ContractorRespon
     }
   }
   return payload;
+}
+
+/** Server-returned responses must be interpreted only under the exact
+ * schema version this frontend understands. Paste imports have their own
+ * independent envelope version and deliberately continue through
+ * parseContractorResponseExport unchanged. */
+export function parseSupportedContractorResponsePayload(
+  schemaVersion: unknown,
+  value: unknown,
+): ContractorResponsePayload | null {
+  if (schemaVersion !== SUPPORTED_CONTRACTOR_RESPONSE_SCHEMA_VERSION) return null;
+  return parseContractorResponsePayload(value);
 }
 
 /**

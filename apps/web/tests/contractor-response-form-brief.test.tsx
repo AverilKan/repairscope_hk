@@ -40,7 +40,7 @@ dom.window.matchMedia = () =>
   }) as MediaQueryList;
 
 const React = await import("react");
-const { cleanup, render, screen } = await import("@testing-library/react");
+const { cleanup, fireEvent, render, screen, waitFor } = await import("@testing-library/react");
 const { ContractorResponseForm } = await import("../components/contractor/ContractorResponseForm");
 const { buildStage1ContractorBrief } = await import("../domain/stage1ContractorBrief");
 
@@ -92,3 +92,39 @@ test("ContractorResponseForm renders a Stage-1 brief built from an unknown categ
   // an unknown category degrades the brief content, not the form itself.
   assert.ok(screen.getByText("Interested"));
 });
+
+async function renderSubmittedOutcome(
+  outcome: import("../domain/contractorRequestPublic").ContractorResponseSubmissionOutcome,
+) {
+  const brief = buildStage1ContractorBrief(
+    { issueCategory: "leak", generatedBrief: { observedFacts: { affected: "ceiling" } } },
+    "en",
+  );
+  render(React.createElement(ContractorResponseForm, {
+    brief,
+    submission: { submit: async () => outcome },
+  }));
+  fireEvent.click(screen.getByText("Interested"));
+  fireEvent.click(screen.getByText("Continue"));
+  fireEvent.click(screen.getByText("Submit response"));
+  await waitFor(() => assert.ok(document.body.textContent?.includes("RepairScope") || document.body.textContent));
+}
+
+test("responded reconciliation is the only 409 outcome shown as already submitted", async () => {
+  await renderSubmittedOutcome("already-responded");
+  await screen.findByText("You've already submitted a response for this request. Thank you.");
+});
+
+for (const [outcome, expected] of [
+  ["revoked", "This request was revoked before RepairScope recorded your response. Ask for a new link."],
+  ["expired", "This request expired before RepairScope recorded your response. Ask for a new link."],
+  ["open-conflict", "RepairScope could not accept this response. Please try again."],
+  ["reconciliation-failed", "We couldn't confirm whether RepairScope recorded your response. Please try again."],
+] as const) {
+  test(`${outcome} does not render success-like persistence copy`, async () => {
+    await renderSubmittedOutcome(outcome);
+    await screen.findByText(expected);
+    assert.ok(!document.body.textContent?.includes("You've already submitted"));
+    assert.ok(!document.body.textContent?.includes("Response submitted. Thank you."));
+  });
+}

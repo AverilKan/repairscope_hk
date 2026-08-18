@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mergeContractorResponse, parseContractorResponsePayload } from "../domain/contractorResponse";
+import {
+  mergeContractorResponse,
+  parseContractorResponsePayload,
+  parseSupportedContractorResponsePayload,
+} from "../domain/contractorResponse";
 import { createOperatorContractor } from "../domain/operatorCaseState";
 
 // Unit coverage for T2 Commit 4's review-and-import pipeline: proves the
@@ -117,3 +121,24 @@ test("a non-object payload (malformed transport) fails closed to null", () => {
   assert.equal(parseContractorResponsePayload("proposal-provided"), null);
   assert.equal(parseContractorResponsePayload([1, 2, 3]), null);
 });
+
+test("server response schema v1 is accepted before the existing parse/sanitize/merge pipeline", () => {
+  const parsed = parseSupportedContractorResponsePayload(1, BACKEND_PROPOSAL_PAYLOAD);
+  assert.ok(parsed);
+  assert.equal(parsed.responseType, "proposal-provided");
+});
+
+for (const version of [999, null, undefined, "1"] as const) {
+  test(`server response schema ${String(version)} is rejected before preview or merge`, () => {
+    const contractor = createOperatorContractor("Unchanged contractor");
+    contractor.notes = "Operator-owned note";
+    const before = structuredClone(contractor);
+    const parsed = parseSupportedContractorResponsePayload(version, BACKEND_PROPOSAL_PAYLOAD);
+    assert.equal(parsed, null);
+    // The UI only exposes Confirm when parsing produced a preview. With no
+    // preview there is no merge call, so canonical contractor/proposal and
+    // every downstream comparison/owner projection remain unchanged.
+    assert.deepEqual(contractor, before);
+    assert.equal(contractor.responseType, undefined);
+  });
+}

@@ -71,6 +71,38 @@ test("an open request loads the real Stage-1 brief and shows no fixture/mock con
   expect(pageText).not.toContain("jamie@example.com");
 });
 
+test("an unsupported Stage-1 schema version fails closed without rendering the questionnaire", async ({ page }) => {
+  await page.route("**/api/contractor-requests/**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "open",
+        stage1: {
+          schema_version: 999,
+          category: "SECRET_CATEGORY",
+          district: "SECRET_DISTRICT",
+          affected: ["SECRET_OWNER_MARKER"],
+          branchFirst: [],
+          branchSecond: [],
+          branchThird: [],
+          duration: null,
+          frequency: null,
+          worsening: null,
+          priorStatus: null,
+          hasEvidence: null,
+          evidenceKind: null,
+          symptomOtherPresent: false,
+        },
+      }),
+    });
+  });
+  await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
+  await expect(page.getByText("This repair request uses a version that this page can't open.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Interested", exact: true })).toHaveCount(0);
+  await expect(page.getByText("SECRET_OWNER_MARKER")).toHaveCount(0);
+});
+
 test("a responded request shows the already-responded state, not the form", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_RESPONDED}`);
   await expect(page.getByText("You've already submitted a response for this request.")).toBeVisible();

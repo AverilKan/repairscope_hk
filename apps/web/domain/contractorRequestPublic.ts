@@ -14,6 +14,16 @@
 
 export type ContractorRequestStatus = "open" | "responded" | "revoked" | "expired";
 
+export const SUPPORTED_STAGE1_SNAPSHOT_SCHEMA_VERSION = 1;
+
+export type ContractorResponseSubmissionOutcome =
+  | "submitted"
+  | "already-responded"
+  | "revoked"
+  | "expired"
+  | "open-conflict"
+  | "reconciliation-failed";
+
 /** Mirrors apps/api/app/schemas/contractor_requests.py's Stage1SnapshotV1
  * exactly — controlled IDs only, never resolved labels (humanising is the
  * frontend's job — see domain/stage1SnapshotAdapter.ts). */
@@ -56,6 +66,22 @@ export class ContractorRequestNotFoundError extends ContractorRequestPublicError
     super("This link isn't valid.");
     this.name = "ContractorRequestNotFoundError";
   }
+}
+
+export class ContractorRequestUnsupportedStage1VersionError extends ContractorRequestPublicError {
+  constructor() {
+    super("This repair request uses a version that this page can't open.");
+    this.name = "ContractorRequestUnsupportedStage1VersionError";
+  }
+}
+
+export function hasSupportedStage1SnapshotVersion(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).schema_version === SUPPORTED_STAGE1_SNAPSHOT_SCHEMA_VERSION
+  );
 }
 
 /** A 409 from the real API — the request is no longer open (already

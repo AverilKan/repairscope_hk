@@ -8,7 +8,7 @@ import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
 import {
   parseContractorResponseExport,
-  parseContractorResponsePayload,
+  parseSupportedContractorResponsePayload,
   sanitizeContractorResponsePayload,
   type ContractorResponsePayload,
 } from "@/domain/contractorResponse";
@@ -1182,9 +1182,16 @@ function ContractorRequestPanel({
       // or schema drift, not a normal case; refusing to preview rather
       // than guessing at a malformed value is the same fail-closed
       // posture as the rest of this module.
-      const parsed = parseContractorResponsePayload(detail.responsePayload);
+      const parsed = parseSupportedContractorResponsePayload(
+        detail.responseSchemaVersion,
+        detail.responsePayload,
+      );
       if (!parsed) {
-        setReviewError("This response could not be read — its format was not recognised.");
+        setReviewError(
+          detail.responseSchemaVersion === 1
+            ? "This response could not be read — its format was not recognised."
+            : "This contractor response uses an unsupported response version and can't be imported.",
+        );
         return;
       }
       // Same normalization the paste-import flow already runs before

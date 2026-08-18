@@ -4,7 +4,10 @@ import {
   ContractorRequestNetworkError,
   ContractorRequestNotFoundError,
   ContractorRequestServerError,
+  ContractorRequestUnsupportedStage1VersionError,
   ContractorRequestValidationError,
+  hasSupportedStage1SnapshotVersion,
+  type ContractorResponseSubmissionOutcome,
   type ContractorRequestPublicView,
   type ContractorResponseSubmitResult,
 } from "@/domain/contractorRequestPublic";
@@ -20,6 +23,10 @@ export interface ContractorRequestPublicService {
     token: string,
     payload: ContractorResponsePayload,
   ): Promise<ContractorResponseSubmitResult>;
+  submitResponseWithReconciliation(
+    token: string,
+    payload: ContractorResponsePayload,
+  ): Promise<ContractorResponseSubmissionOutcome>;
 }
 
 async function extractDetail(response: Response): Promise<unknown> {
@@ -55,8 +62,14 @@ export class ApiContractorRequestPublicService implements ContractorRequestPubli
   }
 
   async getRequest(token: string): Promise<ContractorRequestPublicView> {
-    const response = await this.request(`/api/contractor-requests/${encodeURIComponent(token)}`);
-    return (await response.json()) as ContractorRequestPublicView;
+    const response = await this.request(`/api/contractor-requests/${encodeURIComponent(token)}`, {
+      cache: "no-store",
+    });
+    const body = (await response.json()) as ContractorRequestPublicView;
+    if (body.status === "open" && !hasSupportedStage1SnapshotVersion(body.stage1)) {
+      throw new ContractorRequestUnsupportedStage1VersionError();
+    }
+    return body;
   }
 
   async submitResponse(
@@ -72,5 +85,32 @@ export class ApiContractorRequestPublicService implements ContractorRequestPubli
       },
     );
     return (await response.json()) as ContractorResponseSubmitResult;
+  }
+
+  async submitResponseWithReconciliation(
+    token: string,
+    payload: ContractorResponsePayload,
+  ): Promise<ContractorResponseSubmissionOutcome> {
+    try {
+      await this.submitResponse(token, payload);
+      return "submitted";
+    } catch (error) {
+      if (!(error instanceof ContractorRequestConflictError)) throw error;
+      try {
+        const current = await this.getRequest(token);
+        switch (current.status) {
+          case "responded":
+            return "already-responded";
+          case "revoked":
+            return "revoked";
+          case "expired":
+            return "expired";
+          case "open":
+            return "open-conflict";
+        }
+      } catch {
+        return "reconciliation-failed";
+      }
+    }
   }
 }
