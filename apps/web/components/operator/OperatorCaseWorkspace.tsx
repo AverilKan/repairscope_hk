@@ -8,6 +8,7 @@ import { ProposalComparison } from "@/components/operator/ProposalComparison";
 import { StatusPill } from "@/components/SiteShell";
 import {
   parseContractorResponseExport,
+  parseContractorResponsePayload,
   sanitizeContractorResponsePayload,
   type ContractorResponsePayload,
 } from "@/domain/contractorResponse";
@@ -756,6 +757,7 @@ function ContractorCard({
           submissionId={requestLinkContext.submissionId}
           caseReference={requestLinkContext.caseReference}
           injectedService={requestLinkContext.service}
+          onImport={onUpdate}
         />
       )}
 
@@ -1054,12 +1056,19 @@ function ContractorRequestPanel({
   submissionId,
   caseReference,
   injectedService,
+  onImport,
 }: {
   contractor: OperatorContractor;
   submissionId: string;
   caseReference: string;
   /** Test-only seam — see OperatorCaseWorkspace's own contractorRequestService comment. */
   injectedService?: ContractorRequestOperatorService;
+  /** The SAME callback ContractorCard's manual editor and paste-import
+   * flow already use (see updateContractor in OperatorCaseWorkspace) —
+   * see reviewRequest/confirmReviewImport below for why a server response
+   * is deliberately routed through this one shared path rather than a
+   * second mutation path of its own (T2 Commit 4). */
+  onImport: (patch: Partial<OperatorContractor>) => void;
 }) {
   // eslint-disable-next-line react-hooks/rules-of-hooks -- see OperatorCaseList's identical, justified pattern.
   const service = injectedService ?? useContractorRequestOperatorService();
@@ -1069,6 +1078,17 @@ function ContractorRequestPanel({
   const [sendError, setSendError] = useState("");
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [justCreatedLink, setJustCreatedLink] = useState<string | null>(null);
+
+  // Review-and-import (T2 Commit 4) — a responded request's payload is an
+  // INBOX item, not canonical state: reviewingRequestId tracks which
+  // request the operator is currently looking at, reviewPreview holds the
+  // sanitized-but-not-yet-applied payload (nothing on the contractor
+  // changes until confirmReviewImport below), reviewError covers a
+  // fetch failure or a payload that fails even minimal shape validation.
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
+  const [reviewPreview, setReviewPreview] = useState<ContractorResponsePayload | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   const refresh = () => {
     service
@@ -1148,6 +1168,60 @@ function ContractorRequestPanel({
     }
   };
 
+  const reviewRequest = async (requestId: string) => {
+    setReviewingRequestId(requestId);
+    setReviewLoading(true);
+    setReviewError(null);
+    setReviewPreview(null);
+    try {
+      const detail = await service.get(submissionId, requestId);
+      // Same runtime shape validation as an operator-pasted export (see
+      // parseContractorResponseExport/previewImport above) — the backend
+      // already validates this with Pydantic's extra="forbid" at submit
+      // time, so a value that fails here would mean transport corruption
+      // or schema drift, not a normal case; refusing to preview rather
+      // than guessing at a malformed value is the same fail-closed
+      // posture as the rest of this module.
+      const parsed = parseContractorResponsePayload(detail.responsePayload);
+      if (!parsed) {
+        setReviewError("This response could not be read — its format was not recognised.");
+        return;
+      }
+      // Same normalization the paste-import flow already runs before
+      // preview (see previewImport above) — proves what the operator sees
+      // in the preview is exactly what confirmReviewImport will merge,
+      // never a raw/unsanitized value that then silently changes on
+      // confirm.
+      setReviewPreview(sanitizeContractorResponsePayload(parsed));
+    } catch (error) {
+      setReviewError(
+        error instanceof ContractorRequestOperatorError ? error.message : "Could not load this response.",
+      );
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const cancelReview = () => {
+    setReviewingRequestId(null);
+    setReviewPreview(null);
+    setReviewError(null);
+  };
+
+  // The ONE place a server-submitted response is allowed to change
+  // canonical OperatorContractor state — routed through the exact same
+  // onImport (updateContractor -> applyContractorPatch) callback the
+  // manual paste-import flow already uses above, so a server response can
+  // never bypass any invariant (price sanitization, conditional-field
+  // clearing) that paste-import already enforces. This never fires except
+  // from this explicit button click — see the module comment on
+  // ContractorRequestPanel.
+  const confirmReviewImport = () => {
+    if (!reviewPreview) return;
+    onImport(reviewPreview);
+    cancelReview();
+  };
+
   const cachedLinks = readCachedContractorRequestLinks(caseReference);
 
   return (
@@ -1204,6 +1278,43 @@ function ContractorRequestPanel({
                     >
                       {revokingId === request.id ? "Revoking…" : "Revoke"}
                     </button>
+                  )}
+                  {request.status === "responded" && reviewingRequestId !== request.id && (
+                    <button type="button" onClick={() => reviewRequest(request.id)}>
+                      Review response
+                    </button>
+                  )}
+                  {request.status === "responded" && reviewingRequestId === request.id && (
+                    <div className="op-contractor-card__requests-review">
+                      {reviewLoading && <p className="op-panel__hint">Loading…</p>}
+                      {reviewError && (
+                        <p className="field-error" role="alert">
+                          {reviewError}
+                        </p>
+                      )}
+                      {reviewPreview && (
+                        <div className="op-contractor-card__import-preview">
+                          <p>
+                            This is what the contractor submitted. Nothing changes on this contractor until you
+                            confirm — this never overwrites the name, trade, contact reference, contact status or
+                            your own notes above.
+                          </p>
+                          <ul>
+                            {Object.entries(reviewPreview).map(([key, value]) => (
+                              <li key={key}>
+                                <strong>{key}</strong>: {String(value)}
+                              </li>
+                            ))}
+                          </ul>
+                          <button type="button" onClick={confirmReviewImport}>
+                            Confirm import
+                          </button>
+                        </div>
+                      )}
+                      <button type="button" onClick={cancelReview}>
+                        {reviewPreview ? "Cancel" : "Close"}
+                      </button>
+                    </div>
                   )}
                 </li>
               );

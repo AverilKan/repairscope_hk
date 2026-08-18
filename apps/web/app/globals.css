@@ -11697,6 +11697,15 @@ select:focus {
   font-size: 0.75rem;
 }
 
+.op-contractor-card__requests-review {
+  flex-basis: 100%;
+  margin-top: 6px;
+}
+
+.op-contractor-card__requests-review .op-contractor-card__import-preview {
+  margin-top: 6px;
+}
+
 /* --- Owner proposal-return preview (Commit C) -------------------------- */
 
 .owner-proposal-preview {
