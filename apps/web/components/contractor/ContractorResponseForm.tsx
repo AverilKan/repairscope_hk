@@ -18,6 +18,7 @@
 // operator workspace (Commit B's "Import contractor response" action).
 
 import { useState } from "react";
+import { ContractorRequestConflictError } from "@/domain/contractorRequestPublic";
 import {
   OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS,
   OPERATOR_CONTRACTOR_RESPONSE_TYPES,
@@ -199,13 +200,45 @@ function answerSummary(stepId: StepId, answers: ContractorResponsePayload): stri
   }
 }
 
-export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief }) {
+/** Real submission wiring for API/live mode (T2 Commit 2). Absent
+ * entirely in mock/dev mode, which keeps the original copy/export-only
+ * flow unchanged below. `submit` should reject on failure (network,
+ * validation, server, or conflict — see domain/contractorRequestPublic.ts's
+ * error classes) and resolve only after the real T1 API has persisted the
+ * response. */
+export interface ContractorResponseFormSubmission {
+  submit: (payload: ContractorResponsePayload) => Promise<void>;
+  /** Secondary debug escape hatch only — copy/export must not be the
+   * primary real-mode completion flow, so this defaults to hidden. */
+  showExportFallback?: boolean;
+}
+
+type SubmitState =
+  | { phase: "idle" }
+  | { phase: "submitting" }
+  | { phase: "success" }
+  | { phase: "conflict"; message: string }
+  | { phase: "error"; message: string };
+
+function describeSubmitError(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  return "Something went wrong sending your response. Please try again.";
+}
+
+export function ContractorResponseForm({
+  brief,
+  submission,
+}: {
+  brief: Stage1ContractorBrief;
+  submission?: ContractorResponseFormSubmission;
+}) {
   const [answers, setAnswers] = useState<ContractorResponsePayload>({});
   const [stepIndex, setStepIndex] = useState(0);
   const [priceRangeError, setPriceRangeError] = useState<string | null>(null);
   const [priceAmountError, setPriceAmountError] = useState<string | null>(null);
   const [informationNeededError, setInformationNeededError] = useState<string | null>(null);
   const [exportedText, setExportedText] = useState<string | null>(null);
+  const [submitState, setSubmitState] = useState<SubmitState>({ phase: "idle" });
   // Range price inputs are deliberately NOT wired straight through
   // update()/sanitizeContractorResponsePayload on every keystroke — that
   // would clear an in-progress invalid combination (min > max) before the
@@ -673,6 +706,64 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                       ))}
                     </ul>
                   </div>
+                ) : submission ? (
+                  <>
+                    {submitState.phase === "success" ? (
+                      <p role="status" className="contractor-step__submit-success">
+                        Response submitted. Thank you.
+                      </p>
+                    ) : submitState.phase === "conflict" ? (
+                      <p role="status" className="contractor-step__submit-success">
+                        {submitState.message}
+                      </p>
+                    ) : (
+                      <>
+                        <p>Check your answers above, then submit your response to RepairScope.</p>
+                        <button
+                          type="button"
+                          disabled={submitState.phase === "submitting"}
+                          onClick={async () => {
+                            setSubmitState({ phase: "submitting" });
+                            try {
+                              await submission.submit(answers);
+                              setSubmitState({ phase: "success" });
+                            } catch (error) {
+                              if (error instanceof ContractorRequestConflictError) {
+                                setSubmitState({
+                                  phase: "conflict",
+                                  message: "You've already submitted a response for this request. Thank you.",
+                                });
+                                return;
+                              }
+                              setSubmitState({ phase: "error", message: describeSubmitError(error) });
+                            }
+                          }}
+                        >
+                          {submitState.phase === "submitting" ? "Submitting…" : "Submit response"}
+                        </button>
+                        {submitState.phase === "error" && (
+                          <p className="field-error" role="alert">
+                            {submitState.message}
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {submission.showExportFallback && submitState.phase !== "success" && (
+                      <div className="contractor-step__export-fallback">
+                        <button
+                          type="button"
+                          onClick={() => setExportedText(serializeContractorResponseExport(answers))}
+                        >
+                          Prepare my response (debug export)
+                        </button>
+                        {exportedText && (
+                          <div className="contractor-step__export">
+                            <textarea aria-label="Response to copy" readOnly value={exportedText} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <>
                     <p>Check your answers above, then copy your response for RepairScope.</p>
@@ -682,13 +773,13 @@ export function ContractorResponseForm({ brief }: { brief: Stage1ContractorBrief
                     >
                       Prepare my response
                     </button>
+                    {exportedText && (
+                      <div className="contractor-step__export">
+                        <p>Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):</p>
+                        <textarea aria-label="Response to copy" readOnly value={exportedText} />
+                      </div>
+                    )}
                   </>
-                )}
-                {exportedText && completion.complete && (
-                  <div className="contractor-step__export">
-                    <p>Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):</p>
-                    <textarea aria-label="Response to copy" readOnly value={exportedText} />
-                  </div>
                 )}
               </div>
             );
