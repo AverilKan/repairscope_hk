@@ -11,6 +11,15 @@
 // "repairscope:operator-case:" so it can never collide with the owner
 // journey's "repairscope:journey:"/"repairscope:repair:" keys (see
 // domain/journey.ts, domain/storageKeys.ts).
+//
+// DISPLAY LABELS below are `LocalizedText` (see domain/i18n.ts) — the one
+// shared source of truth for both surfaces that render these enums: the
+// operator UI (Chinese-only, no language toggle — reads `.zh` directly)
+// and the contractor-facing form (bilingual, reads via useLanguage()'s
+// `t()`). Enum VALUES themselves (e.g. "proposal-provided") are untouched
+// and remain the wire-compatible identifiers used everywhere else.
+
+import type { LocalizedText } from "./i18n";
 
 export const OPERATOR_CASE_STATUSES = [
   "new",
@@ -28,18 +37,18 @@ export const OPERATOR_CASE_STATUSES = [
 
 export type OperatorCaseStatus = (typeof OPERATOR_CASE_STATUSES)[number];
 
-export const OPERATOR_CASE_STATUS_LABELS: Record<OperatorCaseStatus, string> = {
-  new: "New",
-  reviewing: "Reviewing",
-  "waiting-for-owner": "Waiting for owner",
-  "ready-for-sourcing": "Ready for sourcing",
-  "sourcing-contractors": "Sourcing contractors",
-  "inspection-required": "Inspection required",
-  "waiting-for-proposal": "Waiting for proposal",
-  "proposals-received": "Proposals received",
-  comparing: "Comparing",
-  "owner-deciding": "Owner deciding",
-  closed: "Closed",
+export const OPERATOR_CASE_STATUS_LABELS: Record<OperatorCaseStatus, LocalizedText> = {
+  new: { zh: "新個案", en: "New" },
+  reviewing: { zh: "審閱中", en: "Reviewing" },
+  "waiting-for-owner": { zh: "等待業主回覆", en: "Waiting for owner" },
+  "ready-for-sourcing": { zh: "可開始搵師傅", en: "Ready for sourcing" },
+  "sourcing-contractors": { zh: "搵緊師傅", en: "Sourcing contractors" },
+  "inspection-required": { zh: "需要上門檢查", en: "Inspection required" },
+  "waiting-for-proposal": { zh: "等待報價", en: "Waiting for proposal" },
+  "proposals-received": { zh: "已收到報價", en: "Proposals received" },
+  comparing: { zh: "比較報價中", en: "Comparing" },
+  "owner-deciding": { zh: "業主決定中", en: "Owner deciding" },
+  closed: { zh: "已完成", en: "Closed" },
 };
 
 // CONTACT / SOURCING STATUS — where the founder is in reaching a
@@ -56,10 +65,10 @@ export const OPERATOR_CONTRACTOR_STATUSES = ["considering", "not-contacted", "co
 
 export type OperatorContractorStatus = (typeof OPERATOR_CONTRACTOR_STATUSES)[number];
 
-export const OPERATOR_CONTRACTOR_STATUS_LABELS: Record<OperatorContractorStatus, string> = {
-  considering: "Considering",
-  "not-contacted": "Not contacted",
-  contacted: "Contacted",
+export const OPERATOR_CONTRACTOR_STATUS_LABELS: Record<OperatorContractorStatus, LocalizedText> = {
+  considering: { zh: "考慮中", en: "Considering" },
+  "not-contacted": { zh: "未聯絡", en: "Not contacted" },
+  contacted: { zh: "已聯絡", en: "Contacted" },
 };
 
 // CURRENT CONTRACTOR RESPONSE — distinct from `status` above, which tracks
@@ -78,12 +87,12 @@ export const OPERATOR_CONTRACTOR_RESPONSE_TYPES = [
 
 export type OperatorContractorResponseType = (typeof OPERATOR_CONTRACTOR_RESPONSE_TYPES)[number];
 
-export const OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS: Record<OperatorContractorResponseType, string> = {
-  interested: "Interested",
-  "needs-inspection": "Needs inspection",
-  "needs-more-information": "Needs more information",
-  "not-suitable": "Not suitable",
-  "proposal-provided": "Initial proposal provided",
+export const OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS: Record<OperatorContractorResponseType, LocalizedText> = {
+  interested: { zh: "有興趣處理", en: "Interested" },
+  "needs-inspection": { zh: "需要上門檢查", en: "Needs inspection" },
+  "needs-more-information": { zh: "需要更多資料", en: "Needs more information" },
+  "not-suitable": { zh: "不適合處理", en: "Not suitable" },
+  "proposal-provided": { zh: "提供初步報價", en: "Initial proposal provided" },
 };
 
 /** Historical `status` values from before the Slice 2 repair pass, when the
@@ -101,27 +110,27 @@ const LEGACY_CONTRACTOR_STATUS_TO_RESPONSE_TYPE: Record<string, OperatorContract
 
 export const OPERATOR_INSPECTION_REQUIREMENTS = ["required", "recommended", "not-sure"] as const;
 export type OperatorInspectionRequirement = (typeof OPERATOR_INSPECTION_REQUIREMENTS)[number];
-export const OPERATOR_INSPECTION_REQUIREMENT_LABELS: Record<OperatorInspectionRequirement, string> = {
-  required: "Required before proposal",
-  recommended: "Recommended",
-  "not-sure": "Not sure",
+export const OPERATOR_INSPECTION_REQUIREMENT_LABELS: Record<OperatorInspectionRequirement, LocalizedText> = {
+  required: { zh: "一定要上門檢查先可以報價", en: "Required before proposal" },
+  recommended: { zh: "建議上門檢查", en: "Recommended" },
+  "not-sure": { zh: "未確定", en: "Not sure" },
 };
 
 export const OPERATOR_PRICE_TYPES = ["fixed", "estimate", "range", "no-price"] as const;
 export type OperatorPriceType = (typeof OPERATOR_PRICE_TYPES)[number];
-export const OPERATOR_PRICE_TYPE_LABELS: Record<OperatorPriceType, string> = {
-  fixed: "Fixed price",
-  estimate: "Estimate",
-  range: "Range",
-  "no-price": "No price yet",
+export const OPERATOR_PRICE_TYPE_LABELS: Record<OperatorPriceType, LocalizedText> = {
+  fixed: { zh: "固定價格", en: "Fixed price" },
+  estimate: { zh: "估算價格", en: "Estimate" },
+  range: { zh: "價格範圍", en: "Range" },
+  "no-price": { zh: "暫時未能報價", en: "No price yet" },
 };
 
 export const OPERATOR_GUARANTEE_STATUSES = ["yes", "no", "not-stated"] as const;
 export type OperatorGuaranteeStatus = (typeof OPERATOR_GUARANTEE_STATUSES)[number];
-export const OPERATOR_GUARANTEE_STATUS_LABELS: Record<OperatorGuaranteeStatus, string> = {
-  yes: "Yes",
-  no: "No",
-  "not-stated": "Not stated",
+export const OPERATOR_GUARANTEE_STATUS_LABELS: Record<OperatorGuaranteeStatus, LocalizedText> = {
+  yes: { zh: "有", en: "Yes" },
+  no: { zh: "沒有", en: "No" },
+  "not-stated": { zh: "未提及", en: "Not stated" },
 };
 
 export interface OperatorContractor {

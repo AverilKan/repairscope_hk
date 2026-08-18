@@ -12,7 +12,7 @@ export default async function OperatorCasePage({
   return (
     <SiteShell surface="operator">
       <main className="content-page">
-        <Link href="/operator">&larr; All cases</Link>
+        <Link href="/operator">&larr; 所有個案</Link>
         <OperatorGate>
           {/* key={caseReference} forces a fresh mount when navigating
               between two different cases, so OperatorCaseWorkspace's own

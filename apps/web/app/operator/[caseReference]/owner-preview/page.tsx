@@ -18,7 +18,7 @@ export default async function OwnerPreviewPage({
   return (
     <SiteShell surface="operator">
       <main className="content-page">
-        <Link href={`/operator/${caseReference}`}>&larr; Back to case</Link>
+        <Link href={`/operator/${caseReference}`}>&larr; 返回個案</Link>
         <OperatorGate>
           <OwnerPreviewPanel key={caseReference} caseReference={caseReference} />
         </OperatorGate>

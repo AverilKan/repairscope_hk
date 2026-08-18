@@ -7,6 +7,14 @@ import { expect, test } from "@playwright/test";
 // the local-only operator working-state layer. No "prototype" route,
 // banner, or terminology remains — this is the real /operator route,
 // gated by the same OperatorGate as before.
+//
+// LOCALIZATION (HK validation-pilot pass): the operator UI has no language
+// toggle (see components/operator/OperatorCaseWorkspace.tsx's own
+// comment) — every assertion below targets the Chinese copy directly. The
+// EN toggle used in a couple of tests below is unrelated: it switches the
+// SHARED brief-content renderer (GeneratedBriefDocument), which already
+// had its own separate bilingual coverage before this pass and is
+// untouched by it.
 
 test.describe("operator case list", () => {
   test("renders the real case list, distinguishing backend status from local workflow status", async ({
@@ -20,10 +28,9 @@ test.describe("operator case list", () => {
     const row = page.locator("tr", { has: page.getByRole("link", { name: "RS-MOCK01" }) });
     await expect(row.getByText("plumbing")).toBeVisible();
     // Two distinct status cells — the backend's own SubmissionStatus
-    // (rendered via StatusPill, lowercase enum values like "new"/
-    // "reviewing"/"pursuing"/"closed") and the local workflow status
-    // (rendered via .op-case-status-pill, capitalised labels like "New"/
-    // "Ready for sourcing") — never conflated into one value.
+    // (rendered via StatusPill) and the local workflow status (rendered
+    // via .op-case-status-pill, Chinese labels like "新個案"/"可開始搵師傅")
+    // — never conflated into one value.
     await expect(row.locator("td:nth-child(7) .status-pill")).toBeVisible();
     await expect(row.locator("td:nth-child(8) .op-case-status-pill")).toBeVisible();
   });
@@ -40,7 +47,9 @@ test.describe("operator case detail", () => {
     // The app's shared LanguageProvider defaults to Traditional Chinese
     // (see app/layout.tsx) — switch to English to assert on the brief's
     // English section titles below, same as the pre-existing operator
-    // brief-readability coverage.
+    // brief-readability coverage. This toggle only affects the shared
+    // GeneratedBriefDocument content, not the (Chinese-only) operator
+    // chrome around it.
     await page.getByRole("button", { name: "EN", exact: true }).click();
     // The real generated brief, via the same modern semantic summary the
     // owner review uses (variant="owner") — not the old numbered report.
@@ -52,19 +61,19 @@ test.describe("operator case detail", () => {
     // Evidence metadata.
     await expect(page.getByText("Two photos on my phone.")).toBeVisible();
     // Consent — visible, not editable (see the read-only test below).
-    await expect(page.getByText("Consent to contact")).toBeVisible();
+    await expect(page.getByText("同意俾人聯絡")).toBeVisible();
   });
 
   test("a case reference with no matching submission shows an explicit not-found state", async ({ page }) => {
     await page.goto("/operator/RS-DOES-NOT-EXIST");
-    await expect(page.getByText(/No submission found for RS-DOES-NOT-EXIST/)).toBeVisible();
+    await expect(page.getByText(/搵唔到 RS-DOES-NOT-EXIST 呢個個案/)).toBeVisible();
   });
 
   test("the original owner submission cannot be edited — the owner-submission section has no input, textarea or select", async ({
     page,
   }) => {
     await page.goto("/operator/RS-MOCK01");
-    const ownerSection = page.locator('[aria-label="Owner submission"]');
+    const ownerSection = page.locator('[aria-label="業主提交資料"]');
     await expect(ownerSection).toBeVisible();
     await expect(ownerSection.locator("input, textarea, select")).toHaveCount(0);
   });
@@ -73,9 +82,9 @@ test.describe("operator case detail", () => {
     page,
   }) => {
     await page.goto("/operator/RS-MOCK01");
-    await page.getByRole("button", { name: "Reviewing" }).click();
+    await page.getByRole("button", { name: "審閱中" }).click();
     // The backend status pill in the header reflects the update.
-    await expect(page.locator(".op-case-workspace__header").getByText("reviewing")).toBeVisible();
+    await expect(page.locator(".op-case-workspace__header").getByText("審閱中")).toBeVisible();
   });
 });
 
@@ -94,59 +103,59 @@ test.describe("local operator working state — the manual flow", () => {
     await page.getByRole("button", { name: "EN", exact: true }).click();
     await expect(page.getByText("Repair summary")).toBeVisible();
 
-    await page.getByLabel("Internal notes").fill("Owner is responsive, prefers email.");
-    await page.getByLabel("Unresolved questions").fill("Is the leak from the flat above?");
-    await page.getByLabel("Local workflow status").selectOption("ready-for-sourcing");
-    await expect(page.getByLabel("Local workflow status")).toHaveValue("ready-for-sourcing");
+    await page.getByLabel("內部備註").fill("Owner is responsive, prefers email.");
+    await page.getByLabel("未解決嘅問題").fill("Is the leak from the flat above?");
+    await page.getByLabel("本機工作流程狀態").selectOption("ready-for-sourcing");
+    await expect(page.getByLabel("本機工作流程狀態")).toHaveValue("ready-for-sourcing");
 
-    await page.getByRole("button", { name: "+ Add contractor" }).click();
+    await page.getByRole("button", { name: "＋新增師傅" }).click();
     const cards = page.locator(".op-contractor-card");
     await expect(cards).toHaveCount(1);
-    await cards.nth(0).getByLabel("Contractor name").fill("Contractor A");
-    await cards.nth(0).getByLabel("Contact / sourcing status").selectOption("contacted");
-    await cards.nth(0).getByLabel("Operator notes").fill("Called 9am, can visit Thursday.");
-    await cards.nth(0).getByLabel("Current response").selectOption("interested");
-    await cards.nth(0).getByLabel("Original contractor response — what did they say?").fill("Can visit Thursday.");
+    await cards.nth(0).getByLabel("師傅名稱").fill("Contractor A");
+    await cards.nth(0).getByLabel("聯絡／搵師傅狀態").selectOption("contacted");
+    await cards.nth(0).getByLabel("操作員備註").fill("Called 9am, can visit Thursday.");
+    await cards.nth(0).getByLabel("目前回覆").selectOption("interested");
+    await cards.nth(0).getByLabel("師傅原本嘅回覆 — 佢哋講咗啲乜？").fill("Can visit Thursday.");
 
-    await page.getByRole("button", { name: "+ Add contractor" }).click();
+    await page.getByRole("button", { name: "＋新增師傅" }).click();
     await expect(cards).toHaveCount(2);
-    await cards.nth(1).getByLabel("Contractor name").fill("Contractor B");
-    await cards.nth(1).getByLabel("Contact / sourcing status").selectOption("not-contacted");
+    await cards.nth(1).getByLabel("師傅名稱").fill("Contractor B");
+    await cards.nth(1).getByLabel("聯絡／搵師傅狀態").selectOption("not-contacted");
 
-    await page.getByLabel("Next action").fill("Get a quote from Contractor A after Thursday's visit.");
-    await page.getByLabel("Follow-up date (optional)").fill("2026-08-25");
+    await page.getByLabel("下一步行動").fill("Get a quote from Contractor A after Thursday's visit.");
+    await page.getByLabel("跟進日期（可不填）").fill("2026-08-25");
 
     await page.reload();
 
-    await expect(page.getByLabel("Local workflow status")).toHaveValue("ready-for-sourcing");
-    await expect(page.getByLabel("Internal notes")).toHaveValue("Owner is responsive, prefers email.");
-    await expect(page.getByLabel("Unresolved questions")).toHaveValue("Is the leak from the flat above?");
-    await expect(page.getByLabel("Next action")).toHaveValue(
+    await expect(page.getByLabel("本機工作流程狀態")).toHaveValue("ready-for-sourcing");
+    await expect(page.getByLabel("內部備註")).toHaveValue("Owner is responsive, prefers email.");
+    await expect(page.getByLabel("未解決嘅問題")).toHaveValue("Is the leak from the flat above?");
+    await expect(page.getByLabel("下一步行動")).toHaveValue(
       "Get a quote from Contractor A after Thursday's visit.",
     );
-    await expect(page.getByLabel("Follow-up date (optional)")).toHaveValue("2026-08-25");
+    await expect(page.getByLabel("跟進日期（可不填）")).toHaveValue("2026-08-25");
 
     const reloadedCards = page.locator(".op-contractor-card");
     await expect(reloadedCards).toHaveCount(2);
     // Cards collapse on reload (expand/collapse is view-only, not
     // persisted) — the collapsed summary still shows what was saved.
     await expect(reloadedCards.nth(0)).toContainText("Contractor A");
-    await expect(reloadedCards.nth(0)).toContainText("Interested");
+    await expect(reloadedCards.nth(0)).toContainText("有興趣處理");
     await expect(reloadedCards.nth(1)).toContainText("Contractor B");
 
-    await reloadedCards.nth(0).getByRole("button", { name: "Edit" }).click();
-    await expect(reloadedCards.nth(0).getByLabel("Contractor name")).toHaveValue("Contractor A");
-    await expect(reloadedCards.nth(0).getByLabel("Contact / sourcing status")).toHaveValue("contacted");
-    await expect(reloadedCards.nth(0).getByLabel("Current response")).toHaveValue("interested");
+    await reloadedCards.nth(0).getByRole("button", { name: "編輯" }).click();
+    await expect(reloadedCards.nth(0).getByLabel("師傅名稱")).toHaveValue("Contractor A");
+    await expect(reloadedCards.nth(0).getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+    await expect(reloadedCards.nth(0).getByLabel("目前回覆")).toHaveValue("interested");
     await expect(
-      reloadedCards.nth(0).getByLabel("Original contractor response — what did they say?"),
+      reloadedCards.nth(0).getByLabel("師傅原本嘅回覆 — 佢哋講咗啲乜？"),
     ).toHaveValue("Can visit Thursday.");
 
-    await reloadedCards.nth(1).getByRole("button", { name: "Edit" }).click();
-    await expect(reloadedCards.nth(1).getByLabel("Contractor name")).toHaveValue("Contractor B");
-    await expect(reloadedCards.nth(1).getByLabel("Contact / sourcing status")).toHaveValue("not-contacted");
+    await reloadedCards.nth(1).getByRole("button", { name: "編輯" }).click();
+    await expect(reloadedCards.nth(1).getByLabel("師傅名稱")).toHaveValue("Contractor B");
+    await expect(reloadedCards.nth(1).getByLabel("聯絡／搵師傅狀態")).toHaveValue("not-contacted");
 
-    await reloadedCards.nth(1).getByRole("button", { name: "Remove" }).click();
+    await reloadedCards.nth(1).getByRole("button", { name: "移除" }).click();
     await expect(page.locator(".op-contractor-card")).toHaveCount(1);
     await page.reload();
     await expect(page.locator(".op-contractor-card")).toHaveCount(1);
@@ -154,7 +163,7 @@ test.describe("local operator working state — the manual flow", () => {
     expect(mutatingApiRequests).toEqual([]);
   });
 
-  test("the real 'Send request link' controls (T2 Commit 3) never render in mock mode", async ({ page }) => {
+  test("the real request-link controls (T2 Commit 3) never render in mock mode", async ({ page }) => {
     // Real contractor-request creation needs a real backend submission id
     // and a real operator session — see components/operator/
     // OperatorCaseWorkspace.tsx's own isApiDataSource() gate. Mock mode
@@ -162,12 +171,12 @@ test.describe("local operator working state — the manual flow", () => {
     // paste-import only), never silently attempt a real network call
     // against a fixture id.
     await page.goto("/operator/RS-MOCK01");
-    await page.getByRole("button", { name: "+ Add contractor" }).click();
+    await page.getByRole("button", { name: "＋新增師傅" }).click();
     await expect(page.locator(".op-contractor-card")).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Send request link" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "建立回覆連結" })).toHaveCount(0);
     await expect(page.locator(".op-contractor-card__requests")).toHaveCount(0);
     // The existing manual/import controls remain exactly as before.
-    await expect(page.getByRole("button", { name: "Import response" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "匯入回覆" })).toBeVisible();
   });
 });
 
@@ -176,7 +185,7 @@ test.describe("local storage isolation", () => {
     page,
   }) => {
     await page.goto("/operator/RS-MOCK01");
-    await page.getByLabel("Internal notes").fill("Isolation check.");
+    await page.getByLabel("內部備註").fill("Isolation check.");
     await expect
       .poll(() =>
         page.evaluate(() =>

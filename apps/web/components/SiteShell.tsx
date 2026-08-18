@@ -52,7 +52,9 @@ export function SiteShell({
             ? publicCopy.descriptor
             : surface === "landlord"
               ? (lang === "zh" ? "業主檢視" : "Owner view")
-              : `${surface} view`}
+              : surface === "operator"
+                ? "操作員檢視"
+                : (lang === "zh" ? "師傅檢視" : "Contractor view")}
         </div>
         {surface === "public" && (
           <button

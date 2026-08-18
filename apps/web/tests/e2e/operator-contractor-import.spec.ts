@@ -13,14 +13,14 @@ function makeExport(response: Record<string, unknown>) {
 async function gotoCaseWithContractor(page: import("@playwright/test").Page) {
   await page.goto("/operator/RS-MOCK01");
   await page.getByRole("button", { name: "EN", exact: true }).click();
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const card = page.locator(".op-contractor-card").last();
-  await card.getByLabel("Contractor name").fill("Fortune Plumbing Co.");
-  await card.getByLabel("Trade").fill("Plumber");
-  await card.getByLabel("Contact reference").fill("WhatsApp 9123 4567");
-  await card.getByLabel("Contact / sourcing status").selectOption("contacted");
-  await card.getByLabel("Operator notes").fill("Called twice, very responsive.");
-  await card.getByRole("button", { name: "Collapse" }).click();
+  await card.getByLabel("師傅名稱").fill("Fortune Plumbing Co.");
+  await card.getByLabel("行業").fill("Plumber");
+  await card.getByLabel("聯絡方式").fill("WhatsApp 9123 4567");
+  await card.getByLabel("聯絡／搵師傅狀態").selectOption("contacted");
+  await card.getByLabel("操作員備註").fill("Called twice, very responsive.");
+  await card.getByRole("button", { name: "收合" }).click();
   return card;
 }
 
@@ -28,7 +28,7 @@ test("importing a response preserves the contractor's name, trade, contact refer
   page,
 }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card
     .locator("textarea")
     .first()
@@ -40,26 +40,26 @@ test("importing a response preserves the contractor's name, trade, contact refer
         proposedApproach: "Replace the connector now.",
       }),
     );
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   await expect(card.locator(".op-contractor-card__import-preview")).toBeVisible();
-  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "確認匯入" }).click();
 
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Contractor name")).toHaveValue("Fortune Plumbing Co.");
-  await expect(card.getByLabel("Trade")).toHaveValue("Plumber");
-  await expect(card.getByLabel("Contact reference")).toHaveValue("WhatsApp 9123 4567");
-  await expect(card.getByLabel("Contact / sourcing status")).toHaveValue("contacted");
-  await expect(card.getByLabel("Operator notes")).toHaveValue("Called twice, very responsive.");
-  await expect(card.getByLabel("Current response")).toHaveValue("proposal-provided");
-  await expect(card.getByLabel("Price (HK$)")).toHaveValue("5000");
-  await expect(card.getByLabel("Proposed approach")).toHaveValue("Replace the connector now.");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("師傅名稱")).toHaveValue("Fortune Plumbing Co.");
+  await expect(card.getByLabel("行業")).toHaveValue("Plumber");
+  await expect(card.getByLabel("聯絡方式")).toHaveValue("WhatsApp 9123 4567");
+  await expect(card.getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+  await expect(card.getByLabel("操作員備註")).toHaveValue("Called twice, very responsive.");
+  await expect(card.getByLabel("目前回覆")).toHaveValue("proposal-provided");
+  await expect(card.getByLabel("價格（港幣）")).toHaveValue("5000");
+  await expect(card.getByLabel("建議處理方法")).toHaveValue("Replace the connector now.");
 });
 
 test("an operator-only field embedded in a hand-crafted import payload (e.g. name/status) is silently dropped, never applied", async ({
   page,
 }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     makeExport({
       responseType: "interested",
@@ -70,26 +70,26 @@ test("an operator-only field embedded in a hand-crafted import payload (e.g. nam
       notes: "Injected notes",
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
-  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
+  await card.getByRole("button", { name: "確認匯入" }).click();
 
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Contractor name")).toHaveValue("Fortune Plumbing Co.");
-  await expect(card.getByLabel("Contact / sourcing status")).toHaveValue("contacted");
-  await expect(card.getByLabel("Operator notes")).toHaveValue("Called twice, very responsive.");
-  await expect(card.getByLabel("Current response")).toHaveValue("interested");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("師傅名稱")).toHaveValue("Fortune Plumbing Co.");
+  await expect(card.getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+  await expect(card.getByLabel("操作員備註")).toHaveValue("Called twice, very responsive.");
+  await expect(card.getByLabel("目前回覆")).toHaveValue("interested");
 });
 
 test("a malformed or invalid import is rejected with a clear error and nothing changes", async ({ page }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill("{not valid json at all");
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   await expect(card.locator(".field-error")).toBeVisible();
   await expect(card.locator(".op-contractor-card__import-preview")).toHaveCount(0);
 
   await card.locator("textarea").first().fill(makeExport({ responseType: "not-a-real-type" }));
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   await expect(card.locator(".field-error")).toBeVisible();
 });
 
@@ -99,41 +99,41 @@ test("import does not create another contractor and does not touch a second, ind
   await page.goto("/operator/RS-MOCK01");
   await page.getByRole("button", { name: "EN", exact: true }).click();
 
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const cards = page.locator(".op-contractor-card");
-  await cards.nth(0).getByLabel("Contractor name").fill("Contractor A");
-  await cards.nth(0).getByRole("button", { name: "Collapse" }).click();
+  await cards.nth(0).getByLabel("師傅名稱").fill("Contractor A");
+  await cards.nth(0).getByRole("button", { name: "收合" }).click();
 
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
-  await cards.nth(1).getByLabel("Contractor name").fill("Contractor B");
-  await cards.nth(1).getByLabel("Current response").selectOption("proposal-provided");
-  await cards.nth(1).getByLabel("Price type").selectOption("fixed");
-  await cards.nth(1).getByLabel("Price (HK$)").fill("9000");
-  await cards.nth(1).getByRole("button", { name: "Collapse" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
+  await cards.nth(1).getByLabel("師傅名稱").fill("Contractor B");
+  await cards.nth(1).getByLabel("目前回覆").selectOption("proposal-provided");
+  await cards.nth(1).getByLabel("報價方式").selectOption("fixed");
+  await cards.nth(1).getByLabel("價格（港幣）").fill("9000");
+  await cards.nth(1).getByRole("button", { name: "收合" }).click();
 
   await expect(cards).toHaveCount(2);
-  await cards.nth(0).getByRole("button", { name: "Import response" }).click();
+  await cards.nth(0).getByRole("button", { name: "匯入回覆" }).click();
   await cards
     .nth(0)
     .locator("textarea")
     .first()
     .fill(makeExport({ responseType: "interested", originalResponse: "For Contractor A only." }));
-  await cards.nth(0).getByRole("button", { name: "Preview" }).click();
-  await cards.nth(0).getByRole("button", { name: "Confirm import" }).click();
+  await cards.nth(0).getByRole("button", { name: "預覽" }).click();
+  await cards.nth(0).getByRole("button", { name: "確認匯入" }).click();
 
   await expect(cards).toHaveCount(2);
-  await cards.nth(0).getByRole("button", { name: "Edit" }).click();
-  await expect(cards.nth(0).getByLabel("Current response")).toHaveValue("interested");
-  await cards.nth(1).getByRole("button", { name: "Edit" }).click();
-  await expect(cards.nth(1).getByLabel("Current response")).toHaveValue("proposal-provided");
-  await expect(cards.nth(1).getByLabel("Price (HK$)")).toHaveValue("9000");
+  await cards.nth(0).getByRole("button", { name: "編輯" }).click();
+  await expect(cards.nth(0).getByLabel("目前回覆")).toHaveValue("interested");
+  await cards.nth(1).getByRole("button", { name: "編輯" }).click();
+  await expect(cards.nth(1).getByLabel("目前回覆")).toHaveValue("proposal-provided");
+  await expect(cards.nth(1).getByLabel("價格（港幣）")).toHaveValue("9000");
 });
 
 test("Slice 3's comparison immediately reflects an imported 'Initial proposal provided' response, with no separate proposal state", async ({
   page,
 }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     makeExport({
       responseType: "proposal-provided",
@@ -143,11 +143,11 @@ test("Slice 3's comparison immediately reflects an imported 'Initial proposal pr
       proposedApproach: "Inspect valve first.",
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
-  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
+  await card.getByRole("button", { name: "確認匯入" }).click();
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await expect(comparison.getByText("One proposal has been recorded. Add another proposal to compare.")).toBeVisible();
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await expect(comparison.getByText("已經記錄咗一個報價。加多個報價先可以比較。")).toBeVisible();
   await expect(comparison.locator(".op-comparison-table")).toContainText("HK$4,000–HK$7,000");
   await expect(comparison.locator(".op-comparison-table")).toContainText("Inspect valve first.");
 
@@ -162,7 +162,7 @@ test("a tampered negative price never appears in the preview — the preview sho
   page,
 }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     makeExport({
       responseType: "proposal-provided",
@@ -171,21 +171,21 @@ test("a tampered negative price never appears in the preview — the preview sho
       proposedApproach: "Replace the connector now.",
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   const preview = card.locator(".op-contractor-card__import-preview");
   await expect(preview).toBeVisible();
   await expect(preview).not.toContainText("-5000");
 
-  await card.getByRole("button", { name: "Confirm import" }).click();
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Price (HK$)")).toHaveValue("");
+  await card.getByRole("button", { name: "確認匯入" }).click();
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("價格（港幣）")).toHaveValue("");
 });
 
 test("a tampered inverted price range never appears in the preview — both bounds are cleared before preview, not after confirm", async ({
   page,
 }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     makeExport({
       responseType: "proposal-provided",
@@ -194,21 +194,21 @@ test("a tampered inverted price range never appears in the preview — both boun
       priceMax: 3000,
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   const preview = card.locator(".op-contractor-card__import-preview");
   await expect(preview).toBeVisible();
   await expect(preview).not.toContainText("9000");
   await expect(preview).not.toContainText("3000");
 
-  await card.getByRole("button", { name: "Confirm import" }).click();
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveValue("");
-  await expect(card.getByLabel("Price range — maximum (HK$)")).toHaveValue("");
+  await card.getByRole("button", { name: "確認匯入" }).click();
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("價格範圍 — 最低（港幣）")).toHaveValue("");
+  await expect(card.getByLabel("價格範圍 — 最高（港幣）")).toHaveValue("");
 });
 
 test("stale proposal fields incompatible with the response type never appear in the preview", async ({ page }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     makeExport({
       responseType: "not-suitable",
@@ -220,21 +220,21 @@ test("stale proposal fields incompatible with the response type never appear in 
       proposedApproach: "Replace the connector now.",
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   const preview = card.locator(".op-contractor-card__import-preview");
   await expect(preview).toBeVisible();
   await expect(preview).not.toContainText("5000");
   await expect(preview).not.toContainText("Replace the connector now.");
 
-  await card.getByRole("button", { name: "Confirm import" }).click();
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Current response")).toHaveValue("not-suitable");
-  await expect(card.getByLabel("Price (HK$)")).toHaveCount(0);
+  await card.getByRole("button", { name: "確認匯入" }).click();
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("目前回覆")).toHaveValue("not-suitable");
+  await expect(card.getByLabel("價格（港幣）")).toHaveCount(0);
 });
 
 test("stale guarantee details without a 'Yes' guarantee status never appear in the preview", async ({ page }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     makeExport({
       responseType: "proposal-provided",
@@ -244,28 +244,28 @@ test("stale guarantee details without a 'Yes' guarantee status never appear in t
       guaranteeDetails: "12 months on parts and labour.",
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   const preview = card.locator(".op-contractor-card__import-preview");
   await expect(preview).toBeVisible();
   await expect(preview).not.toContainText("12 months on parts and labour.");
 
-  await card.getByRole("button", { name: "Confirm import" }).click();
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Guarantee")).toHaveValue("no");
+  await card.getByRole("button", { name: "確認匯入" }).click();
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("保養")).toHaveValue("no");
 });
 
 test("a malformed/unrecoverable payload still rejects cleanly and changes nothing on the contractor, even with normalization now running before preview", async ({
   page,
 }) => {
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(makeExport({ responseType: "not-a-real-type", price: -1 }));
-  await card.getByRole("button", { name: "Preview" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
   await expect(card.locator(".field-error")).toBeVisible();
   await expect(card.locator(".op-contractor-card__import-preview")).toHaveCount(0);
 
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Current response")).toHaveValue("");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("目前回覆")).toHaveValue("");
 });
 
 test("no mutating request is made to the backend during preview or import", async ({ page }) => {
@@ -277,10 +277,10 @@ test("no mutating request is made to the backend during preview or import", asyn
   });
 
   const card = await gotoCaseWithContractor(page);
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(makeExport({ responseType: "interested" }));
-  await card.getByRole("button", { name: "Preview" }).click();
-  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
+  await card.getByRole("button", { name: "確認匯入" }).click();
 
   expect(mutatingApiRequests).toEqual([]);
 });

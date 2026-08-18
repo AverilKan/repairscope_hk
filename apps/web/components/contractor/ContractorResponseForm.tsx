@@ -16,6 +16,17 @@
 // domain/contractorResponse.ts's ContractorResponseExportV1) that the
 // founder pastes into the matching contractor's card in the existing
 // operator workspace (Commit B's "Import contractor response" action).
+//
+// LOCALIZATION (HK validation-pilot pass): Traditional Chinese is the
+// default contractor experience (see components/LanguageContext.tsx —
+// the app-wide LanguageProvider already defaults to "zh"); English
+// remains an optional secondary language via the existing 繁/EN toggle.
+// Every user-facing string in this file goes through useLanguage()'s
+// `t()` against a small local LocalizedText dictionary — no new i18n
+// framework, just the same domain/i18n.ts mechanism GeneratedBriefDocument
+// already uses. Internal step ids, enum values (interested,
+// proposal-provided, fixed, ...) and payload field names are untouched —
+// this is display copy only.
 
 import { useState } from "react";
 import type { ContractorResponseSubmissionOutcome } from "@/domain/contractorRequestPublic";
@@ -42,6 +53,8 @@ import {
   type ContractorResponsePayload,
 } from "@/domain/contractorResponse";
 import type { Stage1ContractorBrief } from "@/domain/stage1ContractorBrief";
+import { localize, lt, type Lang, type LocalizedText } from "@/domain/i18n";
+import { useLanguage } from "@/components/LanguageContext";
 
 type StepId =
   | "response-type"
@@ -91,21 +104,21 @@ function stepsForResponseType(responseType: OperatorContractorResponseType | und
   }
 }
 
-const EXCLUSION_SUGGESTIONS = [
-  "Making good (plaster, paint)",
-  "Hidden damage found once work starts",
-  "Additional faults not described here",
-  "Specialist access (scaffolding etc.)",
-  "Moving furniture or belongings",
+const EXCLUSION_SUGGESTIONS: LocalizedText[] = [
+  lt("油漆／批盪修飾", "Making good (plaster, paint)"),
+  lt("開工後先發現嘅隱藏損壞", "Hidden damage found once work starts"),
+  lt("呢度未提到嘅其他問題", "Additional faults not described here"),
+  lt("特別搭棚／進入安排", "Specialist access (scaffolding etc.)"),
+  lt("搬傢俬／雜物", "Moving furniture or belongings"),
 ];
 
-const PRICE_CHANGE_SUGGESTIONS = [
-  "Hidden damage",
-  "More faults found",
-  "More materials/parts required",
-  "Access harder than expected",
-  "Unsafe/unsuitable existing work",
-  "Extra work requested",
+const PRICE_CHANGE_SUGGESTIONS: LocalizedText[] = [
+  lt("隱藏損壞", "Hidden damage"),
+  lt("發現更多問題", "More faults found"),
+  lt("需要更多材料／零件", "More materials/parts required"),
+  lt("進入現場比預期困難", "Access harder than expected"),
+  lt("現有裝置不安全／不合規格", "Unsafe/unsuitable existing work"),
+  lt("業主要求額外工程", "Extra work requested"),
 ];
 
 function appendSuggestion(current: string, suggestion: string): string {
@@ -121,50 +134,53 @@ function parseOptionalAmount(raw: string): number | undefined {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
-function stepLabel(stepId: StepId, priceType: OperatorPriceType | undefined): string {
-  switch (stepId) {
-    case "response-type":
-      return "What happens next?";
-    case "inspection-requirement":
-      return "Inspection requirement";
-    case "inspection-what":
-      return "What do you want to inspect, or what did you say?";
-    case "information-needed":
-      return "What information do you need?";
-    case "original-response":
-      return "Anything else you'd like to say?";
-    case "proposed-approach":
-      return "Proposed work / approach";
-    case "price-type":
-      return "Price type";
-    case "price-amount":
-      return priceType === "range" ? "Price range" : "Price";
-    case "inclusions":
-      return "What's included?";
-    case "exclusions":
-      return "What's excluded?";
-    case "price-change-factors":
-      return "What could change the price?";
-    case "expected-duration":
-      return "Expected duration";
-    case "earliest-start":
-      return "Earliest start";
-    case "guarantee":
-      return "Guarantee";
-    case "anything-else":
-      return "Anything else you'd like to say?";
-    case "confirm":
-      return "Review your response";
-  }
+function stepLabel(stepId: StepId, priceType: OperatorPriceType | undefined, lang: Lang): string {
+  const text: LocalizedText = (() => {
+    switch (stepId) {
+      case "response-type":
+        return lt("你打算點處理？", "What happens next?");
+      case "inspection-requirement":
+        return lt("檢查要求", "Inspection requirement");
+      case "inspection-what":
+        return lt("你想檢查啲乜，或者你同對方講咗啲乜？", "What do you want to inspect, or what did you say?");
+      case "information-needed":
+        return lt("你需要咩資料？", "What information do you need?");
+      case "original-response":
+        return lt("仲有冇想講嘅？", "Anything else you'd like to say?");
+      case "proposed-approach":
+        return lt("建議處理方法", "Proposed work / approach");
+      case "price-type":
+        return lt("報價方式", "Price type");
+      case "price-amount":
+        return priceType === "range" ? lt("價格範圍", "Price range") : lt("價格", "Price");
+      case "inclusions":
+        return lt("包括啲乜？", "What's included?");
+      case "exclusions":
+        return lt("不包括啲乜？", "What's excluded?");
+      case "price-change-factors":
+        return lt("咩因素可能影響價格？", "What could change the price?");
+      case "expected-duration":
+        return lt("預計工期", "Expected duration");
+      case "earliest-start":
+        return lt("最早可開始時間", "Earliest start");
+      case "guarantee":
+        return lt("保養", "Guarantee");
+      case "anything-else":
+        return lt("仲有冇想講嘅？", "Anything else you'd like to say?");
+      case "confirm":
+        return lt("查看回覆", "Review your response");
+    }
+  })();
+  return localize(text, lang);
 }
 
-function answerSummary(stepId: StepId, answers: ContractorResponsePayload): string {
+function answerSummary(stepId: StepId, answers: ContractorResponsePayload, lang: Lang): string {
   switch (stepId) {
     case "response-type":
-      return answers.responseType ? OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[answers.responseType] : "";
+      return answers.responseType ? localize(OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[answers.responseType], lang) : "";
     case "inspection-requirement":
       return answers.inspectionRequirement
-        ? OPERATOR_INSPECTION_REQUIREMENT_LABELS[answers.inspectionRequirement]
+        ? localize(OPERATOR_INSPECTION_REQUIREMENT_LABELS[answers.inspectionRequirement], lang)
         : "";
     case "inspection-what":
     case "original-response":
@@ -175,7 +191,7 @@ function answerSummary(stepId: StepId, answers: ContractorResponsePayload): stri
     case "proposed-approach":
       return answers.proposedApproach ?? "";
     case "price-type":
-      return answers.priceType ? OPERATOR_PRICE_TYPE_LABELS[answers.priceType] : "";
+      return answers.priceType ? localize(OPERATOR_PRICE_TYPE_LABELS[answers.priceType], lang) : "";
     case "price-amount":
       if (answers.priceType === "range") {
         return typeof answers.priceMin === "number" && typeof answers.priceMax === "number"
@@ -194,7 +210,7 @@ function answerSummary(stepId: StepId, answers: ContractorResponsePayload): stri
     case "earliest-start":
       return answers.earliestStart ?? "";
     case "guarantee":
-      return answers.guaranteeStatus ? OPERATOR_GUARANTEE_STATUS_LABELS[answers.guaranteeStatus] : "";
+      return answers.guaranteeStatus ? localize(OPERATOR_GUARANTEE_STATUS_LABELS[answers.guaranteeStatus], lang) : "";
     case "confirm":
       return "";
   }
@@ -217,14 +233,22 @@ type SubmitState =
   | { phase: "idle" }
   | { phase: "submitting" }
   | { phase: "success" }
-  | { phase: "terminal"; message: string; tone: "success" | "error" }
+  | { phase: "terminal"; message: LocalizedText; tone: "success" | "error" }
   | { phase: "error"; message: string };
 
-function describeSubmitError(error: unknown): string {
+function describeSubmitError(error: unknown, lang: Lang): string {
   if (error instanceof Error && error.message) return error.message;
-  return "Something went wrong sending your response. Please try again.";
+  return localize(lt("提交回覆時出咗問題，請再試一次。", "Something went wrong sending your response. Please try again."), lang);
 }
 
+// Terminal/error copy audited for lifecycle truthfulness (see the T2 Codex
+// fix pass) — translation must never blur these distinctions:
+//   - "submitted"/"already-responded" are the ONLY outcomes allowed to read
+//     as success;
+//   - "revoked"/"expired" must explicitly say the response was NOT
+//     recorded, never imply persistence;
+//   - "reconciliation-failed" must communicate genuine uncertainty, never
+//     claim success or failure outright.
 function submitOutcomeState(outcome: ContractorResponseSubmissionOutcome): SubmitState {
   switch (outcome) {
     case "submitted":
@@ -233,31 +257,43 @@ function submitOutcomeState(outcome: ContractorResponseSubmissionOutcome): Submi
       return {
         phase: "terminal",
         tone: "success",
-        message: "You've already submitted a response for this request. Thank you.",
+        message: lt(
+          "你已經提交過呢個回覆，多謝你！",
+          "You've already submitted a response for this request. Thank you.",
+        ),
       };
     case "revoked":
       return {
         phase: "terminal",
         tone: "error",
-        message: "This request was revoked before RepairScope recorded your response. Ask for a new link.",
+        message: lt(
+          "呢個邀請已經被取消，你嘅回覆未能記錄。請向邀請你嘅人索取新連結。",
+          "This request was revoked before RepairScope recorded your response. Ask for a new link.",
+        ),
       };
     case "expired":
       return {
         phase: "terminal",
         tone: "error",
-        message: "This request expired before RepairScope recorded your response. Ask for a new link.",
+        message: lt(
+          "呢個邀請已經過期，你嘅回覆未能記錄。請向邀請你嘅人索取新連結。",
+          "This request expired before RepairScope recorded your response. Ask for a new link.",
+        ),
       };
     case "open-conflict":
       return {
         phase: "terminal",
         tone: "error",
-        message: "RepairScope could not accept this response. Please try again.",
+        message: lt("RepairScope 未能接受呢個回覆，請再試一次。", "RepairScope could not accept this response. Please try again."),
       };
     case "reconciliation-failed":
       return {
         phase: "terminal",
         tone: "error",
-        message: "We couldn't confirm whether RepairScope recorded your response. Please try again.",
+        message: lt(
+          "我哋暫時未能確認你嘅回覆係咪已經成功記錄，請你再試一次。",
+          "We couldn't confirm whether RepairScope recorded your response. Please try again.",
+        ),
       };
   }
 }
@@ -269,11 +305,12 @@ export function ContractorResponseForm({
   brief: Stage1ContractorBrief;
   submission?: ContractorResponseFormSubmission;
 }) {
+  const { lang, t } = useLanguage();
   const [answers, setAnswers] = useState<ContractorResponsePayload>({});
   const [stepIndex, setStepIndex] = useState(0);
-  const [priceRangeError, setPriceRangeError] = useState<string | null>(null);
-  const [priceAmountError, setPriceAmountError] = useState<string | null>(null);
-  const [informationNeededError, setInformationNeededError] = useState<string | null>(null);
+  const [priceRangeError, setPriceRangeError] = useState<LocalizedText | null>(null);
+  const [priceAmountError, setPriceAmountError] = useState<LocalizedText | null>(null);
+  const [informationNeededError, setInformationNeededError] = useState<LocalizedText | null>(null);
   const [exportedText, setExportedText] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<SubmitState>({ phase: "idle" });
   // Range price inputs are deliberately NOT wired straight through
@@ -319,40 +356,46 @@ export function ContractorResponseForm({
   }
 
   const observedProblemText =
-    brief.observedProblem.length > 0 ? brief.observedProblem.join(" · ") : "No further detail provided yet.";
+    brief.observedProblem.length > 0
+      ? brief.observedProblem.join(" · ")
+      : t(lt("暫時未有更多詳情。", "No further detail provided yet."));
 
   return (
     <div className="contractor-response-form">
-      <section className="contractor-brief-panel" aria-label="Job summary">
-        <h2>Job summary</h2>
+      <section className="contractor-brief-panel" aria-label={t(lt("個案概要", "Job summary"))}>
+        <h2>{t(lt("個案概要", "Job summary"))}</h2>
         <p className="contractor-brief-panel__hint">
-          This is a sourcing summary only — exact address, owner contact details and any other contractors are not
-          shown at this stage.
+          {t(
+            lt(
+              "呢個只係搵師傅階段嘅概要 — 而家未會顯示確實地址、業主聯絡資料或者其他師傅嘅資料。",
+              "This is a sourcing summary only — exact address, owner contact details and any other contractors are not shown at this stage.",
+            ),
+          )}
         </p>
         <dl>
           <div>
-            <dt>Category</dt>
+            <dt>{t(lt("類別", "Category"))}</dt>
             <dd>{brief.category}</dd>
           </div>
           {brief.district && (
             <div>
-              <dt>Area</dt>
+              <dt>{t(lt("地區", "Area"))}</dt>
               <dd>{brief.district}</dd>
             </div>
           )}
           <div>
-            <dt>What&apos;s been observed</dt>
+            <dt>{t(lt("觀察到嘅情況", "What's been observed"))}</dt>
             <dd>{observedProblemText}</dd>
           </div>
           {brief.priorAction && (
             <div>
-              <dt>Previous action</dt>
+              <dt>{t(lt("之前處理", "Previous action"))}</dt>
               <dd>{brief.priorAction}</dd>
             </div>
           )}
           {brief.hasEvidence && (
             <div>
-              <dt>Evidence</dt>
+              <dt>{t(lt("證據", "Evidence"))}</dt>
               <dd>
                 {brief.hasEvidence}
                 {brief.evidenceKind ? ` — ${brief.evidenceKind}` : ""}
@@ -362,7 +405,7 @@ export function ContractorResponseForm({
         </dl>
       </section>
 
-      <section className="contractor-response-steps" aria-label="Your response">
+      <section className="contractor-response-steps" aria-label={t(lt("你嘅回覆", "Your response"))}>
         {steps.slice(0, stepIndex).map((stepId, index) => {
           // "No price yet" skips straight past the now-irrelevant
           // price-amount step (see the price-type handler above) — it was
@@ -372,24 +415,26 @@ export function ContractorResponseForm({
           return (
             <div className="contractor-step contractor-step--done" key={`${stepId}-${index}`}>
               <div className="contractor-step__summary-row">
-                <span className="contractor-step__label">{stepLabel(stepId, answers.priceType)}</span>
+                <span className="contractor-step__label">{stepLabel(stepId, answers.priceType, lang)}</span>
                 <button type="button" onClick={() => goTo(index)}>
-                  Change
+                  {t(lt("更改", "Change"))}
                 </button>
               </div>
-              <p className="contractor-step__answer">{answerSummary(stepId, answers) || "Not answered"}</p>
+              <p className="contractor-step__answer">
+                {answerSummary(stepId, answers, lang) || t(lt("未填寫", "Not answered"))}
+              </p>
             </div>
           );
         })}
 
         <div className="contractor-step contractor-step--active" data-active-step={currentStep}>
-          <h3>{stepLabel(currentStep, answers.priceType)}</h3>
+          <h3>{stepLabel(currentStep, answers.priceType, lang)}</h3>
 
           {currentStep === "response-type" && (
             <div className="contractor-step__options">
               {OPERATOR_CONTRACTOR_RESPONSE_TYPES.map((type) => (
                 <button key={type} type="button" onClick={() => selectResponseType(type)}>
-                  {OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[type]}
+                  {t(OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[type])}
                 </button>
               ))}
             </div>
@@ -406,7 +451,7 @@ export function ContractorResponseForm({
                     advance();
                   }}
                 >
-                  {OPERATOR_INSPECTION_REQUIREMENT_LABELS[requirement]}
+                  {t(OPERATOR_INSPECTION_REQUIREMENT_LABELS[requirement])}
                 </button>
               ))}
             </div>
@@ -417,14 +462,14 @@ export function ContractorResponseForm({
             currentStep === "anything-else") && (
             <>
               <textarea
-                aria-label={stepLabel(currentStep, answers.priceType)}
+                aria-label={stepLabel(currentStep, answers.priceType, lang)}
                 value={answers.originalResponse ?? ""}
                 onChange={(event) => update({ originalResponse: event.target.value })}
-                placeholder="In your own words…"
+                placeholder={t(lt("用你自己嘅講法寫低…", "In your own words…"))}
                 maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -432,31 +477,36 @@ export function ContractorResponseForm({
           {currentStep === "information-needed" && (
             <>
               <textarea
-                aria-label="What information do you need?"
+                aria-label={t(lt("你需要咩資料？", "What information do you need?"))}
                 value={answers.informationNeeded ?? ""}
                 onChange={(event) => {
                   update({ informationNeeded: event.target.value });
                   setInformationNeededError(null);
                 }}
-                placeholder="e.g. Access to the affected area, more photos, a call with the owner…"
+                placeholder={t(
+                  lt(
+                    "例如：可以入去睇現場、要多啲相、想同業主傾兩句…",
+                    "e.g. Access to the affected area, more photos, a call with the owner…",
+                  ),
+                )}
                 maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button
                 type="button"
                 onClick={() => {
                   if (!isNonBlank(answers.informationNeeded)) {
-                    setInformationNeededError("Describe what information you need.");
+                    setInformationNeededError(lt("請講清楚你需要咩資料。", "Describe what information you need."));
                     return;
                   }
                   setInformationNeededError(null);
                   advance();
                 }}
               >
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
               {informationNeededError && (
                 <p className="field-error" role="alert">
-                  {informationNeededError}
+                  {t(informationNeededError)}
                 </p>
               )}
             </>
@@ -465,14 +515,14 @@ export function ContractorResponseForm({
           {currentStep === "proposed-approach" && (
             <>
               <textarea
-                aria-label="Proposed work / approach"
+                aria-label={t(lt("建議處理方法", "Proposed work / approach"))}
                 value={answers.proposedApproach ?? ""}
                 onChange={(event) => update({ proposedApproach: event.target.value })}
-                placeholder="What would you do to fix this?"
+                placeholder={t(lt("你會點樣處理呢個問題？", "What would you do to fix this?"))}
                 maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -494,7 +544,7 @@ export function ContractorResponseForm({
                     }
                   }}
                 >
-                  {OPERATOR_PRICE_TYPE_LABELS[type]}
+                  {t(OPERATOR_PRICE_TYPE_LABELS[type])}
                 </button>
               ))}
             </div>
@@ -503,7 +553,7 @@ export function ContractorResponseForm({
           {currentStep === "price-amount" && answers.priceType === "range" && (
             <>
               <label>
-                Minimum (HK$)
+                {t(lt("最低價（港幣）", "Minimum (HK$)"))}
                 <input
                   type="number"
                   min={0}
@@ -515,7 +565,7 @@ export function ContractorResponseForm({
                 />
               </label>
               <label>
-                Maximum (HK$)
+                {t(lt("最高價（港幣）", "Maximum (HK$)"))}
                 <input
                   type="number"
                   min={0}
@@ -532,11 +582,11 @@ export function ContractorResponseForm({
                   const min = parseOptionalAmount(rangeMinDraft);
                   const max = parseOptionalAmount(rangeMaxDraft);
                   if (!isValidAmount(min) || !isValidAmount(max)) {
-                    setPriceRangeError("Enter both a minimum and maximum price.");
+                    setPriceRangeError(lt("請輸入最低同最高價格。", "Enter both a minimum and maximum price."));
                     return;
                   }
                   if (min > max) {
-                    setPriceRangeError("The minimum can't be greater than the maximum.");
+                    setPriceRangeError(lt("最低價格唔可以高過最高價格。", "The minimum can't be greater than the maximum."));
                     return;
                   }
                   setPriceRangeError(null);
@@ -544,11 +594,11 @@ export function ContractorResponseForm({
                   advance();
                 }}
               >
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
               {priceRangeError && (
                 <p className="field-error" role="alert">
-                  {priceRangeError}
+                  {t(priceRangeError)}
                 </p>
               )}
             </>
@@ -557,7 +607,7 @@ export function ContractorResponseForm({
           {currentStep === "price-amount" && answers.priceType !== "range" && (
             <>
               <label>
-                Price (HK$)
+                {t(lt("價格（港幣）", "Price (HK$)"))}
                 <input
                   type="number"
                   min={0}
@@ -572,18 +622,18 @@ export function ContractorResponseForm({
                 type="button"
                 onClick={() => {
                   if (!isValidAmount(answers.price)) {
-                    setPriceAmountError("Enter a valid price (0 or more).");
+                    setPriceAmountError(lt("請輸入有效價格（0 或以上）。", "Enter a valid price (0 or more)."));
                     return;
                   }
                   setPriceAmountError(null);
                   advance();
                 }}
               >
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
               {priceAmountError && (
                 <p className="field-error" role="alert">
-                  {priceAmountError}
+                  {t(priceAmountError)}
                 </p>
               )}
             </>
@@ -592,13 +642,13 @@ export function ContractorResponseForm({
           {currentStep === "inclusions" && (
             <>
               <textarea
-                aria-label="What's included?"
+                aria-label={t(lt("包括啲乜？", "What's included?"))}
                 value={answers.inclusions ?? ""}
                 onChange={(event) => update({ inclusions: event.target.value })}
                 maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -608,23 +658,23 @@ export function ContractorResponseForm({
               <div className="contractor-step__suggestions">
                 {EXCLUSION_SUGGESTIONS.map((suggestion) => (
                   <button
-                    key={suggestion}
+                    key={suggestion.en}
                     type="button"
-                    onClick={() => update({ exclusions: appendSuggestion(answers.exclusions ?? "", suggestion) })}
+                    onClick={() => update({ exclusions: appendSuggestion(answers.exclusions ?? "", t(suggestion)) })}
                   >
-                    + {suggestion}
+                    + {t(suggestion)}
                   </button>
                 ))}
               </div>
               <textarea
-                aria-label="What's excluded?"
+                aria-label={t(lt("不包括啲乜？", "What's excluded?"))}
                 value={answers.exclusions ?? ""}
                 onChange={(event) => update({ exclusions: event.target.value })}
-                placeholder="Optional"
+                placeholder={t(lt("可不填", "Optional"))}
                 maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -634,25 +684,25 @@ export function ContractorResponseForm({
               <div className="contractor-step__suggestions">
                 {PRICE_CHANGE_SUGGESTIONS.map((suggestion) => (
                   <button
-                    key={suggestion}
+                    key={suggestion.en}
                     type="button"
                     onClick={() =>
-                      update({ priceChangeFactors: appendSuggestion(answers.priceChangeFactors ?? "", suggestion) })
+                      update({ priceChangeFactors: appendSuggestion(answers.priceChangeFactors ?? "", t(suggestion)) })
                     }
                   >
-                    + {suggestion}
+                    + {t(suggestion)}
                   </button>
                 ))}
               </div>
               <textarea
-                aria-label="What could change the price?"
+                aria-label={t(lt("咩因素可能影響價格？", "What could change the price?"))}
                 value={answers.priceChangeFactors ?? ""}
                 onChange={(event) => update({ priceChangeFactors: event.target.value })}
-                placeholder="Optional"
+                placeholder={t(lt("可不填", "Optional"))}
                 maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -660,14 +710,14 @@ export function ContractorResponseForm({
           {currentStep === "expected-duration" && (
             <>
               <input
-                aria-label="Expected duration"
+                aria-label={t(lt("預計工期", "Expected duration"))}
                 value={answers.expectedDuration ?? ""}
                 onChange={(event) => update({ expectedDuration: event.target.value })}
-                placeholder="e.g. 2 hours, 1 day, 2–3 visits"
+                placeholder={t(lt("例如：2 小時、1 日、2-3 次上門", "e.g. 2 hours, 1 day, 2–3 visits"))}
                 maxLength={CONTRACTOR_RESPONSE_SHORT_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -675,14 +725,14 @@ export function ContractorResponseForm({
           {currentStep === "earliest-start" && (
             <>
               <input
-                aria-label="Earliest start"
+                aria-label={t(lt("最早可開始時間", "Earliest start"))}
                 value={answers.earliestStart ?? ""}
                 onChange={(event) => update({ earliestStart: event.target.value })}
-                placeholder="Optional — e.g. Tomorrow afternoon, within 3 days"
+                placeholder={t(lt("可不填 — 例如：聽日下晝、3 日內", "Optional — e.g. Tomorrow afternoon, within 3 days"))}
                 maxLength={CONTRACTOR_RESPONSE_SHORT_TEXT_MAX}
               />
               <button type="button" onClick={advance}>
-                Continue
+                {t(lt("繼續", "Continue"))}
               </button>
             </>
           )}
@@ -704,22 +754,22 @@ export function ContractorResponseForm({
                     if (status !== "yes") advance();
                   }}
                 >
-                  {OPERATOR_GUARANTEE_STATUS_LABELS[status]}
+                  {t(OPERATOR_GUARANTEE_STATUS_LABELS[status])}
                 </button>
               ))}
               {answers.guaranteeStatus === "yes" && (
                 <>
                   <label>
-                    Guarantee details
+                    {t(lt("保養詳情", "Guarantee details"))}
                     <input
                       value={answers.guaranteeDetails ?? ""}
                       onChange={(event) => update({ guaranteeDetails: event.target.value })}
-                      placeholder="Optional — e.g. 6 months on parts"
+                      placeholder={t(lt("可不填 — 例如：零件保養 6 個月", "Optional — e.g. 6 months on parts"))}
                       maxLength={CONTRACTOR_RESPONSE_LONG_TEXT_MAX}
                     />
                   </label>
                   <button type="button" onClick={advance}>
-                    Continue
+                    {t(lt("繼續", "Continue"))}
                   </button>
                 </>
               )}
@@ -731,12 +781,12 @@ export function ContractorResponseForm({
             // whichever per-step gates were passed to get here — back/edit
             // navigation must not be able to leave a stale invalid
             // combination that only a per-step gate would have caught.
-            const completion = checkContractorResponseCompletion(answers);
+            const completion = checkContractorResponseCompletion(answers, lang);
             return (
               <div className="contractor-step__review">
                 {!completion.complete ? (
                   <div className="contractor-step__errors" role="alert">
-                    <p>Please fix the following before continuing:</p>
+                    <p>{t(lt("請先處理以下問題先可以繼續：", "Please fix the following before continuing:"))}</p>
                     <ul>
                       {completion.errors.map((error) => (
                         <li key={error}>{error}</li>
@@ -747,18 +797,18 @@ export function ContractorResponseForm({
                   <>
                     {submitState.phase === "success" ? (
                       <p role="status" className="contractor-step__submit-success">
-                        Response submitted. Thank you.
+                        {t(lt("回覆已成功提交，多謝你！", "Response submitted. Thank you."))}
                       </p>
                     ) : submitState.phase === "terminal" ? (
                       <p
                         role={submitState.tone === "error" ? "alert" : "status"}
                         className={submitState.tone === "success" ? "contractor-step__submit-success" : "field-error"}
                       >
-                        {submitState.message}
+                        {t(submitState.message)}
                       </p>
                     ) : (
                       <>
-                        <p>Check your answers above, then submit your response to RepairScope.</p>
+                        <p>{t(lt("睇清楚以上答案，然之後提交俾 RepairScope。", "Check your answers above, then submit your response to RepairScope."))}</p>
                         <button
                           type="button"
                           disabled={submitState.phase === "submitting"}
@@ -768,11 +818,11 @@ export function ContractorResponseForm({
                               const outcome = await submission.submit(answers);
                               setSubmitState(submitOutcomeState(outcome));
                             } catch (error) {
-                              setSubmitState({ phase: "error", message: describeSubmitError(error) });
+                              setSubmitState({ phase: "error", message: describeSubmitError(error, lang) });
                             }
                           }}
                         >
-                          {submitState.phase === "submitting" ? "Submitting…" : "Submit response"}
+                          {submitState.phase === "submitting" ? t(lt("提交緊…", "Submitting…")) : t(lt("提交回覆", "Submit response"))}
                         </button>
                         {submitState.phase === "error" && (
                           <p className="field-error" role="alert">
@@ -787,11 +837,11 @@ export function ContractorResponseForm({
                           type="button"
                           onClick={() => setExportedText(serializeContractorResponseExport(answers))}
                         >
-                          Prepare my response (debug export)
+                          {t(lt("準備回覆內容（除錯用）", "Prepare my response (debug export)"))}
                         </button>
                         {exportedText && (
                           <div className="contractor-step__export">
-                            <textarea aria-label="Response to copy" readOnly value={exportedText} />
+                            <textarea aria-label={t(lt("可複製嘅回覆內容", "Response to copy"))} readOnly value={exportedText} />
                           </div>
                         )}
                       </div>
@@ -799,17 +849,24 @@ export function ContractorResponseForm({
                   </>
                 ) : (
                   <>
-                    <p>Check your answers above, then copy your response for RepairScope.</p>
+                    <p>{t(lt("睇清楚以上答案，然之後複製你嘅回覆俾 RepairScope。", "Check your answers above, then copy your response for RepairScope."))}</p>
                     <button
                       type="button"
                       onClick={() => setExportedText(serializeContractorResponseExport(answers))}
                     >
-                      Prepare my response
+                      {t(lt("準備回覆內容", "Prepare my response"))}
                     </button>
                     {exportedText && (
                       <div className="contractor-step__export">
-                        <p>Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):</p>
-                        <textarea aria-label="Response to copy" readOnly value={exportedText} />
+                        <p>
+                          {t(
+                            lt(
+                              "複製呢段內容俾 RepairScope（例如貼返俾邀請你嘅人）：",
+                              "Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):",
+                            ),
+                          )}
+                        </p>
+                        <textarea aria-label={t(lt("可複製嘅回覆內容", "Response to copy"))} readOnly value={exportedText} />
                       </div>
                     )}
                   </>

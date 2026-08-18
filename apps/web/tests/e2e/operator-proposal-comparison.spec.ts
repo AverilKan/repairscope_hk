@@ -14,16 +14,16 @@ async function gotoCase(page: import("@playwright/test").Page) {
 }
 
 async function addContractor(page: import("@playwright/test").Page, name: string) {
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const card = page.locator(".op-contractor-card").last();
-  await card.getByLabel("Contractor name").fill(name);
+  await card.getByLabel("師傅名稱").fill(name);
   return card;
 }
 
 test("with no contractors, the comparison shows a truthful empty state and no table", async ({ page }) => {
   await gotoCase(page);
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await expect(comparison.getByText("No contractor proposals have been recorded yet.")).toBeVisible();
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await expect(comparison.getByText("暫時未有記錄任何師傅報價。")).toBeVisible();
   await expect(comparison.locator(".op-comparison-table")).toHaveCount(0);
 });
 
@@ -32,15 +32,15 @@ test("with one proposal, the comparison shows a 'need another proposal' state an
 }) => {
   await gotoCase(page);
   const card = await addContractor(page, "Contractor A");
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await card.getByLabel("Price type").selectOption("fixed");
-  await card.getByLabel("Price (HK$)").fill("5000");
-  await card.getByLabel("Proposed approach").fill("Replace the connector now.");
-  await card.getByRole("button", { name: "Collapse" }).click();
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await card.getByLabel("報價方式").selectOption("fixed");
+  await card.getByLabel("價格（港幣）").fill("5000");
+  await card.getByLabel("建議處理方法").fill("Replace the connector now.");
+  await card.getByRole("button", { name: "收合" }).click();
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
+  const comparison = page.locator('[aria-label="報價比較"]');
   await expect(
-    comparison.getByText("One proposal has been recorded. Add another proposal to compare."),
+    comparison.getByText("已經記錄咗一個報價。加多個報價先可以比較。"),
   ).toBeVisible();
   await expect(comparison.locator(".op-comparison-table")).toBeVisible();
   await expect(comparison.locator(".op-comparison-table")).toContainText("Contractor A");
@@ -54,30 +54,30 @@ test("with two proposals, both render side by side with independent, correctly f
   await gotoCase(page);
 
   const cardA = await addContractor(page, "Contractor A");
-  await cardA.getByLabel("Current response").selectOption("proposal-provided");
-  await cardA.getByLabel("Price type").selectOption("fixed");
-  await cardA.getByLabel("Price (HK$)").fill("5000");
-  await cardA.getByLabel("Proposed approach").fill("Replace connector now.");
-  await cardA.getByLabel("What's included").fill("Labour and part.");
-  await cardA.getByLabel("What's excluded").fill("Making good.");
-  await cardA.getByLabel("Expected duration").fill("2 hours");
-  await cardA.getByRole("button", { name: "Collapse" }).click();
+  await cardA.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardA.getByLabel("報價方式").selectOption("fixed");
+  await cardA.getByLabel("價格（港幣）").fill("5000");
+  await cardA.getByLabel("建議處理方法").fill("Replace connector now.");
+  await cardA.getByLabel("包括項目").fill("Labour and part.");
+  await cardA.getByLabel("不包括嘅項目").fill("Making good.");
+  await cardA.getByLabel("預計工期").fill("2 hours");
+  await cardA.getByRole("button", { name: "收合" }).click();
 
   const cardB = await addContractor(page, "Contractor B");
-  await cardB.getByLabel("Current response").selectOption("proposal-provided");
-  await cardB.getByLabel("Price type").selectOption("range");
-  await cardB.getByLabel("Price range — minimum (HK$)").fill("4000");
-  await cardB.getByLabel("Price range — maximum (HK$)").fill("7000");
-  await cardB.getByLabel("Proposed approach").fill("Inspect valve first.");
-  await cardB.getByLabel("What's excluded").fill("Materials.");
-  await cardB.getByRole("button", { name: "Collapse" }).click();
+  await cardB.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardB.getByLabel("報價方式").selectOption("range");
+  await cardB.getByLabel("價格範圍 — 最低（港幣）").fill("4000");
+  await cardB.getByLabel("價格範圍 — 最高（港幣）").fill("7000");
+  await cardB.getByLabel("建議處理方法").fill("Inspect valve first.");
+  await cardB.getByLabel("不包括嘅項目").fill("Materials.");
+  await cardB.getByRole("button", { name: "收合" }).click();
 
   const cardC = await addContractor(page, "Contractor C");
-  await cardC.getByLabel("Current response").selectOption("needs-inspection");
-  await cardC.getByRole("button", { name: "Collapse" }).click();
+  await cardC.getByLabel("目前回覆").selectOption("needs-inspection");
+  await cardC.getByRole("button", { name: "收合" }).click();
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await expect(comparison.getByText("2 of 3 contractors have provided proposals.")).toBeVisible();
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await expect(comparison.getByText("3 位師傅入面，2 位已提供報價。")).toBeVisible();
 
   const table = comparison.locator(".op-comparison-table");
   await expect(table).toContainText("Contractor A");
@@ -109,14 +109,14 @@ test("with three proposals, all three remain independently visible", async ({ pa
     ["Contractor C", "3000"],
   ] as const) {
     const card = await addContractor(page, name);
-    await card.getByLabel("Current response").selectOption("proposal-provided");
-    await card.getByLabel("Price type").selectOption("fixed");
-    await card.getByLabel("Price (HK$)").fill(price);
-    await card.getByRole("button", { name: "Collapse" }).click();
+    await card.getByLabel("目前回覆").selectOption("proposal-provided");
+    await card.getByLabel("報價方式").selectOption("fixed");
+    await card.getByLabel("價格（港幣）").fill(price);
+    await card.getByRole("button", { name: "收合" }).click();
   }
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await expect(comparison.getByText("3 of 3 contractors have provided proposals.")).toBeVisible();
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await expect(comparison.getByText("3 位師傅入面，3 位已提供報價。")).toBeVisible();
   const table = comparison.locator(".op-comparison-table");
   await expect(table).toContainText("HK$1,000 fixed");
   await expect(table).toContainText("HK$2,000 fixed");
@@ -126,17 +126,17 @@ test("with three proposals, all three remain independently visible", async ({ pa
 test("estimate and no-price-yet price types render correctly and distinctly", async ({ page }) => {
   await gotoCase(page);
   const cardA = await addContractor(page, "Estimate Co.");
-  await cardA.getByLabel("Current response").selectOption("proposal-provided");
-  await cardA.getByLabel("Price type").selectOption("estimate");
-  await cardA.getByLabel("Price (HK$)").fill("1500");
-  await cardA.getByRole("button", { name: "Collapse" }).click();
+  await cardA.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardA.getByLabel("報價方式").selectOption("estimate");
+  await cardA.getByLabel("價格（港幣）").fill("1500");
+  await cardA.getByRole("button", { name: "收合" }).click();
 
   const cardB = await addContractor(page, "No Price Co.");
-  await cardB.getByLabel("Current response").selectOption("proposal-provided");
-  await cardB.getByLabel("Price type").selectOption("no-price");
-  await cardB.getByRole("button", { name: "Collapse" }).click();
+  await cardB.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardB.getByLabel("報價方式").selectOption("no-price");
+  await cardB.getByRole("button", { name: "收合" }).click();
 
-  const table = page.locator('[aria-label="Proposal comparison"] .op-comparison-table');
+  const table = page.locator('[aria-label="報價比較"] .op-comparison-table');
   await expect(table).toContainText("HK$1,500 estimate");
   await expect(table).toContainText("No price yet");
 });
@@ -146,14 +146,14 @@ test("fields the operator never filled in show the neutral 'Not stated' conventi
 }) => {
   await gotoCase(page);
   const card = await addContractor(page, "Sparse Co.");
-  await card.getByLabel("Current response").selectOption("proposal-provided");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
   // Deliberately leave price type, approach, inclusions, exclusions,
   // duration, guarantee all unset.
-  await card.getByRole("button", { name: "Collapse" }).click();
+  await card.getByRole("button", { name: "收合" }).click();
 
-  const table = page.locator('[aria-label="Proposal comparison"] .op-comparison-table');
+  const table = page.locator('[aria-label="報價比較"] .op-comparison-table');
   const rowTexts = await table.locator("tbody tr").allTextContents();
-  // Price, Proposed approach, Includes, Excludes, Price-change factors,
+  // Price, 建議處理方法, Includes, Excludes, Price-change factors,
   // Duration, Guarantee, Original response — every one of Sparse Co.'s
   // cells should read "Not stated" (Price shows "Not stated" for an
   // unselected price type — never blank, never "No").
@@ -167,45 +167,45 @@ test("Key differences, Questions still unresolved, and RepairScope note are edit
 }) => {
   await gotoCase(page);
   const cardA = await addContractor(page, "Contractor A");
-  await cardA.getByLabel("Current response").selectOption("proposal-provided");
-  await cardA.getByLabel("Price type").selectOption("fixed");
-  await cardA.getByLabel("Price (HK$)").fill("5000");
-  await cardA.getByRole("button", { name: "Collapse" }).click();
+  await cardA.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardA.getByLabel("報價方式").selectOption("fixed");
+  await cardA.getByLabel("價格（港幣）").fill("5000");
+  await cardA.getByRole("button", { name: "收合" }).click();
 
   const cardB = await addContractor(page, "Contractor B");
-  await cardB.getByLabel("Current response").selectOption("proposal-provided");
-  await cardB.getByLabel("Price type").selectOption("range");
-  await cardB.getByLabel("Price range — minimum (HK$)").fill("4000");
-  await cardB.getByLabel("Price range — maximum (HK$)").fill("7000");
-  await cardB.getByRole("button", { name: "Collapse" }).click();
+  await cardB.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardB.getByLabel("報價方式").selectOption("range");
+  await cardB.getByLabel("價格範圍 — 最低（港幣）").fill("4000");
+  await cardB.getByLabel("價格範圍 — 最高（港幣）").fill("7000");
+  await cardB.getByRole("button", { name: "收合" }).click();
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
+  const comparison = page.locator('[aria-label="報價比較"]');
   await comparison
-    .getByLabel("Key differences")
+    .getByLabel("主要分別")
     .fill("A proposes immediate replacement at a fixed price; B wants to inspect first.");
-  await comparison.getByLabel("Questions still unresolved").fill("Does B's range include materials?");
-  await comparison.getByLabel("RepairScope note").fill("Both contractors are aware of the leak location.");
+  await comparison.getByLabel("仲需要確認嘅問題").fill("Does B's range include materials?");
+  await comparison.getByLabel("RepairScope 備註").fill("Both contractors are aware of the leak location.");
 
   await expect(comparison.locator(".op-comparison-table")).toContainText("HK$5,000 fixed");
 
   await page.reload();
   await page.getByRole("button", { name: "EN", exact: true }).click();
-  const reloadedComparison = page.locator('[aria-label="Proposal comparison"]');
-  await expect(reloadedComparison.getByLabel("Key differences")).toHaveValue(
+  const reloadedComparison = page.locator('[aria-label="報價比較"]');
+  await expect(reloadedComparison.getByLabel("主要分別")).toHaveValue(
     "A proposes immediate replacement at a fixed price; B wants to inspect first.",
   );
-  await expect(reloadedComparison.getByLabel("Questions still unresolved")).toHaveValue(
+  await expect(reloadedComparison.getByLabel("仲需要確認嘅問題")).toHaveValue(
     "Does B's range include materials?",
   );
-  await expect(reloadedComparison.getByLabel("RepairScope note")).toHaveValue(
+  await expect(reloadedComparison.getByLabel("RepairScope 備註")).toHaveValue(
     "Both contractors are aware of the leak location.",
   );
 
   // Now edit Contractor A's price directly in its own Slice 2 card — no
   // comparison-specific editing surface exists for proposal facts.
   const reloadedCardA = page.locator(".op-contractor-card").first();
-  await reloadedCardA.getByRole("button", { name: "Edit" }).click();
-  await reloadedCardA.getByLabel("Price (HK$)").fill("5500");
+  await reloadedCardA.getByRole("button", { name: "編輯" }).click();
+  await reloadedCardA.getByLabel("價格（港幣）").fill("5500");
 
   await expect(reloadedComparison.locator(".op-comparison-table")).toContainText("HK$5,500 fixed");
   // Contractor B's independently-recorded proposal is unaffected.
@@ -225,18 +225,18 @@ test("Key differences, Questions still unresolved, and RepairScope note are edit
 test("the comparison view never contains winner/ranking/scoring language", async ({ page }) => {
   await gotoCase(page);
   const cardA = await addContractor(page, "Contractor A");
-  await cardA.getByLabel("Current response").selectOption("proposal-provided");
-  await cardA.getByLabel("Price type").selectOption("fixed");
-  await cardA.getByLabel("Price (HK$)").fill("3000");
-  await cardA.getByRole("button", { name: "Collapse" }).click();
+  await cardA.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardA.getByLabel("報價方式").selectOption("fixed");
+  await cardA.getByLabel("價格（港幣）").fill("3000");
+  await cardA.getByRole("button", { name: "收合" }).click();
 
   const cardB = await addContractor(page, "Contractor B");
-  await cardB.getByLabel("Current response").selectOption("proposal-provided");
-  await cardB.getByLabel("Price type").selectOption("fixed");
-  await cardB.getByLabel("Price (HK$)").fill("9000");
-  await cardB.getByRole("button", { name: "Collapse" }).click();
+  await cardB.getByLabel("目前回覆").selectOption("proposal-provided");
+  await cardB.getByLabel("報價方式").selectOption("fixed");
+  await cardB.getByLabel("價格（港幣）").fill("9000");
+  await cardB.getByRole("button", { name: "收合" }).click();
 
-  const comparisonText = await page.locator('[aria-label="Proposal comparison"]').innerText();
+  const comparisonText = await page.locator('[aria-label="報價比較"]').innerText();
   for (const forbidden of ["winner", "recommend", "best value", "cheapest", "score", "ranking", "confidence"]) {
     expect(comparisonText.toLowerCase()).not.toContain(forbidden);
   }
@@ -273,11 +273,11 @@ test("a pre-Slice-3 case with contractors but no comparison notes renders a safe
   await page.reload();
   await page.getByRole("button", { name: "EN", exact: true }).click();
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await expect(comparison.getByText("One proposal has been recorded. Add another proposal to compare.")).toBeVisible();
-  await expect(comparison.getByLabel("Key differences")).toHaveValue("");
-  await expect(comparison.getByLabel("Questions still unresolved")).toHaveValue("");
-  await expect(comparison.getByLabel("RepairScope note")).toHaveValue("");
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await expect(comparison.getByText("已經記錄咗一個報價。加多個報價先可以比較。")).toBeVisible();
+  await expect(comparison.getByLabel("主要分別")).toHaveValue("");
+  await expect(comparison.getByLabel("仲需要確認嘅問題")).toHaveValue("");
+  await expect(comparison.getByLabel("RepairScope 備註")).toHaveValue("");
 });
 
 test("no mutating request is made to the backend while editing comparison fields", async ({ page }) => {
@@ -289,17 +289,17 @@ test("no mutating request is made to the backend while editing comparison fields
   });
 
   await gotoCase(page);
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await comparison.getByLabel("Key differences").fill("Some difference.");
-  await comparison.getByLabel("Questions still unresolved").fill("Some question.");
-  await comparison.getByLabel("RepairScope note").fill("Some note.");
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await comparison.getByLabel("主要分別").fill("Some difference.");
+  await comparison.getByLabel("仲需要確認嘅問題").fill("Some question.");
+  await comparison.getByLabel("RepairScope 備註").fill("Some note.");
 
   expect(mutatingApiRequests).toEqual([]);
 });
 
 test("the owner submission remains strictly read-only alongside the new comparison section", async ({ page }) => {
   await gotoCase(page);
-  const ownerSection = page.locator('[aria-label="Owner submission"]');
+  const ownerSection = page.locator('[aria-label="業主提交資料"]');
   await expect(ownerSection).toBeVisible();
   await expect(ownerSection.locator("input, textarea, select")).toHaveCount(0);
 });

@@ -146,8 +146,8 @@ test("questionnaire draft state survives a reload (localStorage)", async ({ page
 // resolves to a "not available" state rather than a distinct fixture UI.
 test("contractor token route resolves the demo token to the Stage-1 brief, and any other token to 'not available'", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
-  await expect(page.getByText("Tell RepairScope how you'd like to respond.")).toBeVisible();
+  await expect(page.getByText("話俾 RepairScope 知你點打算處理。")).toBeVisible();
 
   await page.goto("/contractor/respond/not-a-real-token");
-  await expect(page.getByText("This invitation is not available.")).toBeVisible();
+  await expect(page.getByText("呢個邀請暫時未能使用。")).toBeVisible();
 });

@@ -7,10 +7,10 @@ export default function OperatorPage() {
     <SiteShell surface="operator">
       <main className="content-page">
         <PageIntro
-          eyebrow="Operator review"
-          title="Review submitted repair briefs."
-          description="Every completed questionnaire may produce a brief; nothing is automatically accepted or rejected. Decide whether to pursue, request more information, or close each submission."
-          aside={<StatusPill tone="attention">Internal tool</StatusPill>}
+          eyebrow="操作員審閱"
+          title="審閱已提交嘅維修簡報。"
+          description="每份填妥嘅問卷都可能會產生一份簡報；系統唔會自動接受或者拒絕。請為每個個案決定係咪跟進、要求更多資料，定係結束個案。"
+          aside={<StatusPill tone="attention">內部工具</StatusPill>}
         />
         <OperatorGate>
           <OperatorCaseList />

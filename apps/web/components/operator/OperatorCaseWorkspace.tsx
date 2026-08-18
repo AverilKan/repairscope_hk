@@ -55,21 +55,40 @@ import type { OperatorSubmissionService } from "@/services/operator/OperatorSubm
 import { useContractorRequestOperatorService } from "@/services/contractor/useContractorRequestOperatorService";
 import type { ContractorRequestOperatorService } from "@/services/contractor/ContractorRequestOperatorService";
 
+// LOCALIZATION (HK validation-pilot pass): the operator surface has no
+// language toggle (see components/LanguageContext.tsx's own comment on
+// why the operator UI has never adopted useLanguage()) — every string
+// below is Traditional Chinese directly, not routed through t()/lt().
+// Internal enum values (reviewing, pursuing, needs_landlord_information,
+// closed, urgent, ...) are untouched; only their displayed labels change.
 const STATUS_OPTIONS: { value: Exclude<SubmissionStatus, "new">; label: string }[] = [
-  { value: "reviewing", label: "Reviewing" },
-  { value: "pursuing", label: "Worth pursuing" },
-  { value: "needs_landlord_information", label: "Needs landlord information" },
-  { value: "closed", label: "Not suitable right now" },
+  { value: "reviewing", label: "審閱中" },
+  { value: "pursuing", label: "值得跟進" },
+  { value: "needs_landlord_information", label: "需要業主提供資料" },
+  { value: "closed", label: "現階段不適合" },
 ];
 
 const CLOSED_REASON_OPTIONS: { value: SubmissionClosedReason; label: string }[] = [
-  { value: "urgent", label: "Urgent — referred elsewhere" },
-  { value: "outside_current_scope", label: "Outside current scope" },
-  { value: "not_currently_viable", label: "Not currently viable" },
-  { value: "outside_service_area", label: "Outside service area" },
-  { value: "duplicate", label: "Duplicate submission" },
-  { value: "other", label: "Other" },
+  { value: "urgent", label: "緊急 — 已轉介其他途徑" },
+  { value: "outside_current_scope", label: "超出現時服務範圍" },
+  { value: "not_currently_viable", label: "現階段未能處理" },
+  { value: "outside_service_area", label: "超出服務地區" },
+  { value: "duplicate", label: "重複提交" },
+  { value: "other", label: "其他" },
 ];
+
+const BACKEND_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  new: "新個案",
+  reviewing: "審閱中",
+  pursuing: "值得跟進",
+  needs_landlord_information: "需要業主提供資料",
+  closed: "已完結",
+};
+
+const PREFERRED_CONTACT_METHOD_LABELS: Record<"email" | "phone", string> = {
+  email: "電郵",
+  phone: "電話",
+};
 
 function backendStatusTone(status: SubmissionStatus): "neutral" | "good" | "attention" | "ink" {
   if (status === "pursuing") return "good";
@@ -159,7 +178,7 @@ export function OperatorCaseWorkspace({
           setState({ phase: "not-found" });
           return;
         }
-        setState({ phase: "error", message: "Could not load this submission from RepairScope." });
+        setState({ phase: "error", message: "未能從 RepairScope 載入呢個個案。" });
       });
     return () => {
       cancelled = true;
@@ -186,7 +205,7 @@ export function OperatorCaseWorkspace({
     if (state.phase !== "ready") return;
     if (status === "closed" && !closedReason) {
       setSaveStatus("error");
-      setSaveError("Choose a reason before closing this submission.");
+      setSaveError("結束呢個個案之前，請先揀選原因。");
       return;
     }
     setSaveStatus("saving");
@@ -201,7 +220,7 @@ export function OperatorCaseWorkspace({
       setSaveStatus("idle");
     } catch {
       setSaveStatus("error");
-      setSaveError("Could not update this submission. Please try again.");
+      setSaveError("未能更新呢個個案，請再試一次。");
     }
   };
 
@@ -251,13 +270,13 @@ export function OperatorCaseWorkspace({
   };
 
   if (state.phase === "loading") {
-    return <p role="status">Loading…</p>;
+    return <p role="status">載入緊…</p>;
   }
 
   if (state.phase === "not-found") {
     return (
       <p className="field-error" role="alert">
-        No submission found for {caseReference}.
+        搵唔到 {caseReference} 呢個個案。
       </p>
     );
   }
@@ -278,15 +297,15 @@ export function OperatorCaseWorkspace({
         <div>
           <h1>{detail.publicReference}</h1>
           <p className="op-case-workspace__meta">
-            {detail.issueCategory} · submitted {formatTimestamp(detail.createdAt)}
+            {detail.issueCategory} · 提交於 {formatTimestamp(detail.createdAt)}
           </p>
         </div>
-        <StatusPill tone={backendStatusTone(detail.status)}>{detail.status}</StatusPill>
+        <StatusPill tone={backendStatusTone(detail.status)}>{BACKEND_STATUS_LABELS[detail.status]}</StatusPill>
       </header>
 
       {detail.safetyFlags.length > 0 && (
         <div className="safety-notice safety-notice--urgent" role="alert">
-          <div className="safety-notice__flag">Safety flags</div>
+          <div className="safety-notice__flag">安全警示</div>
           <p>{detail.safetyFlags.join(", ")}</p>
         </div>
       )}
@@ -294,8 +313,8 @@ export function OperatorCaseWorkspace({
       {/* The owner's own submission — brief, contact, consent — is
           rendered strictly read-only below. Nothing in this section writes
           back to the submission. */}
-      <section className="op-panel" aria-label="Owner submission">
-        <h2>Owner submission (read-only)</h2>
+      <section className="op-panel" aria-label="業主提交資料">
+        <h2>業主提交資料（唯讀）</h2>
         {/* Reuses the same concise semantic summary the owner review and
             post-submission confirmation screens show (variant="owner") —
             no separate operator-specific formatter. showDraftReference is
@@ -306,66 +325,65 @@ export function OperatorCaseWorkspace({
 
         <dl className="operator-review__facts">
           <div>
-            <dt>Landlord</dt>
+            <dt>業主</dt>
             <dd>{detail.landlordName}</dd>
           </div>
           <div>
-            <dt>Email</dt>
+            <dt>電郵</dt>
             <dd>{detail.landlordEmail}</dd>
           </div>
           <div>
-            <dt>Phone</dt>
+            <dt>電話</dt>
             <dd>{detail.landlordPhone}</dd>
           </div>
           <div>
-            <dt>Postcode</dt>
-            <dd>{detail.propertyPostcode ?? "Not applicable"}</dd>
+            <dt>郵區</dt>
+            <dd>{detail.propertyPostcode ?? "不適用"}</dd>
           </div>
           <div>
-            <dt>Address</dt>
-            <dd>{detail.propertyAddress ?? "Not provided"}</dd>
+            <dt>地址</dt>
+            <dd>{detail.propertyAddress ?? "未提供"}</dd>
           </div>
           <div>
-            <dt>Preferred contact</dt>
-            <dd>{detail.preferredContactMethod}</dd>
+            <dt>慣用聯絡方法</dt>
+            <dd>{PREFERRED_CONTACT_METHOD_LABELS[detail.preferredContactMethod]}</dd>
           </div>
           <div>
-            <dt>Access notes</dt>
-            <dd>{detail.accessNotes ?? "None"}</dd>
+            <dt>上門備註</dt>
+            <dd>{detail.accessNotes ?? "沒有"}</dd>
           </div>
           <div>
-            <dt>Evidence notes</dt>
-            <dd>{detail.evidenceNotes ?? "None described"}</dd>
+            <dt>證據備註</dt>
+            <dd>{detail.evidenceNotes ?? "未有描述"}</dd>
           </div>
           <div>
-            <dt>Consent to contact</dt>
-            <dd>{detail.consentToContact ? "Yes" : "No"}</dd>
+            <dt>同意俾人聯絡</dt>
+            <dd>{detail.consentToContact ? "係" : "唔係"}</dd>
           </div>
           <div>
-            <dt>Consent to share with contractors</dt>
-            <dd>{detail.consentToShareWithContractors ? "Yes" : "No"}</dd>
+            <dt>同意分享俾師傅</dt>
+            <dd>{detail.consentToShareWithContractors ? "係" : "唔係"}</dd>
           </div>
           <div>
-            <dt>Questionnaire version</dt>
+            <dt>問卷版本</dt>
             <dd>{detail.questionnaireVersion}</dd>
           </div>
         </dl>
 
         <details className="operator-review__answers">
-          <summary>Show raw answers</summary>
+          <summary>顯示原始答案</summary>
           <pre>{JSON.stringify(detail.questionnaireAnswers, null, 2)}</pre>
         </details>
       </section>
 
       <div className="op-case-workspace__columns">
-        <section className="op-panel" aria-label="Backend submission status">
-          <h2>Backend submission status</h2>
+        <section className="op-panel" aria-label="後台提交狀態">
+          <h2>後台提交狀態</h2>
           <p className="op-panel__hint">
-            Saved to RepairScope and visible wherever this submission is reviewed — distinct from the local
-            workflow status below, which stays on this device only.
+            已經儲存喺 RepairScope，喺任何檢視呢個個案嘅地方都會見到 — 同下面淨係喺呢部機度先見到嘅本機工作流程狀態唔同。
           </p>
           <label>
-            Internal review notes (saved to RepairScope)
+            內部審閱備註（會儲存喺 RepairScope）
             <textarea
               rows={4}
               value={backendNotes}
@@ -373,12 +391,12 @@ export function OperatorCaseWorkspace({
             />
           </label>
           <label>
-            Closed reason (required to close)
+            結束原因（結束個案時必須填）
             <select
               value={closedReason}
               onChange={(event) => setClosedReason(event.target.value as SubmissionClosedReason | "")}
             >
-              <option value="">Select a reason…</option>
+              <option value="">請選擇原因…</option>
               {CLOSED_REASON_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
@@ -406,56 +424,56 @@ export function OperatorCaseWorkspace({
           </div>
         </section>
 
-        <section className="op-panel" aria-label="Local operator working area">
-          <h2>Local working notes</h2>
-          <p className="op-panel__hint">Stays on this device only — never sent to RepairScope.</p>
+        <section className="op-panel" aria-label="本機工作備註">
+          <h2>本機工作備註</h2>
+          <p className="op-panel__hint">淨係留喺呢部機度 — 唔會傳送俾 RepairScope。</p>
           <label>
-            Local workflow status
+            本機工作流程狀態
             <select
               value={local.status}
               onChange={(event) => updateLocalField("status", event.target.value as OperatorCaseStatus)}
             >
               {OPERATOR_CASE_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {OPERATOR_CASE_STATUS_LABELS[status]}
+                  {OPERATOR_CASE_STATUS_LABELS[status].zh}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Internal notes
+            內部備註
             <textarea
               value={local.internalNotes}
               onChange={(event) => updateLocalField("internalNotes", event.target.value)}
-              placeholder="Anything worth remembering about this case…"
+              placeholder="有咩想記低關於呢個個案嘅嘢…"
             />
           </label>
           <label>
-            Unresolved questions
+            未解決嘅問題
             <textarea
               value={local.unresolvedQuestions}
               onChange={(event) => updateLocalField("unresolvedQuestions", event.target.value)}
-              placeholder="What is still unclear internally?"
+              placeholder="內部仲有咩未清楚？"
             />
           </label>
           <label>
-            Owner follow-up questions
+            要問業主嘅問題
             <textarea
               value={local.ownerFollowUpQuestions}
               onChange={(event) => updateLocalField("ownerFollowUpQuestions", event.target.value)}
-              placeholder="What do we still need to ask the owner?"
+              placeholder="仲有咩要問業主？"
             />
           </label>
           <label>
-            Next action
+            下一步行動
             <textarea
               value={local.nextAction}
               onChange={(event) => updateLocalField("nextAction", event.target.value)}
-              placeholder="What happens next, and who does it?"
+              placeholder="下一步要做咩，邊個負責？"
             />
           </label>
           <label>
-            Follow-up date (optional)
+            跟進日期（可不填）
             <input
               type="date"
               value={local.followUpDate ?? ""}
@@ -465,20 +483,20 @@ export function OperatorCaseWorkspace({
         </section>
       </div>
 
-      <section className="op-panel op-panel--wide" aria-label="Contractors considered">
+      <section className="op-panel op-panel--wide" aria-label="考慮緊嘅師傅">
         <div className="op-panel__heading-row">
-          <h2>Contractors considered</h2>
+          <h2>考慮緊嘅師傅</h2>
           <button type="button" onClick={addContractor}>
-            + Add contractor
+            ＋新增師傅
           </button>
         </div>
         <p className="op-panel__hint">
           {isApiDataSource()
-            ? "Local tracking, plus real request links you can send a contractor (below) — see each contractor's own request history."
-            : "Local tracking only — no contractor accounts or invitations yet."}
+            ? "本機記錄，仲有你可以複製俾師傅嘅真實回覆連結（下面）— 每位師傅都有自己嘅連結記錄。"
+            : "淨係本機記錄 — 暫時未有師傅戶口或邀請功能。"}
         </p>
         {local.contractors.length === 0 ? (
-          <p>No contractors added yet.</p>
+          <p>暫時未有加入師傅。</p>
         ) : (
           <div className="op-contractor-list">
             {local.contractors.map((contractor) => (
@@ -504,11 +522,11 @@ export function OperatorCaseWorkspace({
         )}
       </section>
 
-      <section className="op-panel op-panel--wide" aria-label="Proposal comparison">
+      <section className="op-panel op-panel--wide" aria-label="報價比較">
         <div className="op-panel__heading-row">
-          <h2>Proposal comparison</h2>
+          <h2>報價比較</h2>
           <Link className="button button--secondary" href={`/operator/${detail.publicReference}/owner-preview`}>
-            Preview owner proposal view
+            預覽業主報價畫面
           </Link>
         </div>
         <ProposalComparison
@@ -534,29 +552,29 @@ function formatHkDollars(amount: number): string {
 function summarizeContractor(contractor: OperatorContractor): string | null {
   switch (contractor.responseType) {
     case "interested":
-      return "Interested";
+      return OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS.interested.zh;
     case "needs-inspection":
       return contractor.inspectionRequirement
-        ? `Needs inspection — ${OPERATOR_INSPECTION_REQUIREMENT_LABELS[contractor.inspectionRequirement]}`
-        : "Needs inspection";
+        ? `需要上門檢查 — ${OPERATOR_INSPECTION_REQUIREMENT_LABELS[contractor.inspectionRequirement].zh}`
+        : "需要上門檢查";
     case "needs-more-information":
-      return "Needs more information";
+      return OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS["needs-more-information"].zh;
     case "not-suitable":
-      return "Not suitable";
+      return OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS["not-suitable"].zh;
     case "proposal-provided": {
       if (contractor.priceType === "fixed" || contractor.priceType === "estimate") {
         if (typeof contractor.price === "number") {
-          const prefix = contractor.priceType === "estimate" ? "Est. " : "";
-          return `Proposal — ${prefix}${formatHkDollars(contractor.price)}`;
+          const prefix = contractor.priceType === "estimate" ? "估算 " : "";
+          return `報價 — ${prefix}${formatHkDollars(contractor.price)}`;
         }
       }
       if (contractor.priceType === "range") {
         const { priceMin, priceMax } = contractor;
         if (typeof priceMin === "number" && typeof priceMax === "number") {
-          return `Proposal — ${formatHkDollars(priceMin)}–${formatHkDollars(priceMax)}`;
+          return `報價 — ${formatHkDollars(priceMin)}–${formatHkDollars(priceMax)}`;
         }
       }
-      return "Proposal provided";
+      return "已提供報價";
     }
     default:
       return null;
@@ -680,24 +698,24 @@ function ContractorCard({
       <div className="op-contractor-card__summary">
         <div>
           <div className="op-contractor-card__heading">
-            {contractor.name || "Unnamed contractor"}
+            {contractor.name || "未命名師傅"}
             {contractor.trade ? <span className="op-contractor-card__trade"> · {contractor.trade}</span> : null}
           </div>
           <p className="op-contractor-card__meta">
-            <span>{OPERATOR_CONTRACTOR_STATUS_LABELS[contractor.status]}</span>
+            <span>{OPERATOR_CONTRACTOR_STATUS_LABELS[contractor.status].zh}</span>
             {responseSummary && <span>{responseSummary}</span>}
-            {contractor.earliestStart && <span>Earliest start: {contractor.earliestStart}</span>}
+            {contractor.earliestStart && <span>最早可開始時間：{contractor.earliestStart}</span>}
           </p>
         </div>
         <div className="op-contractor-card__actions">
           <button type="button" onClick={onToggleExpanded}>
-            {expanded ? "Collapse" : "Edit"}
+            {expanded ? "收合" : "編輯"}
           </button>
           <button type="button" onClick={() => setImportOpen((open) => !open)}>
-            {importOpen ? "Cancel import" : "Import response"}
+            {importOpen ? "取消匯入" : "匯入回覆"}
           </button>
           <button type="button" onClick={onRemove}>
-            Remove
+            移除
           </button>
         </div>
       </div>
@@ -705,11 +723,11 @@ function ContractorCard({
       {importOpen && (
         <div className="op-contractor-card__import">
           <p className="op-panel__hint">
-            Paste the response the contractor copied from their own form. Nothing is changed until you confirm —
-            this never overwrites the name, trade, contact reference, contact status or your own notes above.
+            貼上師傅喺自己個表填嘅回覆。確認之前唔會有任何改動 —
+            呢個操作永遠唔會覆蓋番上面嘅名稱、行業、聯絡方式、聯絡狀態或者你自己嘅備註。
           </p>
           <label>
-            Pasted response
+            貼上嘅回覆
             <textarea
               value={importText}
               onChange={(event) => {
@@ -717,15 +735,15 @@ function ContractorCard({
                 setImportPreview(null);
                 setImportError(null);
               }}
-              placeholder="Paste the contractor's exported response here…"
+              placeholder="喺呢度貼上師傅匯出嘅回覆…"
             />
           </label>
           <div className="op-contractor-card__import-actions">
             <button type="button" onClick={previewImport} disabled={!importText.trim()}>
-              Preview
+              預覽
             </button>
             <button type="button" onClick={cancelImport}>
-              Cancel
+              取消
             </button>
           </div>
           {importError && (
@@ -735,7 +753,7 @@ function ContractorCard({
           )}
           {importPreview && (
             <div className="op-contractor-card__import-preview">
-              <p>This will update:</p>
+              <p>呢次會更新：</p>
               <ul>
                 {Object.entries(importPreview).map(([key, value]) => (
                   <li key={key}>
@@ -744,7 +762,7 @@ function ContractorCard({
                 ))}
               </ul>
               <button type="button" onClick={confirmImport}>
-                Confirm import
+                確認匯入
               </button>
             </div>
           )}
@@ -764,49 +782,49 @@ function ContractorCard({
       {expanded && (
         <div className="op-contractor-card__form">
           <label>
-            Contractor name
+            師傅名稱
             <input
               value={contractor.name}
               onChange={(event) => onUpdate({ name: event.target.value })}
-              aria-label="Contractor name"
-              placeholder="Contractor name"
+              aria-label="師傅名稱"
+              placeholder="師傅名稱"
             />
           </label>
           <div className="op-contractor-card__row">
             <label>
-              Trade
+              行業
               <input
                 value={contractor.trade ?? ""}
                 onChange={(event) => onUpdate({ trade: event.target.value })}
-                placeholder="e.g. plumber"
+                placeholder="例如：水喉匠"
               />
             </label>
             <label>
-              Contact reference
+              聯絡方式
               <input
                 value={contractor.contactReference ?? ""}
                 onChange={(event) => onUpdate({ contactReference: event.target.value })}
-                placeholder="e.g. WhatsApp / phone note"
+                placeholder="例如：WhatsApp／電話備註"
               />
             </label>
           </div>
 
           <label>
-            Contact / sourcing status
+            聯絡／搵師傅狀態
             <select
               value={contractor.status}
               onChange={(event) => onUpdate({ status: event.target.value as OperatorContractorStatus })}
             >
               {OPERATOR_CONTRACTOR_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {OPERATOR_CONTRACTOR_STATUS_LABELS[status]}
+                  {OPERATOR_CONTRACTOR_STATUS_LABELS[status].zh}
                 </option>
               ))}
             </select>
           </label>
 
           <label>
-            Current response
+            目前回覆
             <select
               value={contractor.responseType ?? ""}
               onChange={(event) => {
@@ -822,10 +840,10 @@ function ContractorCard({
                 });
               }}
             >
-              <option value="">Not yet responded</option>
+              <option value="">未有回覆</option>
               {OPERATOR_CONTRACTOR_RESPONSE_TYPES.map((type) => (
                 <option key={type} value={type}>
-                  {OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[type]}
+                  {OPERATOR_CONTRACTOR_RESPONSE_TYPE_LABELS[type].zh}
                 </option>
               ))}
             </select>
@@ -833,7 +851,7 @@ function ContractorCard({
 
           {contractor.responseType === "needs-inspection" && (
             <label>
-              Inspection requirement
+              檢查要求
               <select
                 value={contractor.inspectionRequirement ?? ""}
                 onChange={(event) =>
@@ -844,10 +862,10 @@ function ContractorCard({
                   })
                 }
               >
-                <option value="">Select…</option>
+                <option value="">請選擇…</option>
                 {OPERATOR_INSPECTION_REQUIREMENTS.map((requirement) => (
                   <option key={requirement} value={requirement}>
-                    {OPERATOR_INSPECTION_REQUIREMENT_LABELS[requirement]}
+                    {OPERATOR_INSPECTION_REQUIREMENT_LABELS[requirement].zh}
                   </option>
                 ))}
               </select>
@@ -856,7 +874,7 @@ function ContractorCard({
 
           {contractor.responseType === "needs-more-information" && (
             <label>
-              What information do they need?
+              佢哋需要咩資料？
               <textarea
                 value={contractor.informationNeeded ?? ""}
                 onChange={(event) => onUpdate({ informationNeeded: event.target.value })}
@@ -867,7 +885,7 @@ function ContractorCard({
           {contractor.responseType === "proposal-provided" && (
             <>
               <label>
-                Price type
+                報價方式
                 <select
                   value={contractor.priceType ?? ""}
                   onChange={(event) => {
@@ -879,10 +897,10 @@ function ContractorCard({
                     onUpdate({ priceType: (event.target.value || undefined) as OperatorPriceType | undefined });
                   }}
                 >
-                  <option value="">Select…</option>
+                  <option value="">請選擇…</option>
                   {OPERATOR_PRICE_TYPES.map((type) => (
                     <option key={type} value={type}>
-                      {OPERATOR_PRICE_TYPE_LABELS[type]}
+                      {OPERATOR_PRICE_TYPE_LABELS[type].zh}
                     </option>
                   ))}
                 </select>
@@ -890,7 +908,7 @@ function ContractorCard({
 
               {(contractor.priceType === "fixed" || contractor.priceType === "estimate") && (
                 <label>
-                  Price (HK$)
+                  價格（港幣）
                   <input
                     type="number"
                     min={0}
@@ -903,7 +921,7 @@ function ContractorCard({
               {contractor.priceType === "range" && (
                 <div className="op-contractor-card__row">
                   <label>
-                    Price range — minimum (HK$)
+                    價格範圍 — 最低（港幣）
                     <input
                       type="number"
                       min={0}
@@ -912,7 +930,7 @@ function ContractorCard({
                     />
                   </label>
                   <label>
-                    Price range — maximum (HK$)
+                    價格範圍 — 最高（港幣）
                     <input
                       type="number"
                       min={0}
@@ -924,57 +942,56 @@ function ContractorCard({
               )}
               {rangeInvalid && (
                 <p className="field-error" role="alert">
-                  The minimum price can&apos;t be greater than the maximum — this value wasn&apos;t saved. The last
-                  valid range is kept.
+                  最低價格唔可以高過最高價格 — 呢個數值未有儲存，會保留返上一個有效嘅範圍。
                 </p>
               )}
 
               <label>
-                Proposed approach
+                建議處理方法
                 <textarea
                   value={contractor.proposedApproach ?? ""}
                   onChange={(event) => onUpdate({ proposedApproach: event.target.value })}
                 />
               </label>
               <label>
-                What&apos;s included
+                包括項目
                 <textarea
                   value={contractor.inclusions ?? ""}
                   onChange={(event) => onUpdate({ inclusions: event.target.value })}
                 />
               </label>
               <label>
-                What&apos;s excluded
+                不包括嘅項目
                 <textarea
                   value={contractor.exclusions ?? ""}
                   onChange={(event) => onUpdate({ exclusions: event.target.value })}
                 />
               </label>
               <label>
-                What could change the price
+                可能影響價格的因素
                 <textarea
                   value={contractor.priceChangeFactors ?? ""}
                   onChange={(event) => onUpdate({ priceChangeFactors: event.target.value })}
                 />
               </label>
               <label>
-                Expected duration
+                預計工期
                 <input
                   value={contractor.expectedDuration ?? ""}
                   onChange={(event) => onUpdate({ expectedDuration: event.target.value })}
-                  placeholder="e.g. 1 day, 2–3 visits"
+                  placeholder="例如：1 日、2-3 次上門"
                 />
               </label>
               <label>
-                Earliest start
+                最早可開始時間
                 <input
                   value={contractor.earliestStart ?? ""}
                   onChange={(event) => onUpdate({ earliestStart: event.target.value })}
-                  placeholder="e.g. Tomorrow afternoon, within 3 days, after inspection"
+                  placeholder="例如：聽日下晝、3 日內、檢查之後"
                 />
               </label>
               <label>
-                Guarantee
+                保養
                 <select
                   value={contractor.guaranteeStatus ?? ""}
                   onChange={(event) =>
@@ -983,17 +1000,17 @@ function ContractorCard({
                     })
                   }
                 >
-                  <option value="">Select…</option>
+                  <option value="">請選擇…</option>
                   {OPERATOR_GUARANTEE_STATUSES.map((status) => (
                     <option key={status} value={status}>
-                      {OPERATOR_GUARANTEE_STATUS_LABELS[status]}
+                      {OPERATOR_GUARANTEE_STATUS_LABELS[status].zh}
                     </option>
                   ))}
                 </select>
               </label>
               {contractor.guaranteeStatus === "yes" && (
                 <label>
-                  Guarantee details
+                  保養詳情
                   <textarea
                     value={contractor.guaranteeDetails ?? ""}
                     onChange={(event) => onUpdate({ guaranteeDetails: event.target.value })}
@@ -1004,20 +1021,20 @@ function ContractorCard({
           )}
 
           <label>
-            Original contractor response — what did they say?
+            師傅原本嘅回覆 — 佢哋講咗啲乜？
             <textarea
               value={contractor.originalResponse ?? ""}
               onChange={(event) => onUpdate({ originalResponse: event.target.value })}
-              placeholder="Paste or paraphrase what the contractor actually said…"
+              placeholder="貼上或者簡述師傅實際講嘅內容…"
             />
           </label>
 
           <label>
-            Operator notes
+            操作員備註
             <textarea
               value={contractor.notes}
               onChange={(event) => onUpdate({ notes: event.target.value })}
-              placeholder="Notes copied manually from WhatsApp, calls, etc."
+              placeholder="手動抄低嘅備註（WhatsApp、電話等）"
             />
           </label>
         </div>
@@ -1027,10 +1044,10 @@ function ContractorCard({
 }
 
 const REQUEST_STATUS_LABELS: Record<ContractorRequestSummary["status"], string> = {
-  open: "Open",
-  responded: "Responded",
-  revoked: "Revoked",
-  expired: "Expired",
+  open: "開放中",
+  responded: "已回覆",
+  revoked: "已撤銷",
+  expired: "已過期",
 };
 
 function requestStatusTone(status: ContractorRequestSummary["status"]): "neutral" | "good" | "attention" | "ink" {
@@ -1101,7 +1118,7 @@ function ContractorRequestPanel({
         setLoadError(
           error instanceof ContractorRequestOperatorError
             ? error.message
-            : "Could not load request history.",
+            : "未能載入回覆記錄。",
         );
       });
   };
@@ -1119,7 +1136,7 @@ function ContractorRequestPanel({
         setLoadError(
           error instanceof ContractorRequestOperatorError
             ? error.message
-            : "Could not load request history.",
+            : "未能載入回覆記錄。",
         );
       });
     return () => {
@@ -1127,6 +1144,11 @@ function ContractorRequestPanel({
     };
   }, [service, submissionId, contractor.id]);
 
+  // LOCALIZATION WORDING CORRECTION: RepairScope only CREATES this link —
+  // the operator still has to manually copy/paste it to the contractor
+  // (WhatsApp, SMS, etc.) themselves. "建立"/"複製" (create/copy), never
+  // "傳送"/"已發送" (send/sent) — those would falsely imply RepairScope
+  // transmitted it. See the module comment on ContractorRequestPanel.
   const sendRequestLink = async () => {
     setSendState("sending");
     setSendError("");
@@ -1149,7 +1171,7 @@ function ContractorRequestPanel({
     } catch (error) {
       setSendState("error");
       setSendError(
-        error instanceof ContractorRequestOperatorError ? error.message : "Could not send a request link.",
+        error instanceof ContractorRequestOperatorError ? error.message : "未能建立回覆連結。",
       );
     }
   };
@@ -1161,7 +1183,7 @@ function ContractorRequestPanel({
       refresh();
     } catch (error) {
       setLoadError(
-        error instanceof ContractorRequestOperatorError ? error.message : "Could not revoke this request.",
+        error instanceof ContractorRequestOperatorError ? error.message : "未能撤銷呢個連結。",
       );
     } finally {
       setRevokingId(null);
@@ -1189,8 +1211,8 @@ function ContractorRequestPanel({
       if (!parsed) {
         setReviewError(
           detail.responseSchemaVersion === 1
-            ? "This response could not be read — its format was not recognised."
-            : "This contractor response uses an unsupported response version and can't be imported.",
+            ? "未能讀取呢個回覆 — 格式未能識別。"
+            : "呢個師傅回覆使用咗不支援嘅版本，未能匯入。",
         );
         return;
       }
@@ -1202,7 +1224,7 @@ function ContractorRequestPanel({
       setReviewPreview(sanitizeContractorResponsePayload(parsed));
     } catch (error) {
       setReviewError(
-        error instanceof ContractorRequestOperatorError ? error.message : "Could not load this response.",
+        error instanceof ContractorRequestOperatorError ? error.message : "未能載入呢個回覆。",
       );
     } finally {
       setReviewLoading(false);
@@ -1234,9 +1256,9 @@ function ContractorRequestPanel({
   return (
     <div className="op-contractor-card__requests">
       <div className="op-contractor-card__requests-heading">
-        <h4>Request links</h4>
+        <h4>師傅回覆連結</h4>
         <button type="button" onClick={sendRequestLink} disabled={sendState === "sending"}>
-          {sendState === "sending" ? "Sending…" : "Send request link"}
+          {sendState === "sending" ? "建立緊連結…" : "建立回覆連結"}
         </button>
       </div>
       {sendState === "error" && (
@@ -1246,7 +1268,7 @@ function ContractorRequestPanel({
       )}
       {justCreatedLink && (
         <p className="op-contractor-card__requests-new-link">
-          Link ready: <code>{justCreatedLink}</code>
+          連結已建立： <code>{justCreatedLink}</code>
         </p>
       )}
       {loadError && (
@@ -1255,9 +1277,9 @@ function ContractorRequestPanel({
         </p>
       )}
       {requests === null ? (
-        <p className="op-panel__hint">Loading request history…</p>
+        <p className="op-panel__hint">回覆記錄載入緊…</p>
       ) : requests.length === 0 ? (
-        <p className="op-panel__hint">No request sent to this contractor yet.</p>
+        <p className="op-panel__hint">暫時未有建立過呢位師傅嘅連結。</p>
       ) : (
         <ul className="op-contractor-card__requests-list">
           {requests
@@ -1270,11 +1292,11 @@ function ContractorRequestPanel({
                   <StatusPill tone={requestStatusTone(request.status)}>
                     {REQUEST_STATUS_LABELS[request.status]}
                   </StatusPill>
-                  <span>Sent {formatTimestamp(request.createdAt)}</span>
+                  <span>建立時間 {formatTimestamp(request.createdAt)}</span>
                   {request.status === "open" && cached && <code>{cached.rawLink}</code>}
                   {request.status === "open" && !cached && (
                     <span className="op-panel__hint">
-                      Link not available in this browser — revoke and send a new one if needed.
+                      呢個瀏覽器搵唔到連結資料 — 如有需要，可以撤銷並建立新連結。
                     </span>
                   )}
                   {request.status === "open" && (
@@ -1283,17 +1305,17 @@ function ContractorRequestPanel({
                       onClick={() => revokeRequest(request.id)}
                       disabled={revokingId === request.id}
                     >
-                      {revokingId === request.id ? "Revoking…" : "Revoke"}
+                      {revokingId === request.id ? "撤銷緊…" : "撤銷連結"}
                     </button>
                   )}
                   {request.status === "responded" && reviewingRequestId !== request.id && (
                     <button type="button" onClick={() => reviewRequest(request.id)}>
-                      Review response
+                      查看回覆
                     </button>
                   )}
                   {request.status === "responded" && reviewingRequestId === request.id && (
                     <div className="op-contractor-card__requests-review">
-                      {reviewLoading && <p className="op-panel__hint">Loading…</p>}
+                      {reviewLoading && <p className="op-panel__hint">載入緊…</p>}
                       {reviewError && (
                         <p className="field-error" role="alert">
                           {reviewError}
@@ -1302,9 +1324,8 @@ function ContractorRequestPanel({
                       {reviewPreview && (
                         <div className="op-contractor-card__import-preview">
                           <p>
-                            This is what the contractor submitted. Nothing changes on this contractor until you
-                            confirm — this never overwrites the name, trade, contact reference, contact status or
-                            your own notes above.
+                            呢個係師傅提交嘅內容。確認之前呢位師傅嘅資料唔會有任何改動 —
+                            永遠唔會覆蓋番上面嘅名稱、行業、聯絡方式、聯絡狀態或者你自己嘅備註。
                           </p>
                           <ul>
                             {Object.entries(reviewPreview).map(([key, value]) => (
@@ -1314,12 +1335,12 @@ function ContractorRequestPanel({
                             ))}
                           </ul>
                           <button type="button" onClick={confirmReviewImport}>
-                            Confirm import
+                            確認匯入
                           </button>
                         </div>
                       )}
                       <button type="button" onClick={cancelReview}>
-                        {reviewPreview ? "Cancel" : "Close"}
+                        {reviewPreview ? "取消" : "關閉"}
                       </button>
                     </div>
                   )}

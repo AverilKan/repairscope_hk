@@ -17,19 +17,19 @@ async function addProposalContractor(
     approach?: string;
   },
 ) {
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const card = page.locator(".op-contractor-card").last();
-  await card.getByLabel("Contractor name").fill(name);
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  if (approach) await card.getByLabel("Proposed approach").fill(approach);
-  await card.getByLabel("Price type").selectOption(priceType);
+  await card.getByLabel("師傅名稱").fill(name);
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  if (approach) await card.getByLabel("建議處理方法").fill(approach);
+  await card.getByLabel("報價方式").selectOption(priceType);
   if (priceType === "range") {
-    await card.getByLabel("Price range — minimum (HK$)").fill(String(priceMin));
-    await card.getByLabel("Price range — maximum (HK$)").fill(String(priceMax));
+    await card.getByLabel("價格範圍 — 最低（港幣）").fill(String(priceMin));
+    await card.getByLabel("價格範圍 — 最高（港幣）").fill(String(priceMax));
   } else if (price !== undefined) {
-    await card.getByLabel("Price (HK$)").fill(String(price));
+    await card.getByLabel("價格（港幣）").fill(String(price));
   }
-  await card.getByRole("button", { name: "Collapse" }).click();
+  await card.getByRole("button", { name: "收合" }).click();
 }
 
 test("with zero proposals, the owner preview shows a clear empty state", async ({ page }) => {
@@ -42,7 +42,7 @@ test("with one proposal, it renders as a card with a working detail view", async
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await addProposalContractor(page, { name: "Fortune Plumbing Co.", priceType: "fixed", price: 5000, approach: "Replace the connector now." });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await expect(page).toHaveURL(/\/operator\/RS-MOCK01\/owner-preview/);
   const card = page.locator(".owner-proposal-card");
   await expect(card).toHaveCount(1);
@@ -60,7 +60,7 @@ test("with two proposals, both cards render independently", async ({ page }) => 
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 5000 });
   await addProposalContractor(page, { name: "Contractor B", priceType: "range", priceMin: 4000, priceMax: 7000 });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   const cards = page.locator(".owner-proposal-card");
   await expect(cards).toHaveCount(2);
   await expect(cards.nth(0)).toContainText("HK$5,000 fixed");
@@ -76,13 +76,13 @@ test("with three proposals, all remain independently visible and a non-proposal 
   await addProposalContractor(page, { name: "Contractor B", priceType: "estimate", price: 2000 });
   await addProposalContractor(page, { name: "Contractor C", priceType: "no-price" });
 
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const notInterested = page.locator(".op-contractor-card").last();
-  await notInterested.getByLabel("Contractor name").fill("Contractor D");
-  await notInterested.getByLabel("Current response").selectOption("needs-inspection");
-  await notInterested.getByRole("button", { name: "Collapse" }).click();
+  await notInterested.getByLabel("師傅名稱").fill("Contractor D");
+  await notInterested.getByLabel("目前回覆").selectOption("needs-inspection");
+  await notInterested.getByRole("button", { name: "收合" }).click();
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   const cards = page.locator(".owner-proposal-card");
   await expect(cards).toHaveCount(3);
   await expect(page.locator(".owner-proposal-preview")).not.toContainText("Contractor D");
@@ -96,7 +96,7 @@ test("'Compare side by side' reuses the same neutral comparison table, no separa
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 5000, approach: "Replace now." });
   await addProposalContractor(page, { name: "Contractor B", priceType: "range", priceMin: 4000, priceMax: 7000, approach: "Inspect first." });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await page.getByRole("button", { name: "Compare side by side" }).click();
   const table = page.locator(".op-comparison-table");
   await expect(table).toBeVisible();
@@ -112,12 +112,12 @@ test("the founder's Key differences, Questions still unresolved and RepairScope 
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 5000 });
 
-  const comparison = page.locator('[aria-label="Proposal comparison"]');
-  await comparison.getByLabel("Key differences").fill("A proposes a fixed price now.");
-  await comparison.getByLabel("Questions still unresolved").fill("Is materials cost included?");
-  await comparison.getByLabel("RepairScope note").fill("Neutral context only.");
+  const comparison = page.locator('[aria-label="報價比較"]');
+  await comparison.getByLabel("主要分別").fill("A proposes a fixed price now.");
+  await comparison.getByLabel("仲需要確認嘅問題").fill("Is materials cost included?");
+  await comparison.getByLabel("RepairScope 備註").fill("Neutral context only.");
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   const notes = page.locator('[aria-label="RepairScope\'s explanation"]');
   await expect(notes).toContainText("A proposes a fixed price now.");
   await expect(notes).toContainText("Is materials cost included?");
@@ -131,7 +131,7 @@ test("no notes section appears when the founder has written nothing", async ({ p
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 5000 });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await expect(page.locator('[aria-label="RepairScope\'s explanation"]')).toHaveCount(0);
 });
 
@@ -141,7 +141,7 @@ test("no ranking, scoring or recommendation language exists anywhere in the owne
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 3000 });
   await addProposalContractor(page, { name: "Contractor B", priceType: "fixed", price: 9000 });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   const text = (await page.locator(".owner-proposal-preview").innerText()).toLowerCase();
   for (const forbidden of [
     "winner",
@@ -164,15 +164,15 @@ test("editing a contractor's proposal on the case page updates the owner preview
   await page.getByRole("button", { name: "EN", exact: true }).click();
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 5000 });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await expect(page.locator(".owner-proposal-card")).toContainText("HK$5,000 fixed");
 
-  await page.getByRole("link", { name: "Back to case" }).click();
+  await page.getByRole("link", { name: "返回個案" }).click();
   const card = page.locator(".op-contractor-card").first();
-  await card.getByRole("button", { name: "Edit" }).click();
-  await card.getByLabel("Price (HK$)").fill("5500");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await card.getByLabel("價格（港幣）").fill("5500");
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await expect(page.locator(".owner-proposal-card")).toContainText("HK$5,500 fixed");
 
   const persisted = await page.evaluate(() => {
@@ -186,12 +186,12 @@ test("editing a contractor's proposal on the case page updates the owner preview
 test("an imported contractor response is immediately visible in the owner preview", async ({ page }) => {
   await page.goto("/operator/RS-MOCK01");
   await page.getByRole("button", { name: "EN", exact: true }).click();
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const card = page.locator(".op-contractor-card").last();
-  await card.getByLabel("Contractor name").fill("Imported Co.");
-  await card.getByRole("button", { name: "Collapse" }).click();
+  await card.getByLabel("師傅名稱").fill("Imported Co.");
+  await card.getByRole("button", { name: "收合" }).click();
 
-  await card.getByRole("button", { name: "Import response" }).click();
+  await card.getByRole("button", { name: "匯入回覆" }).click();
   await card.locator("textarea").first().fill(
     JSON.stringify({
       schema: "repairscope.contractor-response-export",
@@ -199,10 +199,10 @@ test("an imported contractor response is immediately visible in the owner previe
       response: { responseType: "proposal-provided", priceType: "fixed", price: 4200, proposedApproach: "Inspect and fix." },
     }),
   );
-  await card.getByRole("button", { name: "Preview" }).click();
-  await card.getByRole("button", { name: "Confirm import" }).click();
+  await card.getByRole("button", { name: "預覽" }).click();
+  await card.getByRole("button", { name: "確認匯入" }).click();
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await expect(page.locator(".owner-proposal-card")).toContainText("Imported Co.");
   await expect(page.locator(".owner-proposal-card")).toContainText("HK$4,200 fixed");
 });
@@ -211,7 +211,7 @@ test("the owner preview is gated behind the operator area — a case-workspace b
   page,
 }) => {
   await page.goto("/operator/RS-MOCK01/owner-preview");
-  await expect(page.getByRole("link", { name: "Back to case" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "返回個案" })).toBeVisible();
 });
 
 test("mobile viewport: proposal cards remain usable with no page-level horizontal overflow", async ({ page }) => {
@@ -241,7 +241,7 @@ test("no mutating request is made to the backend while viewing the owner preview
     }
   });
 
-  await page.getByRole("link", { name: "Preview owner proposal view" }).click();
+  await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
   await page.getByRole("button", { name: "Compare side by side" }).click();
   await page.getByRole("button", { name: "Proposal cards" }).click();
 

@@ -37,6 +37,7 @@ import {
   type OperatorInspectionRequirement,
   type OperatorPriceType,
 } from "./operatorCaseState";
+import { localize, lt, type Lang, type LocalizedText } from "./i18n";
 
 /**
  * Everything a contractor's own response can contain — structurally
@@ -231,17 +232,19 @@ const SHORT_TEXT_FIELDS = [
 
 /** Field-length label map only for building error text — not a second
  * source of truth for which cap applies (that's LONG_TEXT_FIELDS/
- * SHORT_TEXT_FIELDS above). */
-const FIELD_LABELS: Partial<Record<keyof ContractorResponsePayload, string>> = {
-  originalResponse: "Your response",
-  informationNeeded: "What information you need",
-  proposedApproach: "Proposed approach",
-  inclusions: "What's included",
-  exclusions: "What's excluded",
-  priceChangeFactors: "What could change the price",
-  guaranteeDetails: "Guarantee details",
-  expectedDuration: "Expected duration",
-  earliestStart: "Earliest start",
+ * SHORT_TEXT_FIELDS above). Bilingual (see domain/i18n.ts) — the
+ * contractor-facing form is the only caller and defaults to Traditional
+ * Chinese; `lang` is threaded through from checkContractorResponseCompletion. */
+const FIELD_LABELS: Partial<Record<keyof ContractorResponsePayload, LocalizedText>> = {
+  originalResponse: lt("你的回覆", "Your response"),
+  informationNeeded: lt("你需要嘅資料", "What information you need"),
+  proposedApproach: lt("建議處理方法", "Proposed approach"),
+  inclusions: lt("包括項目", "What's included"),
+  exclusions: lt("不包括項目", "What's excluded"),
+  priceChangeFactors: lt("可能影響價格的因素", "What could change the price"),
+  guaranteeDetails: lt("保養詳情", "Guarantee details"),
+  expectedDuration: lt("預計工期", "Expected duration"),
+  earliestStart: lt("最早可開始時間", "Earliest start"),
 };
 
 export function isNonBlank(value: string | undefined): boolean {
@@ -280,41 +283,53 @@ export interface ContractorResponseCompletionCheck {
  */
 export function checkContractorResponseCompletion(
   payload: ContractorResponsePayload,
+  lang: Lang = "en",
 ): ContractorResponseCompletionCheck {
   const errors: string[] = [];
+  const push = (text: LocalizedText) => errors.push(localize(text, lang));
 
   if (!payload.responseType) {
-    return { complete: false, errors: ["Choose what happens next."] };
+    return { complete: false, errors: [localize(lt("請選擇下一步做法。", "Choose what happens next."), lang)] };
   }
 
   if (payload.responseType === "needs-inspection" && !payload.inspectionRequirement) {
-    errors.push("Choose an inspection requirement.");
+    push(lt("請選擇檢查要求。", "Choose an inspection requirement."));
   }
   if (payload.responseType === "needs-more-information" && !isNonBlank(payload.informationNeeded)) {
-    errors.push("Describe what information you need.");
+    push(lt("請講清楚你需要咩資料。", "Describe what information you need."));
   }
   if (payload.responseType === "proposal-provided") {
     if (!payload.priceType) {
-      errors.push("Choose a price type.");
+      push(lt("請選擇報價方式。", "Choose a price type."));
     } else if (payload.priceType === "fixed" || payload.priceType === "estimate") {
-      if (!isValidAmount(payload.price)) errors.push("Enter a valid price.");
+      if (!isValidAmount(payload.price)) push(lt("請輸入有效價格。", "Enter a valid price."));
     } else if (payload.priceType === "range") {
       if (!isValidAmount(payload.priceMin) || !isValidAmount(payload.priceMax)) {
-        errors.push("Enter both a minimum and maximum price.");
+        push(lt("請輸入最低同最高價格。", "Enter both a minimum and maximum price."));
       } else if (payload.priceMin > payload.priceMax) {
-        errors.push("The minimum can't be greater than the maximum.");
+        push(lt("最低價格唔可以高過最高價格。", "The minimum can't be greater than the maximum."));
       }
     }
   }
 
   for (const field of LONG_TEXT_FIELDS) {
     if (!isWithinLength(payload[field], CONTRACTOR_RESPONSE_LONG_TEXT_MAX)) {
-      errors.push(`${FIELD_LABELS[field]} is too long (max ${CONTRACTOR_RESPONSE_LONG_TEXT_MAX} characters).`);
+      push(
+        lt(
+          `${FIELD_LABELS[field]?.zh}太長（上限 ${CONTRACTOR_RESPONSE_LONG_TEXT_MAX} 個字）。`,
+          `${FIELD_LABELS[field]?.en} is too long (max ${CONTRACTOR_RESPONSE_LONG_TEXT_MAX} characters).`,
+        ),
+      );
     }
   }
   for (const field of SHORT_TEXT_FIELDS) {
     if (!isWithinLength(payload[field], CONTRACTOR_RESPONSE_SHORT_TEXT_MAX)) {
-      errors.push(`${FIELD_LABELS[field]} is too long (max ${CONTRACTOR_RESPONSE_SHORT_TEXT_MAX} characters).`);
+      push(
+        lt(
+          `${FIELD_LABELS[field]?.zh}太長（上限 ${CONTRACTOR_RESPONSE_SHORT_TEXT_MAX} 個字）。`,
+          `${FIELD_LABELS[field]?.en} is too long (max ${CONTRACTOR_RESPONSE_SHORT_TEXT_MAX} characters).`,
+        ),
+      );
     }
   }
 

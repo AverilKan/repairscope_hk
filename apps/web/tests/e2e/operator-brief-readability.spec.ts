@@ -62,7 +62,7 @@ test("operator detail shows the modern semantic summary above intake details, wi
   await expect(page.getByText('"reportedFacts"')).not.toBeVisible();
 
   // Raw questionnaire answers are collapsed by default...
-  const disclosure = page.getByText("Show raw answers");
+  const disclosure = page.getByText("顯示原始答案");
   await expect(disclosure).toBeVisible();
   await expect(page.locator("details[open]")).toHaveCount(0);
 
@@ -85,17 +85,17 @@ test("operator workspace retains its own operator-specific information around th
   // Contact/consent (operator-only visibility, distinct from the owner
   // summary above it).
   await expect(page.getByText("jamie@example.com")).toBeVisible();
-  await expect(page.getByText("CONSENT TO CONTACT", { exact: false })).toBeVisible();
+  await expect(page.getByText("同意俾人聯絡", { exact: false })).toBeVisible();
 
   // Backend status controls and local workflow state both still exist,
   // clearly separated (see OperatorCaseWorkspace's own two-column layout).
-  await expect(page.getByText("Backend submission status")).toBeVisible();
-  await expect(page.getByText("Local working notes")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Reviewing" })).toBeVisible();
+  await expect(page.getByText("後台提交狀態")).toBeVisible();
+  await expect(page.getByText("本機工作備註")).toBeVisible();
+  await expect(page.getByRole("button", { name: "審閱中" })).toBeVisible();
 
   // No owner edit controls appear anywhere in the read-only owner-submission
   // section.
-  const ownerSection = page.locator('[aria-label="Owner submission"]');
+  const ownerSection = page.locator('[aria-label="業主提交資料"]');
   await expect(ownerSection.locator("input, textarea, select")).toHaveCount(0);
 });
 
@@ -108,11 +108,11 @@ test("operator status/note actions still work after the brief-rendering change",
 
   // "Internal review notes" is the BACKEND-saved note field — distinct
   // from the local-only "Internal notes" field below it (see
-  // OperatorCaseWorkspace's own "Backend submission status" vs "Local
+  // OperatorCaseWorkspace's own "後台提交狀態" vs "Local
   // working notes" sections) — matched here by its fuller label to avoid
   // ambiguity between the two.
-  await page.getByLabel("Internal review notes (saved to RepairScope)").fill("Readability regression check.");
-  await page.getByRole("button", { name: "Reviewing" }).click();
+  await page.getByLabel("內部審閱備註（會儲存喺 RepairScope）").fill("Readability regression check.");
+  await page.getByRole("button", { name: "審閱中" }).click();
 
-  await expect(page.getByText("reviewing", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("審閱中", { exact: true }).first()).toBeVisible();
 });

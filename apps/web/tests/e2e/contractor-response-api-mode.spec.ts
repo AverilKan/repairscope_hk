@@ -56,7 +56,7 @@ test.skip(
 
 test("an open request loads the real Stage-1 brief and shows no fixture/mock content", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("Tell RepairScope how you'd like to respond.")).toBeVisible();
+  await expect(page.getByText("話俾 RepairScope 知你點打算處理。")).toBeVisible();
   const briefPanel = page.locator(".contractor-brief-panel");
   // Default UI language is Traditional Chinese (see LanguageContext) — the
   // resolved category label is bilingual, so this asserts the raw internal
@@ -98,30 +98,30 @@ test("an unsupported Stage-1 schema version fails closed without rendering the q
     });
   });
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("This repair request uses a version that this page can't open.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Interested", exact: true })).toHaveCount(0);
+  await expect(page.getByText("呢個維修個案嘅版本呢頁未能開啟。")).toBeVisible();
+  await expect(page.getByRole("button", { name: "有興趣處理", exact: true })).toHaveCount(0);
   await expect(page.getByText("SECRET_OWNER_MARKER")).toHaveCount(0);
 });
 
 test("a responded request shows the already-responded state, not the form", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_RESPONDED}`);
-  await expect(page.getByText("You've already submitted a response for this request.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Interested", exact: true })).toHaveCount(0);
+  await expect(page.getByText("你已經提交過呢個邀請嘅回覆。")).toBeVisible();
+  await expect(page.getByRole("button", { name: "有興趣處理", exact: true })).toHaveCount(0);
 });
 
 test("a revoked request shows the inactive-link state, not the form", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_REVOKED}`);
-  await expect(page.getByText("This link is no longer active.")).toBeVisible();
+  await expect(page.getByText("呢個連結已經失效。")).toBeVisible();
 });
 
 test("an expired request shows the same inactive-link state as revoked", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_EXPIRED}`);
-  await expect(page.getByText("This link is no longer active.")).toBeVisible();
+  await expect(page.getByText("呢個連結已經失效。")).toBeVisible();
 });
 
 test("an unknown token against the real backend shows the invalid-link state, not a crash", async ({ page }) => {
   await page.goto("/contractor/respond/definitely-not-a-real-backend-token");
-  await expect(page.getByText("This link isn't valid.")).toBeVisible();
+  await expect(page.getByText("呢個連結無效。")).toBeVisible();
 });
 
 test("a real GET network failure shows a truthful network-error state, never falls back to mock/demo content", async ({
@@ -129,48 +129,48 @@ test("a real GET network failure shows a truthful network-error state, never fal
 }) => {
   await page.route("**/api/contractor-requests/**", (route) => route.abort("failed"));
   await page.goto(`/contractor/respond/${TOKEN_OPEN}`);
-  await expect(page.getByText("Couldn't load this invitation.")).toBeVisible();
+  await expect(page.getByText("未能載入呢個邀請。")).toBeVisible();
   // Never silently substitutes the mock demo-token fixture content.
-  await expect(page.getByText("Plumbing problem")).toHaveCount(0);
+  await expect(page.getByText("水喉問題")).toHaveCount(0);
 });
 
 test("submitting a proposal actually persists to the real backend and only then shows success", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_OPEN}`);
-  await page.getByRole("button", { name: "Initial proposal provided", exact: true }).click();
-  await page.getByLabel("Proposed work / approach").fill("Replace the seal and re-test.");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Fixed price" }).click();
-  await page.getByLabel("Price (HK$)").fill("3500");
-  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "提供初步報價", exact: true }).click();
+  await page.getByLabel("建議處理方法").fill("Replace the seal and re-test.");
+  await page.getByRole("button", { name: "繼續" }).click();
+  await page.getByRole("button", { name: "固定價格" }).click();
+  await page.getByLabel("價格（港幣）").fill("3500");
+  await page.getByRole("button", { name: "繼續" }).click();
   // Walk through the remaining optional steps (inclusions, exclusions,
   // price-change-factors, expected-duration, earliest-start — all
   // optional/blank), then the guarantee options step (button-select, not
   // Continue), then anything-else — matching the equivalent mock-mode
   // test's own navigation pattern.
   for (let i = 0; i < 5; i++) {
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "繼續" }).click();
   }
-  await expect(page.getByRole("heading", { name: "Guarantee" })).toBeVisible();
-  await page.getByRole("button", { name: "Not stated", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Anything else you'd like to say?" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Review your response" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "保養" })).toBeVisible();
+  await page.getByRole("button", { name: "未提及", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "仲有冇想講嘅？" })).toBeVisible();
+  await page.getByRole("button", { name: "繼續" }).click();
+  await expect(page.getByRole("heading", { name: "查看回覆" })).toBeVisible();
 
-  const submitButton = page.getByRole("button", { name: "Submit response" });
+  const submitButton = page.getByRole("button", { name: "提交回覆" });
   await expect(submitButton).toBeVisible();
   await submitButton.click();
-  await expect(page.getByText("Response submitted. Thank you.")).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("回覆已成功提交，多謝你！")).toBeVisible({ timeout: 10_000 });
 
   // Reloading now proves it actually persisted server-side, not just local UI state.
   await page.reload();
-  await expect(page.getByText("You've already submitted a response for this request.")).toBeVisible();
+  await expect(page.getByText("你已經提交過呢個邀請嘅回覆。")).toBeVisible();
 });
 
 test("submitting to an already-responded token surfaces the real 409 conflict, not a generic error", async ({
   page,
 }) => {
   await page.goto(`/contractor/respond/${TOKEN_RESPONDED}`);
-  await expect(page.getByText("You've already submitted a response for this request.")).toBeVisible();
+  await expect(page.getByText("你已經提交過呢個邀請嘅回覆。")).toBeVisible();
 });
 
 test("no operator/private API endpoint is ever called from this public route", async ({ page }) => {
@@ -193,7 +193,7 @@ test("mobile viewport: the real API-mode contractor route renders with no page-l
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("Tell RepairScope how you'd like to respond.")).toBeVisible();
+  await expect(page.getByText("話俾 RepairScope 知你點打算處理。")).toBeVisible();
   const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasOverflow).toBe(false);
 });

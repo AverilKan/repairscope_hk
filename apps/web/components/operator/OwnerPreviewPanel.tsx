@@ -25,7 +25,7 @@ export function OwnerPreviewPanel({ caseReference }: { caseReference: string }) 
   }, [caseReference]);
 
   if (!loaded) {
-    return <p role="status">Loading…</p>;
+    return <p role="status">載入緊…</p>;
   }
 
   const proposals = proposalContractors(state.contractors).map(toOwnerVisibleProposal);

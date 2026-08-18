@@ -9,7 +9,7 @@ import { expect, test } from "@playwright/test";
 async function openFirstContractorCard(page: import("@playwright/test").Page) {
   await page.goto("/operator/RS-MOCK01");
   await page.getByRole("button", { name: "EN", exact: true }).click();
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   return page.locator(".op-contractor-card").first();
 }
 
@@ -17,21 +17,21 @@ test("selecting 'Needs inspection' reveals the inspection requirement field, and
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Current response").selectOption("needs-inspection");
-  await expect(card.getByLabel("Inspection requirement")).toBeVisible();
-  await expect(card.getByLabel("What information do they need?")).toHaveCount(0);
-  await expect(card.getByLabel("Price type")).toHaveCount(0);
+  await card.getByLabel("目前回覆").selectOption("needs-inspection");
+  await expect(card.getByLabel("檢查要求")).toBeVisible();
+  await expect(card.getByLabel("佢哋需要咩資料？")).toHaveCount(0);
+  await expect(card.getByLabel("報價方式")).toHaveCount(0);
 
-  await card.getByLabel("Inspection requirement").selectOption("required");
-  await expect(card).toContainText("Required before proposal");
+  await card.getByLabel("檢查要求").selectOption("required");
+  await expect(card).toContainText("一定要上門檢查先可以報價");
 });
 
 test("selecting 'Needs more information' reveals the information-needed field", async ({ page }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Current response").selectOption("needs-more-information");
-  await expect(card.getByLabel("What information do they need?")).toBeVisible();
-  await card.getByLabel("What information do they need?").fill("Photos of the pipe under the sink.");
-  await expect(card.getByLabel("What information do they need?")).toHaveValue(
+  await card.getByLabel("目前回覆").selectOption("needs-more-information");
+  await expect(card.getByLabel("佢哋需要咩資料？")).toBeVisible();
+  await card.getByLabel("佢哋需要咩資料？").fill("Photos of the pipe under the sink.");
+  await expect(card.getByLabel("佢哋需要咩資料？")).toHaveValue(
     "Photos of the pipe under the sink.",
   );
 });
@@ -40,68 +40,68 @@ test("selecting 'Initial proposal provided' reveals the full proposal form, gate
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await expect(card.getByLabel("Price type")).toBeVisible();
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await expect(card.getByLabel("報價方式")).toBeVisible();
 
   // No price type chosen yet — no price fields shown.
-  await expect(card.getByLabel("Price (HK$)")).toHaveCount(0);
-  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveCount(0);
+  await expect(card.getByLabel("價格（港幣）")).toHaveCount(0);
+  await expect(card.getByLabel("價格範圍 — 最低（港幣）")).toHaveCount(0);
 
-  await card.getByLabel("Price type").selectOption("fixed");
-  await expect(card.getByLabel("Price (HK$)")).toBeVisible();
-  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveCount(0);
-  await card.getByLabel("Price (HK$)").fill("850");
+  await card.getByLabel("報價方式").selectOption("fixed");
+  await expect(card.getByLabel("價格（港幣）")).toBeVisible();
+  await expect(card.getByLabel("價格範圍 — 最低（港幣）")).toHaveCount(0);
+  await card.getByLabel("價格（港幣）").fill("850");
 
-  await card.getByLabel("Price type").selectOption("range");
+  await card.getByLabel("報價方式").selectOption("range");
   // Switching to range clears the single price field and shows min/max.
-  await expect(card.getByLabel("Price (HK$)")).toHaveCount(0);
-  await card.getByLabel("Price range — minimum (HK$)").fill("500");
-  await card.getByLabel("Price range — maximum (HK$)").fill("300");
-  await expect(card.getByText(/wasn.t saved/)).toBeVisible();
-  await card.getByLabel("Price range — maximum (HK$)").fill("900");
-  await expect(card.getByText(/wasn.t saved/)).toHaveCount(0);
+  await expect(card.getByLabel("價格（港幣）")).toHaveCount(0);
+  await card.getByLabel("價格範圍 — 最低（港幣）").fill("500");
+  await card.getByLabel("價格範圍 — 最高（港幣）").fill("300");
+  await expect(card.getByText(/未有儲存/)).toBeVisible();
+  await card.getByLabel("價格範圍 — 最高（港幣）").fill("900");
+  await expect(card.getByText(/未有儲存/)).toHaveCount(0);
 
-  await card.getByLabel("Price type").selectOption("no-price");
-  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveCount(0);
+  await card.getByLabel("報價方式").selectOption("no-price");
+  await expect(card.getByLabel("價格範圍 — 最低（港幣）")).toHaveCount(0);
 
   // Not getByLabel("Guarantee"): the wrapping <label> makes its accessible
   // name include its <select>'s own option list, which collides with the
-  // separate "Guarantee details" label — scope by structure instead.
-  const guaranteeSelect = card.locator('label:has-text("Guarantee")').locator("select");
-  await expect(card.getByLabel("Guarantee details")).toHaveCount(0);
+  // separate "保養詳情" label — scope by structure instead.
+  const guaranteeSelect = card.locator('label:has-text("保養")').locator("select");
+  await expect(card.getByLabel("保養詳情")).toHaveCount(0);
   await guaranteeSelect.selectOption("yes");
-  await expect(card.getByLabel("Guarantee details")).toBeVisible();
-  await card.getByLabel("Guarantee details").fill("6 months on parts and labour.");
+  await expect(card.getByLabel("保養詳情")).toBeVisible();
+  await card.getByLabel("保養詳情").fill("6 months on parts and labour.");
 
   await guaranteeSelect.selectOption("not-stated");
-  await expect(card.getByLabel("Guarantee details")).toHaveCount(0);
+  await expect(card.getByLabel("保養詳情")).toHaveCount(0);
 
   // The free-form response and operator notes are always present, proposal
   // fields or not.
-  await expect(card.getByLabel("Original contractor response — what did they say?")).toBeVisible();
-  await expect(card.getByLabel("Operator notes")).toBeVisible();
+  await expect(card.getByLabel("師傅原本嘅回覆 — 佢哋講咗啲乜？")).toBeVisible();
+  await expect(card.getByLabel("操作員備註")).toBeVisible();
 });
 
 test("changing response type away from 'Initial proposal provided' clears the proposal fields from view, not just hides them behind stale data", async ({
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await card.getByLabel("Price type").selectOption("fixed");
-  await card.getByLabel("Price (HK$)").fill("1200");
-  await card.getByLabel("Proposed approach").fill("Replace the whole unit.");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await card.getByLabel("報價方式").selectOption("fixed");
+  await card.getByLabel("價格（港幣）").fill("1200");
+  await card.getByLabel("建議處理方法").fill("Replace the whole unit.");
 
-  await card.getByLabel("Current response").selectOption("needs-inspection");
-  await expect(card.getByLabel("Price type")).toHaveCount(0);
-  await expect(card.getByLabel("Price (HK$)")).toHaveCount(0);
-  await expect(card.getByLabel("Proposed approach")).toHaveCount(0);
+  await card.getByLabel("目前回覆").selectOption("needs-inspection");
+  await expect(card.getByLabel("報價方式")).toHaveCount(0);
+  await expect(card.getByLabel("價格（港幣）")).toHaveCount(0);
+  await expect(card.getByLabel("建議處理方法")).toHaveCount(0);
 
   // Switch back to proposal-provided — the previously entered price must
   // not silently reappear (it was actually cleared, not just hidden).
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await expect(card.getByLabel("Price type")).toHaveValue("");
-  await card.getByLabel("Price type").selectOption("fixed");
-  await expect(card.getByLabel("Price (HK$)")).toHaveValue("");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await expect(card.getByLabel("報價方式")).toHaveValue("");
+  await card.getByLabel("報價方式").selectOption("fixed");
+  await expect(card.getByLabel("價格（港幣）")).toHaveValue("");
 });
 
 test("two independently added contractors keep separate response state — editing one never touches the other", async ({
@@ -110,31 +110,31 @@ test("two independently added contractors keep separate response state — editi
   await page.goto("/operator/RS-MOCK01");
   await page.getByRole("button", { name: "EN", exact: true }).click();
 
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
   const cards = page.locator(".op-contractor-card");
-  await cards.nth(0).getByLabel("Contractor name").fill("Contractor A");
-  await cards.nth(0).getByLabel("Current response").selectOption("interested");
+  await cards.nth(0).getByLabel("師傅名稱").fill("Contractor A");
+  await cards.nth(0).getByLabel("目前回覆").selectOption("interested");
 
-  await page.getByRole("button", { name: "+ Add contractor" }).click();
-  await cards.nth(1).getByLabel("Contractor name").fill("Contractor B");
-  await cards.nth(1).getByLabel("Current response").selectOption("proposal-provided");
-  await cards.nth(1).getByLabel("Price type").selectOption("estimate");
-  await cards.nth(1).getByLabel("Price (HK$)").fill("650");
+  await page.getByRole("button", { name: "＋新增師傅" }).click();
+  await cards.nth(1).getByLabel("師傅名稱").fill("Contractor B");
+  await cards.nth(1).getByLabel("目前回覆").selectOption("proposal-provided");
+  await cards.nth(1).getByLabel("報價方式").selectOption("estimate");
+  await cards.nth(1).getByLabel("價格（港幣）").fill("650");
 
   // Collapse both cards before checking summaries — while expanded, each
   // card's own <select> renders every option's text (including "Initial
   // proposal provided") regardless of which is selected, which would make a
   // substring check meaningless.
-  await cards.nth(0).getByRole("button", { name: "Collapse" }).click();
-  await cards.nth(1).getByRole("button", { name: "Collapse" }).click();
-  await expect(cards.nth(0).locator(".op-contractor-card__meta")).toContainText("Interested");
-  await expect(cards.nth(0).locator(".op-contractor-card__meta")).not.toContainText("Proposal");
-  await expect(cards.nth(1).locator(".op-contractor-card__meta")).toContainText("Proposal");
+  await cards.nth(0).getByRole("button", { name: "收合" }).click();
+  await cards.nth(1).getByRole("button", { name: "收合" }).click();
+  await expect(cards.nth(0).locator(".op-contractor-card__meta")).toContainText("有興趣處理");
+  await expect(cards.nth(0).locator(".op-contractor-card__meta")).not.toContainText("報價");
+  await expect(cards.nth(1).locator(".op-contractor-card__meta")).toContainText("報價");
 
-  await cards.nth(1).getByRole("button", { name: "Remove" }).click();
+  await cards.nth(1).getByRole("button", { name: "移除" }).click();
   await expect(cards).toHaveCount(1);
   await expect(cards.nth(0)).toContainText("Contractor A");
-  await expect(cards.nth(0)).toContainText("Interested");
+  await expect(cards.nth(0)).toContainText("有興趣處理");
 });
 
 test("an old, pre-Slice-2 minimal contractor record (written directly to localStorage) renders safely with no crash", async ({
@@ -162,10 +162,10 @@ test("an old, pre-Slice-2 minimal contractor record (written directly to localSt
 
   const card = page.locator(".op-contractor-card").first();
   await expect(card).toContainText("Legacy Contractor");
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Contractor name")).toHaveValue("Legacy Contractor");
-  await expect(card.getByLabel("Current response")).toHaveValue("");
-  await expect(card.getByLabel("Operator notes")).toHaveValue("Pre-Slice-2 record.");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("師傅名稱")).toHaveValue("Legacy Contractor");
+  await expect(card.getByLabel("目前回覆")).toHaveValue("");
+  await expect(card.getByLabel("操作員備註")).toHaveValue("Pre-Slice-2 record.");
 });
 
 // --- Slice 2 repair pass: contact-status/response-type overlap, invalid ---
@@ -175,22 +175,22 @@ test("the contact/sourcing status dropdown offers only Considering/Not contacted
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  const options = await card.getByLabel("Contact / sourcing status").locator("option").allTextContents();
-  assertDeepEqualOptions(options, ["Considering", "Not contacted", "Contacted"]);
+  const options = await card.getByLabel("聯絡／搵師傅狀態").locator("option").allTextContents();
+  assertDeepEqualOptions(options, ["考慮中", "未聯絡", "已聯絡"]);
 });
 
 test("the current response dropdown offers only the five response types — no contact-progress values", async ({
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  const options = await card.getByLabel("Current response").locator("option").allTextContents();
+  const options = await card.getByLabel("目前回覆").locator("option").allTextContents();
   assertDeepEqualOptions(options, [
-    "Not yet responded",
-    "Interested",
-    "Needs inspection",
-    "Needs more information",
-    "Not suitable",
-    "Initial proposal provided",
+    "未有回覆",
+    "有興趣處理",
+    "需要上門檢查",
+    "需要更多資料",
+    "不適合處理",
+    "提供初步報價",
   ]);
 });
 
@@ -204,15 +204,15 @@ test("an attempted inverted range (min=10000, max=5000) is never committed, neve
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Contractor name").fill("Bad Range Co.");
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await card.getByLabel("Price type").selectOption("range");
-  await card.getByLabel("Price range — minimum (HK$)").fill("10000");
+  await card.getByLabel("師傅名稱").fill("Bad Range Co.");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await card.getByLabel("報價方式").selectOption("range");
+  await card.getByLabel("價格範圍 — 最低（港幣）").fill("10000");
   // At this point min=10000 alone is a legitimate, non-inverted value (max
   // is still unset) and does persist — the invariant only applies once
   // BOTH bounds exist. The attempted max=5000 is what must be rejected.
-  await card.getByLabel("Price range — maximum (HK$)").fill("5000");
-  await expect(card.getByText(/wasn.t saved/)).toBeVisible();
+  await card.getByLabel("價格範圍 — 最高（港幣）").fill("5000");
+  await expect(card.getByText(/未有儲存/)).toBeVisible();
 
   // The rejected max never reached persisted state; the invariant
   // (min <= max whenever both exist) is never violated because max simply
@@ -231,25 +231,25 @@ test("an attempted inverted range (min=10000, max=5000) is never committed, neve
   // Collapsed summary never shows a range at all while only one bound is
   // set — summarizeContractor requires both min and max to be numbers.
   await expect(reloadedCard.locator(".op-contractor-card__meta")).not.toContainText("5,000");
-  await expect(reloadedCard.locator(".op-contractor-card__meta")).not.toContainText("Proposal —");
+  await expect(reloadedCard.locator(".op-contractor-card__meta")).not.toContainText("報價 —");
 
   // Reopen and confirm the rejected max is still gone after reload — not
   // silently restored from some other path.
-  await reloadedCard.getByRole("button", { name: "Edit" }).click();
-  await expect(reloadedCard.getByLabel("Price range — minimum (HK$)")).toHaveValue("10000");
-  await expect(reloadedCard.getByLabel("Price range — maximum (HK$)")).toHaveValue("");
+  await reloadedCard.getByRole("button", { name: "編輯" }).click();
+  await expect(reloadedCard.getByLabel("價格範圍 — 最低（港幣）")).toHaveValue("10000");
+  await expect(reloadedCard.getByLabel("價格範圍 — 最高（港幣）")).toHaveValue("");
 });
 
 test("a valid range (min=5000, max=10000) persists, survives reload, and appears correctly in the collapsed summary", async ({
   page,
 }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Contractor name").fill("Good Range Co.");
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await card.getByLabel("Price type").selectOption("range");
-  await card.getByLabel("Price range — minimum (HK$)").fill("5000");
-  await card.getByLabel("Price range — maximum (HK$)").fill("10000");
-  await expect(card.getByText(/wasn.t saved/)).toHaveCount(0);
+  await card.getByLabel("師傅名稱").fill("Good Range Co.");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await card.getByLabel("報價方式").selectOption("range");
+  await card.getByLabel("價格範圍 — 最低（港幣）").fill("5000");
+  await card.getByLabel("價格範圍 — 最高（港幣）").fill("10000");
+  await expect(card.getByText(/未有儲存/)).toHaveCount(0);
 
   await page.reload();
   await page.getByRole("button", { name: "EN", exact: true }).click();
@@ -259,13 +259,13 @@ test("a valid range (min=5000, max=10000) persists, survives reload, and appears
 
 test("min equal to max is accepted as a valid range, live in the browser", async ({ page }) => {
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await card.getByLabel("Price type").selectOption("range");
-  await card.getByLabel("Price range — minimum (HK$)").fill("7000");
-  await card.getByLabel("Price range — maximum (HK$)").fill("7000");
-  await expect(card.getByText(/wasn.t saved/)).toHaveCount(0);
-  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveValue("7000");
-  await expect(card.getByLabel("Price range — maximum (HK$)")).toHaveValue("7000");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await card.getByLabel("報價方式").selectOption("range");
+  await card.getByLabel("價格範圍 — 最低（港幣）").fill("7000");
+  await card.getByLabel("價格範圍 — 最高（港幣）").fill("7000");
+  await expect(card.getByText(/未有儲存/)).toHaveCount(0);
+  await expect(card.getByLabel("價格範圍 — 最低（港幣）")).toHaveValue("7000");
+  await expect(card.getByLabel("價格範圍 — 最高（港幣）")).toHaveValue("7000");
 });
 
 test("a record already carrying an inverted range in localStorage (simulating pre-repair-pass data) is sanitized on load and never rendered as a valid proposal", async ({
@@ -305,13 +305,13 @@ test("a record already carrying an inverted range in localStorage (simulating pr
   await expect(card).toContainText("Already Inverted Co.");
   await expect(card.locator(".op-contractor-card__meta")).not.toContainText("10,000");
   await expect(card.locator(".op-contractor-card__meta")).not.toContainText("5,000");
-  await expect(card.locator(".op-contractor-card__meta")).not.toContainText("Proposal —");
+  await expect(card.locator(".op-contractor-card__meta")).not.toContainText("報價 —");
 
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Price range — minimum (HK$)")).toHaveValue("");
-  await expect(card.getByLabel("Price range — maximum (HK$)")).toHaveValue("");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("價格範圍 — 最低（港幣）")).toHaveValue("");
+  await expect(card.getByLabel("價格範圍 — 最高（港幣）")).toHaveValue("");
   // Other proposal fields, unrelated to the price invariant, are untouched.
-  await expect(card.getByLabel("Proposed approach")).toHaveValue("Should survive normalization.");
+  await expect(card.getByLabel("建議處理方法")).toHaveValue("Should survive normalization.");
 });
 
 test("a historical status='interested' record (no responseType) normalizes on load to contact status=Contacted and response=Interested, with no contradictory display", async ({
@@ -336,11 +336,11 @@ test("a historical status='interested' record (no responseType) normalizes on lo
   await page.getByRole("button", { name: "EN", exact: true }).click();
 
   const card = page.locator(".op-contractor-card").first();
-  await expect(card.locator(".op-contractor-card__meta")).toContainText("Contacted");
-  await expect(card.locator(".op-contractor-card__meta")).toContainText("Interested");
-  await card.getByRole("button", { name: "Edit" }).click();
-  await expect(card.getByLabel("Contact / sourcing status")).toHaveValue("contacted");
-  await expect(card.getByLabel("Current response")).toHaveValue("interested");
+  await expect(card.locator(".op-contractor-card__meta")).toContainText("已聯絡");
+  await expect(card.locator(".op-contractor-card__meta")).toContainText("有興趣處理");
+  await card.getByRole("button", { name: "編輯" }).click();
+  await expect(card.getByLabel("聯絡／搵師傅狀態")).toHaveValue("contacted");
+  await expect(card.getByLabel("目前回覆")).toHaveValue("interested");
 });
 
 test("no mutating request is made to the backend as contractor response fields are filled in", async ({ page }) => {
@@ -352,12 +352,12 @@ test("no mutating request is made to the backend as contractor response fields a
   });
 
   const card = await openFirstContractorCard(page);
-  await card.getByLabel("Contractor name").fill("Contractor A");
-  await card.getByLabel("Current response").selectOption("proposal-provided");
-  await card.getByLabel("Price type").selectOption("fixed");
-  await card.getByLabel("Price (HK$)").fill("1500");
-  await card.getByLabel("Guarantee").selectOption("yes");
-  await card.getByLabel("Guarantee details").fill("1 year.");
+  await card.getByLabel("師傅名稱").fill("Contractor A");
+  await card.getByLabel("目前回覆").selectOption("proposal-provided");
+  await card.getByLabel("報價方式").selectOption("fixed");
+  await card.getByLabel("價格（港幣）").fill("1500");
+  await card.getByLabel("保養").selectOption("yes");
+  await card.getByLabel("保養詳情").fill("1 year.");
 
   expect(mutatingApiRequests).toEqual([]);
 });

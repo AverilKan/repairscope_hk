@@ -97,10 +97,19 @@ export const COMPARISON_ROWS: { label: string; render: (contractor: OwnerVisible
   { label: "Original contractor response", render: (c) => textOrNotStated(c.originalResponse) },
 ];
 
+// LOCALIZATION (HK validation-pilot pass): proposalCountMessage and the
+// three editable notes fields below are operator-only chrome — never
+// rendered by components/owner/OwnerProposalPreview.tsx (it shows the
+// SAME note text read-only, via its own headings, not these labels) — so
+// these are safely in scope. ProposalComparisonTable/COMPARISON_ROWS and
+// the format* helpers above ARE reused directly by OwnerProposalPreview
+// to render actual owner-visible proposal content, which is out of this
+// pass's scope (see the module comment on OwnerProposalPreview and this
+// session's final report for that boundary call) — left untouched.
 function proposalCountMessage(proposalCount: number, totalCount: number): string {
-  if (proposalCount === 0) return "No contractor proposals have been recorded yet.";
-  if (proposalCount === 1) return "One proposal has been recorded. Add another proposal to compare.";
-  return `${proposalCount} of ${totalCount} contractor${totalCount === 1 ? "" : "s"} have provided proposals.`;
+  if (proposalCount === 0) return "暫時未有記錄任何師傅報價。";
+  if (proposalCount === 1) return "已經記錄咗一個報價。加多個報價先可以比較。";
+  return `${totalCount} 位師傅入面，${proposalCount} 位已提供報價。`;
 }
 
 /** Just the topic × contractor table — no count message, no editable
@@ -164,31 +173,31 @@ export function ProposalComparison({
       <ProposalComparisonTable contractors={proposals} />
 
       <label>
-        Key differences
+        主要分別
         <textarea
           value={keyDifferences}
           onChange={(event) => onKeyDifferencesChange(event.target.value)}
-          placeholder="What actually differs between these proposals, and why it matters…"
+          placeholder="呢啲報價實際上有咩唔同，同埋點解重要…"
         />
       </label>
       <label>
-        Questions still unresolved
+        仲需要確認嘅問題
         <textarea
           value={unresolvedQuestions}
           onChange={(event) => onUnresolvedQuestionsChange(event.target.value)}
-          placeholder="What do we still need to confirm before the owner can decide?"
+          placeholder="業主決定之前，我哋仲有咩要確認？"
         />
       </label>
       <label>
-        RepairScope note
+        RepairScope 備註
         <textarea
           value={repairScopeNote}
           onChange={(event) => onRepairScopeNoteChange(event.target.value)}
-          placeholder="Neutral context only…"
+          placeholder="淨係寫中立嘅背景資料…"
         />
       </label>
       <p className="op-panel__hint">
-        Record neutral context only. Do not state that a cause or diagnosis is confirmed unless it actually is.
+        淨係記錄中立嘅背景資料。除非真係已經確定，否則唔好講個成因或者診斷已經確認。
       </p>
     </div>
   );

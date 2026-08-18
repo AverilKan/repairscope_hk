@@ -17,10 +17,10 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/sign-up", identifyingText: "Landlord account access" },
   { path: "/contractor", identifyingText: "CONTRACTOR RESPONSE PORTAL" },
   { path: "/contractor/quotes", identifyingText: "Account match required" },
-  { path: "/contractor/respond/demo-token", identifyingText: "Tell RepairScope how you'd like to respond." },
-  { path: "/contractor/respond/not-a-real-token", identifyingText: "This invitation is not available." },
-  { path: "/respond/demo-token", identifyingText: "Tell RepairScope how you'd like to respond." },
-  { path: "/operator", identifyingText: "Review submitted repair briefs." },
+  { path: "/contractor/respond/demo-token", identifyingText: "話俾 RepairScope 知你點打算處理。" },
+  { path: "/contractor/respond/not-a-real-token", identifyingText: "呢個邀請暫時未能使用。" },
+  { path: "/respond/demo-token", identifyingText: "話俾 RepairScope 知你點打算處理。" },
+  { path: "/operator", identifyingText: "審閱已提交嘅維修簡報。" },
   // Traditional Chinese is the default language for the landlord surface
   // (see components/LanguageContext.tsx) — not English. Neutral
   // "維修申請" framing, not "Landlord workspace" — the HK pilot also

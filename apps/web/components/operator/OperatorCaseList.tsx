@@ -58,7 +58,7 @@ export function OperatorCaseList({ service: injectedService }: { service?: Opera
         }, 0);
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load submissions from RepairScope.");
+        if (!cancelled) setError("未能載入 RepairScope 嘅維修個案。");
       });
     return () => {
       cancelled = true;
@@ -74,26 +74,26 @@ export function OperatorCaseList({ service: injectedService }: { service?: Opera
   }
 
   if (submissions === null) {
-    return <p role="status">Loading submissions…</p>;
+    return <p role="status">個案載入緊…</p>;
   }
 
   if (submissions.length === 0) {
-    return <p>No submissions yet.</p>;
+    return <p>暫時未有個案。</p>;
   }
 
   return (
     <table className="op-case-list">
       <thead>
         <tr>
-          <th>Case</th>
-          <th>Category</th>
-          <th>Postcode</th>
-          <th>Submitted</th>
-          <th>Owner / contact</th>
-          <th>Safety</th>
-          <th>Backend status</th>
-          <th>Local workflow status</th>
-          <th>Local activity</th>
+          <th>個案</th>
+          <th>類別</th>
+          <th>郵區</th>
+          <th>提交時間</th>
+          <th>業主／聯絡</th>
+          <th>安全</th>
+          <th>後台狀態</th>
+          <th>本機工作流程狀態</th>
+          <th>本機活動</th>
         </tr>
       </thead>
       <tbody>
@@ -110,7 +110,7 @@ export function OperatorCaseList({ service: injectedService }: { service?: Opera
               <td>{submission.landlordName}</td>
               <td>
                 {submission.safetyFlags.length > 0 ? (
-                  <StatusPill tone="attention">Flagged</StatusPill>
+                  <StatusPill tone="attention">已標記</StatusPill>
                 ) : (
                   "—"
                 )}
@@ -120,7 +120,7 @@ export function OperatorCaseList({ service: injectedService }: { service?: Opera
               </td>
               <td>
                 <span className={`op-case-status-pill op-case-status-pill--${local?.status ?? "new"}`}>
-                  {OPERATOR_CASE_STATUS_LABELS[local?.status ?? "new"]}
+                  {OPERATOR_CASE_STATUS_LABELS[local?.status ?? "new"].zh}
                 </span>
               </td>
               <td>{local ? localActivitySummary(local) : "—"}</td>
@@ -149,8 +149,8 @@ function formatTimestamp(iso: string): string {
 
 function localActivitySummary(state: OperatorCaseState): string {
   const bits: string[] = [];
-  if (state.internalNotes.trim()) bits.push("notes");
-  if (state.contractors.length > 0) bits.push(`${state.contractors.length} contractor(s)`);
-  if (state.nextAction.trim()) bits.push("next action set");
-  return bits.length > 0 ? bits.join(" · ") : "No local activity yet";
+  if (state.internalNotes.trim()) bits.push("已有備註");
+  if (state.contractors.length > 0) bits.push(`${state.contractors.length} 位師傅`);
+  if (state.nextAction.trim()) bits.push("已定下一步行動");
+  return bits.length > 0 ? bits.join(" · ") : "暫時未有本機活動";
 }
