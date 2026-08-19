@@ -36,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase,
     title: {
-      default: "修理易 | SimpleFix — 幫你整理維修、搵師傅、比較報價",
+      default: "修理易 | SimpleFix — 整理維修需要、尋找師傅、比較報價",
       template: "%s · SimpleFix",
     },
     description:
