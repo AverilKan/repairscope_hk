@@ -20,6 +20,15 @@ import {
 // with normal user interactions — no source-pattern assertions, no
 // arbitrary sleeps, no force-click hacks.
 
+test("an anonymous visitor's 返回主頁 link on the category picker points to the public homepage, not the landlord-only area", async ({
+  page,
+}) => {
+  await page.goto("/landlord/repairs/new");
+  const backLink = page.getByRole("link", { name: "返回主頁" });
+  await expect(backLink).toBeVisible();
+  await expect(backLink).toHaveAttribute("href", "/");
+});
+
 test.describe("route-carried journey identity", () => {
   test("a fresh visit to /landlord/repairs/new mints a journey id in the URL, not a hidden pointer", async ({
     page,

@@ -33,7 +33,7 @@ import type {
   SafetyRule,
 } from "@/domain/types";
 import { repairScopeServices } from "@/services";
-import { LandlordAccountGate } from "./LandlordAccountGate";
+import { LandlordAccountGate, useLandlordHomeHref } from "./LandlordAccountGate";
 import {
   RepairSubmissionPanel,
   type RepairSubmissionPanelPrefill,
@@ -207,6 +207,11 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const journeyParam = searchParams.get("journey");
+  // This flow is reachable without an account (see LandlordAppInner's
+  // requiresAccount === false branch for /landlord/repairs/new) — an
+  // anonymous visitor's "返回主頁" must go to the public homepage, not the
+  // landlord-only area. See useLandlordHomeHref's own comment.
+  const homeHref = useLandlordHomeHref();
 
   const [journeyId, setJourneyId] = useState<string | null>(() =>
     isPlausibleJourneyId(journeyParam) ? journeyParam : null,
@@ -390,7 +395,7 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   if (!selectedCategory || !selectedSchema) {
     return (
       <main className="intake-stage progressive-intake">
-        <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
+        <BackLink href={homeHref} label={lang === "zh" ? "返回主頁" : "Back to home"} />
         <IntakeStageProgress activeStage={0} />
         <CategoryPickerScreen onSelect={changeCategory} />
       </main>
@@ -418,7 +423,7 @@ function NewRepairFlow({ presetCategory }: { presetCategory?: RepairCategoryId }
   return (
     <main className="intake-stage progressive-intake">
       <div className="intake-stage__top">
-        <BackLink href="/landlord" label={lang === "zh" ? "返回主頁" : "Back to home"} />
+        <BackLink href={homeHref} label={lang === "zh" ? "返回主頁" : "Back to home"} />
         <button
           type="button"
           className="text-button intake-stage__change-category"
