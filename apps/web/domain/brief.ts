@@ -104,8 +104,8 @@ const NOT_SPECIFIED = { zh: "未提供", en: "Not specified" };
 // for every other brief field.
 const CONFIRMED_UNKNOWN_TEXT: Record<string, LocalizedText> = {
   "not-independently-confirmed": lt(
-    "RepairScope 未有獨立確認成因或責任。",
-    "RepairScope has not independently confirmed the cause or responsibility.",
+    "修理易未有獨立確認成因或責任。",
+    "SimpleFix has not independently confirmed the cause or responsibility.",
   ),
   "shared-area-unconfirmed": lt(
     "係咪牽涉其他單位或公用地方，仍未確認。",

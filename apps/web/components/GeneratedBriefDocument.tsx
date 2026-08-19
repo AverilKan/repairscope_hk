@@ -103,7 +103,7 @@ export function GeneratedBriefDocument({
   if (!brief) {
     const empty = (
       <>
-        <p className="eyebrow">{lang === "zh" ? "RepairScope 中立簡報" : "RepairScope neutral brief"}</p>
+        <p className="eyebrow">{lang === "zh" ? "修理易中立簡報" : "SimpleFix neutral brief"}</p>
         <p>{lang === "zh" ? "呢個個案未有維修簡報。" : "No brief is available for this submission."}</p>
       </>
     );
@@ -153,7 +153,7 @@ export function GeneratedBriefDocument({
       : brief.hasEvidence === "yes"
         ? [
             `${lang === "zh" ? "業主表示有" : "Owner indicates"}: ${resolve("evidenceKind", brief.evidenceKind)}${
-              lang === "zh" ? "（未上載，待人手跟進）" : " (not yet uploaded — RepairScope will follow up)"
+              lang === "zh" ? "（未上載，待人手跟進）" : " (not yet uploaded — SimpleFix will follow up)"
             }`,
           ]
         : [];
@@ -173,7 +173,7 @@ export function GeneratedBriefDocument({
     <>
       <div className="brief-document__masthead">
         <div>
-          <p className="eyebrow">{lang === "zh" ? "RepairScope 中立簡報" : "RepairScope neutral brief"}</p>
+          <p className="eyebrow">{lang === "zh" ? "修理易中立簡報" : "SimpleFix neutral brief"}</p>
           <h2>{categoryLabel}</h2>
         </div>
         <div className="brief-ref">
@@ -187,8 +187,8 @@ export function GeneratedBriefDocument({
         <p>
           {brief.originalReport?.trim() ? `${brief.originalReport.trim()} ` : ""}
           {lang === "zh"
-            ? "RepairScope 未有獨立確認成因或責任。師傅應該講低自己嘅判斷、係咪需要檢查，同建議嘅工作範圍。"
-            : "RepairScope has not independently confirmed the cause or responsibility. Contractors should state their own working diagnosis, whether inspection is required, and what their proposed work would address."}
+            ? "修理易未有獨立確認成因或責任。師傅應該講低自己嘅判斷、係咪需要檢查，同建議嘅工作範圍。"
+            : "SimpleFix has not independently confirmed the cause or responsibility. Contractors should state their own working diagnosis, whether inspection is required, and what their proposed work would address."}
         </p>
       </div>
 
@@ -414,8 +414,8 @@ function OwnerBriefSummary({
     if (brief.hasEvidence !== "yes") return [];
     const kind = brief.evidenceKind ? resolve("evidenceKind", brief.evidenceKind) : undefined;
     const intro = kind
-      ? (lang === "zh" ? "你表示有以下資料，但尚未透過 RepairScope 網站提供：" : "You indicated you have the following, but it has not been provided through the RepairScope website yet:")
-      : (lang === "zh" ? "你表示有相關資料，但尚未透過 RepairScope 網站提供。" : "You indicated you have relevant information, but it has not been provided through the RepairScope website yet.");
+      ? (lang === "zh" ? "你表示有以下資料，但尚未透過修理易網站提供：" : "You indicated you have the following, but it has not been provided through the SimpleFix website yet:")
+      : (lang === "zh" ? "你表示有相關資料，但尚未透過修理易網站提供。" : "You indicated you have relevant information, but it has not been provided through the SimpleFix website yet.");
     return [intro, ...(kind ? [kind] : [])];
   })();
 
@@ -537,8 +537,8 @@ function OwnerBriefSummary({
       <p className="owner-review__note">
         <strong>{lang === "zh" ? "提示" : "Note"}</strong>
         {lang === "zh"
-          ? "：RepairScope 未有獨立確認成因或責任。實際情況可能需要由師傅檢查。"
-          : ": RepairScope has not independently confirmed the cause or responsibility. The actual condition may need to be inspected by a contractor."}
+          ? "：修理易未有獨立確認成因或責任。實際情況可能需要由師傅檢查。"
+          : ": SimpleFix has not independently confirmed the cause or responsibility. The actual condition may need to be inspected by a contractor."}
       </p>
 
       {showDraftReference && brief.repairId && (

@@ -107,7 +107,7 @@ async function renderSubmittedOutcome(
   fireEvent.click(screen.getByText("Interested"));
   fireEvent.click(screen.getByText("Continue"));
   fireEvent.click(screen.getByText("Submit response"));
-  await waitFor(() => assert.ok(document.body.textContent?.includes("RepairScope") || document.body.textContent));
+  await waitFor(() => assert.ok(document.body.textContent?.includes("SimpleFix") || document.body.textContent));
 }
 
 test("responded reconciliation is the only 409 outcome shown as already submitted", async () => {
@@ -116,10 +116,10 @@ test("responded reconciliation is the only 409 outcome shown as already submitte
 });
 
 for (const [outcome, expected] of [
-  ["revoked", "This request was revoked before RepairScope recorded your response. Ask for a new link."],
-  ["expired", "This request expired before RepairScope recorded your response. Ask for a new link."],
-  ["open-conflict", "RepairScope could not accept this response. Please try again."],
-  ["reconciliation-failed", "We couldn't confirm whether RepairScope recorded your response. Please try again."],
+  ["revoked", "This request was revoked before SimpleFix recorded your response. Ask for a new link."],
+  ["expired", "This request expired before SimpleFix recorded your response. Ask for a new link."],
+  ["open-conflict", "SimpleFix could not accept this response. Please try again."],
+  ["reconciliation-failed", "We couldn't confirm whether SimpleFix recorded your response. Please try again."],
 ] as const) {
   test(`${outcome} does not render success-like persistence copy`, async () => {
     await renderSubmittedOutcome(outcome);

@@ -141,13 +141,13 @@ export default function PrivacyPage() {
 
 const T = {
   zh: {
-    eyebrow: "RepairScope 香港創始試用",
+    eyebrow: "修理易香港創始試用",
     title: "私隱政策",
     back: "返回主頁",
     intro: [
-      "RepairScope 重視你提供的個人資料。",
+      "修理易重視你提供的個人資料。",
       "呢份私隱政策解釋我哋在香港創始試用期間會收集咩資料、點解需要呢啲資料、可能會同邊類人士分享，以及你對自己個人資料的權利。",
-      "RepairScope 現時仍然係創始試用服務。除非日後另有更新，本政策只描述目前實際運作的服務。",
+      "修理易現時仍然係創始試用服務。除非日後另有更新，本政策只描述目前實際運作的服務。",
     ],
     whatWeCollect: {
       heading: "我哋收集咩資料",
@@ -169,12 +169,12 @@ const T = {
         "整理出嚟嘅維修簡報，以及你對簡報作出嘅任何更正；",
         "個案參考編號等提交資料。",
       ],
-      noUploads: "RepairScope 目前未有實際嘅檔案上載功能——表格只會記錄你係咪有相關證據同其種類，並唔會儲存實際嘅相片、影片或者文件檔案。如果之後 RepairScope 透過已同你確認嘅溝通方式（例如電郵）向你收集相片、影片、報告或者報價，經該方式提供嘅資料同樣會成為個案資料嘅一部分。",
+      noUploads: "修理易目前未有實際嘅檔案上載功能——表格只會記錄你係咪有相關證據同其種類，並唔會儲存實際嘅相片、影片或者文件檔案。如果之後修理易透過已同你確認嘅溝通方式（例如電郵）向你收集相片、影片、報告或者報價，經該方式提供嘅資料同樣會成為個案資料嘅一部分。",
     },
     browserData: {
       heading: "瀏覽器儲存嘅資料",
       p: [
-        "RepairScope 可能會喺你嘅瀏覽器入面儲存有限度嘅資料，等網站可以記住你揀嘅語言，同埋等你之後可以繼續一份未完成嘅維修申請。",
+        "修理易可能會喺你嘅瀏覽器入面儲存有限度嘅資料，等網站可以記住你揀嘅語言，同埋等你之後可以繼續一份未完成嘅維修申請。",
         "呢啲資料只會儲存喺你自己嘅裝置，唔會用作分析用途。",
       ],
     },
@@ -204,7 +204,7 @@ const T = {
       heading: "同師傅分享資料",
       p: [
         "提交維修申請本身唔會將資料自動傳俾任何師傅。",
-        "初步提交所收集嘅同意，只涵蓋 RepairScope 人手審閱同就個案聯絡你，並唔代表你已經同意將資料分享俾師傅。",
+        "初步提交所收集嘅同意，只涵蓋修理易人手審閱同就個案聯絡你，並唔代表你已經同意將資料分享俾師傅。",
         "如果個案獲接納，並且需要將可識別身份嘅維修或聯絡資料交俾師傅先可以跟進，我哋會先同你確認清楚，先至分享——而且只會分享跟進呢個目的合理需要嘅資料。",
       ],
     },
@@ -214,17 +214,17 @@ const T = {
     },
     serviceProviders: {
       heading: "服務供應商",
-      p: "RepairScope 可能會使用協助我哋主機代管、儲存、保安或者營運呢個服務嘅技術服務供應商。呢啲供應商只可以喺為 RepairScope 提供服務所需要嘅範圍內處理資料。",
+      p: "修理易可能會使用協助我哋主機代管、儲存、保安或者營運呢個服務嘅技術服務供應商。呢啲供應商只可以喺為修理易提供服務所需要嘅範圍內處理資料。",
     },
     authorities: {
       heading: "執法機關及法律要求",
-      p: "喺適用法律、法院命令或者有權限機關合理要求嘅情況下，RepairScope 可能需要披露資料。",
+      p: "喺適用法律、法院命令或者有權限機關合理要求嘅情況下，修理易可能需要披露資料。",
     },
     noSellingMarketing: {
       heading: "唔會出售資料，亦唔會用作直接推廣",
       p: [
-        "RepairScope 唔會出售客戶嘅個人資料。",
-        "喺創始試用期間，RepairScope 唔會用你為維修申請而提供嘅聯絡資料嚟發送直接推廣訊息。同你嘅維修個案有關嘅操作性溝通並唔屬於推廣。",
+        "修理易唔會出售客戶嘅個人資料。",
+        "喺創始試用期間，修理易唔會用你為維修申請而提供嘅聯絡資料嚟發送直接推廣訊息。同你嘅維修個案有關嘅操作性溝通並唔屬於推廣。",
       ],
     },
     retention: {
@@ -233,36 +233,36 @@ const T = {
     },
     security: {
       heading: "資料保安",
-      p: "RepairScope 會採取合理及切實可行嘅措施，保障個人資料唔會被未經授權或者意外地查閱、使用、遺失或者披露。",
+      p: "修理易會採取合理及切實可行嘅措施，保障個人資料唔會被未經授權或者意外地查閱、使用、遺失或者披露。",
     },
     rights: {
       heading: "查閱及更正權利",
       p: [
-        "根據香港法例，你有權要求查閱 RepairScope 持有關於你嘅個人資料，亦有權要求更正唔準確嘅個人資料。",
+        "根據香港法例，你有權要求查閱修理易持有關於你嘅個人資料，亦有權要求更正唔準確嘅個人資料。",
         "查閱資料要求一般會喺適用嘅法定期限內處理（現時為 40 日）。",
         "處理呢類要求嘅正式聯絡方式現正確認緊，我哋會盡快喺呢頁公佈。",
       ],
     },
     complaints: {
       heading: "投訴",
-      pre: "如果你對 RepairScope 處理你個人資料嘅方式有疑慮，可以向",
+      pre: "如果你對修理易處理你個人資料嘅方式有疑慮，可以向",
       linkText: "香港個人資料私隱專員公署（PCPD）",
       post: "反映。",
     },
     changes: {
       heading: "政策更新",
-      p: "隨住創始試用進展，RepairScope 可能會更新呢份私隱政策，頁面底部會顯示最新更新日期。更新唔會令我哋將之前收集嘅資料用作無關嘅新目的。",
+      p: "隨住創始試用進展，修理易可能會更新呢份私隱政策，頁面底部會顯示最新更新日期。更新唔會令我哋將之前收集嘅資料用作無關嘅新目的。",
     },
     lastUpdated: "最後更新：2026年8月12日",
   },
   en: {
-    eyebrow: "RepairScope Hong Kong Founding Pilot",
+    eyebrow: "SimpleFix Hong Kong Founding Pilot",
     title: "Privacy Notice",
     back: "Back to home",
     intro: [
-      "RepairScope takes the privacy of the personal data you provide seriously.",
+      "SimpleFix takes the privacy of the personal data you provide seriously.",
       "This Privacy Notice explains what information we collect during the Hong Kong founding pilot, why we collect it, the types of people or service providers with whom it may be shared, and your rights in relation to your personal data.",
-      "RepairScope is currently a founding-pilot service. This Notice describes the service as it operates today unless it is updated in future.",
+      "SimpleFix is currently a founding-pilot service. This Notice describes the service as it operates today unless it is updated in future.",
     ],
     whatWeCollect: {
       heading: "Information we collect",
@@ -284,12 +284,12 @@ const T = {
         "the generated repair brief, and any corrections you make to it;",
         "submission information such as a case reference number.",
       ],
-      noUploads: "RepairScope does not currently have real file upload functionality — the form only records whether you have relevant evidence and what kind, not the actual photo, video or document files. If RepairScope later collects photos, videos, reports or quotations from you through a communication channel you have agreed to (for example, email), information provided that way also becomes part of the repair case.",
+      noUploads: "SimpleFix does not currently have real file upload functionality — the form only records whether you have relevant evidence and what kind, not the actual photo, video or document files. If SimpleFix later collects photos, videos, reports or quotations from you through a communication channel you have agreed to (for example, email), information provided that way also becomes part of the repair case.",
     },
     browserData: {
       heading: "Information stored in your browser",
       p: [
-        "RepairScope may store limited information in your browser so that the site can remember your language preference and let you resume an unfinished repair submission.",
+        "SimpleFix may store limited information in your browser so that the site can remember your language preference and let you resume an unfinished repair submission.",
         "This information stays on your own device and is not used for analytics.",
       ],
     },
@@ -319,7 +319,7 @@ const T = {
       heading: "Sharing information with contractors",
       p: [
         "Submitting a repair request does not automatically send your information to any contractor.",
-        "The consent collected at initial submission covers RepairScope manually reviewing and contacting you about the case only — it does not mean you have agreed to have your information shared with a contractor.",
+        "The consent collected at initial submission covers SimpleFix manually reviewing and contacting you about the case only — it does not mean you have agreed to have your information shared with a contractor.",
         "If a case is accepted and identifiable repair or contact information needs to be shared with a contractor to progress it, we will confirm this with you first — and will only share what is reasonably necessary for that purpose.",
       ],
     },
@@ -329,17 +329,17 @@ const T = {
     },
     serviceProviders: {
       heading: "Service providers",
-      p: "RepairScope may use technical service providers that help host, store, secure or operate the service. These providers may only handle information as needed to provide their services to RepairScope.",
+      p: "SimpleFix may use technical service providers that help host, store, secure or operate the service. These providers may only handle information as needed to provide their services to SimpleFix.",
     },
     authorities: {
       heading: "Authorities and legal requirements",
-      p: "RepairScope may disclose information where reasonably required by applicable law, court order or lawful authority.",
+      p: "SimpleFix may disclose information where reasonably required by applicable law, court order or lawful authority.",
     },
     noSellingMarketing: {
       heading: "No selling of data, no direct marketing",
       p: [
-        "RepairScope does not sell customer personal data.",
-        "During the founding pilot, RepairScope does not use contact details supplied for a repair request to send direct marketing. Operational communication about your repair case is not marketing.",
+        "SimpleFix does not sell customer personal data.",
+        "During the founding pilot, SimpleFix does not use contact details supplied for a repair request to send direct marketing. Operational communication about your repair case is not marketing.",
       ],
     },
     retention: {
@@ -348,25 +348,25 @@ const T = {
     },
     security: {
       heading: "Security",
-      p: "RepairScope takes reasonable and practicable measures to protect personal data against unauthorised or accidental access, use, loss or disclosure.",
+      p: "SimpleFix takes reasonable and practicable measures to protect personal data against unauthorised or accidental access, use, loss or disclosure.",
     },
     rights: {
       heading: "Access and correction rights",
       p: [
-        "Under Hong Kong law, you have the right to request access to personal data RepairScope holds about you, and to request correction of inaccurate personal data.",
+        "Under Hong Kong law, you have the right to request access to personal data SimpleFix holds about you, and to request correction of inaccurate personal data.",
         "A data access request is generally handled within the applicable statutory timeframe (currently 40 days).",
         "The dedicated contact channel for handling these requests is still being confirmed and will be published on this page shortly.",
       ],
     },
     complaints: {
       heading: "Complaints",
-      pre: "If you are concerned about how RepairScope has handled your personal data, you may raise the matter with the",
+      pre: "If you are concerned about how SimpleFix has handled your personal data, you may raise the matter with the",
       linkText: "Office of the Privacy Commissioner for Personal Data, Hong Kong (PCPD)",
       post: ".",
     },
     changes: {
       heading: "Changes to this notice",
-      p: "RepairScope may update this Privacy Notice as the founding pilot develops — the latest update date is shown at the bottom of this page. An update will not be used to apply previously collected data to an unrelated new purpose.",
+      p: "SimpleFix may update this Privacy Notice as the founding pilot develops — the latest update date is shown at the bottom of this page. An update will not be used to apply previously collected data to an unrelated new purpose.",
     },
     lastUpdated: "Last updated: 12 August 2026",
   },

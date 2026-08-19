@@ -82,8 +82,8 @@ export function OwnerProposalPreview({
       )}
 
       {hasNotes && (
-        <section className="owner-proposal-preview__notes" aria-label="RepairScope's explanation">
-          <h2>What RepairScope can tell you</h2>
+        <section className="owner-proposal-preview__notes" aria-label="SimpleFix's explanation">
+          <h2>What SimpleFix can tell you</h2>
           {keyDifferences.trim() && (
             <div>
               <h3>Key differences</h3>
@@ -98,7 +98,7 @@ export function OwnerProposalPreview({
           )}
           {repairScopeNote.trim() && (
             <div>
-              <h3>RepairScope note</h3>
+              <h3>SimpleFix note</h3>
               <p>{repairScopeNote}</p>
             </div>
           )}

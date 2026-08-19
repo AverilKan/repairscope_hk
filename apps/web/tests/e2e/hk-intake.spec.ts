@@ -526,7 +526,7 @@ test.describe("submission success state", () => {
     await expect(page.getByLabel("香港聯絡電話")).toBeVisible();
     await expect(page.getByLabel("電郵")).toBeVisible();
     await expect(page.getByRole("checkbox")).toBeVisible();
-    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "提交俾修理易人手檢視" })).toBeVisible();
     // The draft/journey identifier is shown, secondary, correctly labelled
     // — not yet a case reference.
     await expect(page.getByText("草稿編號")).toBeVisible();
@@ -549,7 +549,7 @@ test.describe("submission success state", () => {
     await expect(page.getByLabel("姓名")).toHaveCount(0);
     await expect(page.getByLabel("香港聯絡電話")).toHaveCount(0);
     await expect(page.getByLabel("電郵")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "提交俾修理易人手檢視" })).toHaveCount(0);
     await expect(page.getByText("私隱及資料收集")).toHaveCount(0);
     // The draft UUID is not shown prominently after success — it still
     // exists inside the collapsed "View submitted details" disclosure
@@ -1019,7 +1019,7 @@ test.describe("preferred contact method", () => {
     await page.getByLabel("電郵").fill("test@example.com");
     await page.getByRole("checkbox").check();
 
-    const submitButton = page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" });
+    const submitButton = page.getByRole("button", { name: "提交俾修理易人手檢視" });
     await expect(submitButton).toBeDisabled();
 
     // Choosing one explicitly enables submission.
@@ -1179,7 +1179,7 @@ test.describe("hk phone validation", () => {
     await page.getByRole("radio", { name: "電郵" }).click();
     await page.getByRole("checkbox").check();
 
-    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "提交俾修理易人手檢視" })).toBeEnabled();
   });
 
   // Regression coverage (third Codex audit, item 6): the digit-count-only
@@ -1198,11 +1198,11 @@ test.describe("hk phone validation", () => {
     await page.getByRole("radio", { name: "電郵" }).click();
     await page.getByRole("checkbox").check();
 
-    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "提交俾修理易人手檢視" })).toBeDisabled();
 
     // Correcting to a real HK number enables submission.
     await page.getByLabel("香港聯絡電話").fill("9123 4567");
-    await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeEnabled();
+    await expect(page.getByRole("button", { name: "提交俾修理易人手檢視" })).toBeEnabled();
   });
 });
 

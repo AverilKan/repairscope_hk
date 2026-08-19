@@ -105,7 +105,7 @@ test("'Compare side by side' reuses the same neutral comparison table, no separa
   await expect(page.locator(".owner-proposal-card")).toHaveCount(0);
 });
 
-test("the founder's Key differences, Questions still unresolved and RepairScope note are shown read-only, and hidden entirely when empty", async ({
+test("the founder's Key differences, Questions still unresolved and SimpleFix note are shown read-only, and hidden entirely when empty", async ({
   page,
 }) => {
   await page.goto("/operator/RS-MOCK01");
@@ -115,10 +115,10 @@ test("the founder's Key differences, Questions still unresolved and RepairScope 
   const comparison = page.locator('[aria-label="報價比較"]');
   await comparison.getByLabel("主要分別").fill("A proposes a fixed price now.");
   await comparison.getByLabel("仍需確認的問題").fill("Is materials cost included?");
-  await comparison.getByLabel("RepairScope 備註").fill("Neutral context only.");
+  await comparison.getByLabel("修理易備註").fill("Neutral context only.");
 
   await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
-  const notes = page.locator('[aria-label="RepairScope\'s explanation"]');
+  const notes = page.locator('[aria-label="SimpleFix\'s explanation"]');
   await expect(notes).toContainText("A proposes a fixed price now.");
   await expect(notes).toContainText("Is materials cost included?");
   await expect(notes).toContainText("Neutral context only.");
@@ -132,7 +132,7 @@ test("no notes section appears when the founder has written nothing", async ({ p
   await addProposalContractor(page, { name: "Contractor A", priceType: "fixed", price: 5000 });
 
   await page.getByRole("link", { name: "預覽業主報價畫面" }).click();
-  await expect(page.locator('[aria-label="RepairScope\'s explanation"]')).toHaveCount(0);
+  await expect(page.locator('[aria-label="SimpleFix\'s explanation"]')).toHaveCount(0);
 });
 
 test("no ranking, scoring or recommendation language exists anywhere in the owner preview", async ({ page }) => {

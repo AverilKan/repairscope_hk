@@ -118,5 +118,5 @@ export async function fillAndSubmitContactForm(page: Page) {
   await page.getByLabel("電郵").fill("test@example.com");
   await page.getByRole("radio", { name: "電郵" }).click();
   await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" }).click();
+  await page.getByRole("button", { name: "提交俾修理易人手檢視" }).click();
 }

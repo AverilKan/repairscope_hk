@@ -52,7 +52,7 @@ const contextCopy: Record<
   landlord: {
     heading: "Submit your contractor brief",
     support:
-      "Sign in or create an account before RepairScope reviews the brief and contacts suitable contractors.",
+      "Sign in or create an account before SimpleFix reviews the brief and contacts suitable contractors.",
     destination: "/landlord/repairs",
   },
 };
@@ -317,7 +317,7 @@ export function SharedAuthShell({
         <span className="auth-shell__mark" aria-hidden="true">
           RS
         </span>
-        <p className="eyebrow">RepairScope account</p>
+        <p className="eyebrow">SimpleFix account</p>
         <h2 id={headingId}>{copy.heading}</h2>
         <p className="auth-shell__support">{copy.support}</p>
 
@@ -461,7 +461,7 @@ export function SharedAuthShell({
                     }))
                   }
                 />
-                <span>I accept the RepairScope prototype terms.</span>
+                <span>I accept the SimpleFix prototype terms.</span>
               </label>
               {errors.acceptedTerms && (
                 <span className="field-error">{errors.acceptedTerms}</span>

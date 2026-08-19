@@ -55,7 +55,7 @@ export abstract class OperatorSubmissionError extends Error {}
 
 export class OperatorSubmissionUnauthenticatedError extends OperatorSubmissionError {
   constructor() {
-    super("No authenticated RepairScope session.");
+    super("No authenticated SimpleFix session.");
     this.name = "OperatorSubmissionUnauthenticatedError";
   }
 }
@@ -76,14 +76,14 @@ export class OperatorSubmissionNotFoundError extends OperatorSubmissionError {
 
 export class OperatorSubmissionNetworkError extends OperatorSubmissionError {
   constructor(cause: unknown) {
-    super("Could not reach the RepairScope API.", { cause });
+    super("Could not reach the SimpleFix API.", { cause });
     this.name = "OperatorSubmissionNetworkError";
   }
 }
 
 export class OperatorSubmissionServerError extends OperatorSubmissionError {
   constructor(detail: string) {
-    super(`RepairScope API returned an unexpected response: ${detail}`);
+    super(`SimpleFix API returned an unexpected response: ${detail}`);
     this.name = "OperatorSubmissionServerError";
   }
 }

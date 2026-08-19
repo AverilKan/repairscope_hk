@@ -121,7 +121,7 @@ export function OperatorGate({ children }: { children: React.ReactNode }) {
         <section className="processing-card">
           <p className="eyebrow">Operator review</p>
           <h1>Couldn&rsquo;t load your account</h1>
-          <p>Something went wrong reaching RepairScope. Please try again in a moment.</p>
+          <p>Something went wrong reaching SimpleFix. Please try again in a moment.</p>
         </section>
       </main>
     );

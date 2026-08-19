@@ -40,7 +40,7 @@ const fullBrief = {
   category: "plumbing",
   originalReport: "Tap in the kitchen has been dripping for two weeks.",
   reportedFacts: ["Tap in the kitchen has been dripping for two weeks."],
-  confirmedUnknowns: ["RepairScope has not independently confirmed the cause or responsibility."],
+  confirmedUnknowns: ["SimpleFix has not independently confirmed the cause or responsibility."],
   evidence: [{ name: "kitchen-tap.jpg" }],
   accessOverview: "Weekday evenings after 7pm.",
   contractorRequests: ["State a working diagnosis and confidence."],
@@ -121,9 +121,9 @@ test("lead paragraph renders the actual original report text, not invented conte
   assert.ok(screen.getByText(/Bathroom extractor fan has stopped working entirely\./));
 });
 
-test("disclaimer says RepairScope has not independently confirmed the cause — it does not claim no cause has ever been identified", () => {
+test("disclaimer says SimpleFix has not independently confirmed the cause — it does not claim no cause has ever been identified", () => {
   render(React.createElement(GeneratedBriefDocument, { brief: fullBrief }));
-  assert.ok(screen.getAllByText(/RepairScope has not independently confirmed the cause or responsibility\./).length > 0);
+  assert.ok(screen.getAllByText(/SimpleFix has not independently confirmed the cause or responsibility\./).length > 0);
 });
 
 test("missing category and missing original report render safely, not the old fixed scenario", () => {
@@ -137,7 +137,7 @@ test("missing category and missing original report render safely, not the old fi
   // the lead paragraph shows only the fixed disclaimer sentence.
   assert.ok(
     screen.getByText(
-      /RepairScope has not independently confirmed the cause or responsibility\./,
+      /SimpleFix has not independently confirmed the cause or responsibility\./,
     ),
   );
   assert.equal(screen.queryByText("Intermittent bedroom ceiling water ingress"), null);
@@ -212,10 +212,10 @@ test("confirmedUnknowns and contractorRequests render in Chinese for the Chinese
     React.createElement(LanguageProvider, null, React.createElement(GeneratedBriefDocument, { brief })),
   );
 
-  assert.ok(screen.getByText("RepairScope 未有獨立確認成因或責任。"));
+  assert.ok(screen.getByText("修理易未有獨立確認成因或責任。"));
   assert.ok(screen.getByText("講低自己嘅判斷同信心程度。"));
   assert.equal(
-    screen.queryByText("RepairScope has not independently confirmed the cause or responsibility."),
+    screen.queryByText("SimpleFix has not independently confirmed the cause or responsibility."),
     null,
   );
   assert.equal(screen.queryByText("not-independently-confirmed"), null);
@@ -303,7 +303,7 @@ test("owner variant: shows the owner-review heading and category, not the number
   assert.ok(screen.getByText("Water seepage / leakage"));
   // No numbered report grid/masthead from the operator variant, and no
   // generated prose sentence above the labelled facts.
-  assert.equal(screen.queryByText("RepairScope neutral brief"), null);
+  assert.equal(screen.queryByText("SimpleFix neutral brief"), null);
   assert.equal(container.querySelector(".brief-grid"), null);
   assert.equal(container.querySelector(".scope-mark"), null);
   assert.equal(container.querySelector(".owner-review__situation"), null);
@@ -468,7 +468,7 @@ test("owner variant: the uncertainty note appears exactly once, and there is no 
   const { container } = render(React.createElement(GeneratedBriefDocument, { brief, variant: "owner" }));
 
   const matches = screen.getAllByText(
-    /RepairScope has not independently confirmed the cause or responsibility\./,
+    /SimpleFix has not independently confirmed the cause or responsibility\./,
   );
   assert.equal(matches.length, 1);
   assert.equal(screen.queryByText("What remains unconfirmed"), null);
@@ -478,7 +478,7 @@ test("owner variant: the uncertainty note appears exactly once, and there is no 
 test("owner variant: evidence=yes shows the exact truthful wording plus the captured type — never claims uploaded/received", () => {
   const withKind = { ...fullBrief, category: "leak", hasEvidence: "yes", evidenceKind: "repair-media" };
   const { unmount } = render(React.createElement(GeneratedBriefDocument, { brief: withKind, variant: "owner" }));
-  assert.ok(screen.getByText("You indicated you have the following, but it has not been provided through the RepairScope website yet:"));
+  assert.ok(screen.getByText("You indicated you have the following, but it has not been provided through the SimpleFix website yet:"));
   assert.ok(screen.getByText("Repair photo / video"));
   assert.equal(screen.queryByText(/uploaded/i), null);
   assert.equal(screen.queryByText(/\breceived\b/i), null);
@@ -487,7 +487,7 @@ test("owner variant: evidence=yes shows the exact truthful wording plus the capt
 
   const withoutKind = { ...fullBrief, category: "leak", hasEvidence: "yes", evidenceKind: undefined };
   render(React.createElement(GeneratedBriefDocument, { brief: withoutKind, variant: "owner" }));
-  assert.ok(screen.getByText("You indicated you have relevant information, but it has not been provided through the RepairScope website yet."));
+  assert.ok(screen.getByText("You indicated you have relevant information, but it has not been provided through the SimpleFix website yet."));
 });
 
 // Section 4: evidence=no was previously omitted entirely.

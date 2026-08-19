@@ -5,7 +5,7 @@ import { sanitizeReturnPath } from "@/services/identity/returnPath";
 
 export const metadata: Metadata = {
   title: "Create account",
-  description: "Create a RepairScope landlord account.",
+  description: "Create a SimpleFix landlord account.",
 };
 
 export default async function SignUpPage({
@@ -20,10 +20,10 @@ export default async function SignUpPage({
     <SiteShell surface="landlord">
       <main className="centered-stage">
         <div className="auth-page">
-          <BackLink href="/" label="Back to RepairScope" />
+          <BackLink href="/" label="Back to SimpleFix" />
           <div className="auth-page__intro">
             <p className="eyebrow">Landlord account access</p>
-            <h1>Create your RepairScope account</h1>
+            <h1>Create your SimpleFix account</h1>
             <p>
               Create an account to submit repair briefs for contractor
               responses and track work through to completion.

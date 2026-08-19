@@ -5,7 +5,7 @@ import { SiteShell } from "@/components/SiteShell";
 export const metadata: Metadata = {
   title: "Contractor response",
   description:
-    "Review a private sourcing summary and tell RepairScope how you'd like to respond — no account required.",
+    "Review a private sourcing summary and tell SimpleFix how you'd like to respond — no account required.",
 };
 
 export default async function ContractorRespondPage({

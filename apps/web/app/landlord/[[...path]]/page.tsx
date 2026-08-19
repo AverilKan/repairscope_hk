@@ -8,7 +8,7 @@ import { LandlordApp } from "@/components/LandlordApp";
 export const metadata: Metadata = {
   title: "維修申請 Repair submission",
   description:
-    "提交維修資料，等 RepairScope 幫你整理同搵師傅比較報價。Submit a repair and let RepairScope help organise it and find contractors to compare.",
+    "提交維修資料，等修理易幫你整理同搵師傅比較報價。Submit a repair and let SimpleFix help organise it and find contractors to compare.",
 };
 
 export const dynamic = "force-dynamic";

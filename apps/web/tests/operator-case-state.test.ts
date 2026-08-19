@@ -656,7 +656,7 @@ test("proposalContractors is truthful about count against the full contractor li
   assert.equal(contractors.length, 5);
 });
 
-test("comparison notes (key differences, unresolved questions, RepairScope note) persist through a write/read round trip", async () => {
+test("comparison notes (key differences, unresolved questions, SimpleFix note) persist through a write/read round trip", async () => {
   const { readOperatorCaseState, writeOperatorCaseState, emptyOperatorCaseState } = await import(
     "../domain/operatorCaseState"
   );

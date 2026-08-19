@@ -115,7 +115,7 @@ test.describe("public metadata", () => {
 
     const title = await page.title();
     expect(title).not.toContain("rental-property");
-    expect(title).toContain("RepairScope");
+    expect(title).toContain("SimpleFix");
 
     const description = await page.locator('meta[name="description"]').getAttribute("content");
     expect(description ?? "").not.toContain("rental-property");

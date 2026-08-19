@@ -280,7 +280,7 @@ function submitOutcomeState(outcome: ContractorResponseSubmissionOutcome): Submi
         tone: "error",
         message: lt(
           "此邀請已經被取消，你的回覆未能記錄。請向邀請你的人索取新連結。",
-          "This request was revoked before RepairScope recorded your response. Ask for a new link.",
+          "This request was revoked before SimpleFix recorded your response. Ask for a new link.",
         ),
       };
     case "expired":
@@ -289,14 +289,14 @@ function submitOutcomeState(outcome: ContractorResponseSubmissionOutcome): Submi
         tone: "error",
         message: lt(
           "此邀請已經過期，你的回覆未能記錄。請向邀請你的人索取新連結。",
-          "This request expired before RepairScope recorded your response. Ask for a new link.",
+          "This request expired before SimpleFix recorded your response. Ask for a new link.",
         ),
       };
     case "open-conflict":
       return {
         phase: "terminal",
         tone: "error",
-        message: lt("RepairScope 未能接受此回覆，請再試一次。", "RepairScope could not accept this response. Please try again."),
+        message: lt("修理易未能接受此回覆，請再試一次。", "SimpleFix could not accept this response. Please try again."),
       };
     case "reconciliation-failed":
       return {
@@ -304,7 +304,7 @@ function submitOutcomeState(outcome: ContractorResponseSubmissionOutcome): Submi
         tone: "error",
         message: lt(
           "我們暫時未能確認你的回覆是否已成功記錄，請再試一次。",
-          "We couldn't confirm whether RepairScope recorded your response. Please try again.",
+          "We couldn't confirm whether SimpleFix recorded your response. Please try again.",
         ),
       };
   }
@@ -820,7 +820,7 @@ export function ContractorResponseForm({
                       </p>
                     ) : (
                       <>
-                        <p>{t(lt("請檢查以上答案，然後提交給 RepairScope。", "Check your answers above, then submit your response to RepairScope."))}</p>
+                        <p>{t(lt("請檢查以上答案，然後提交給修理易。", "Check your answers above, then submit your response to SimpleFix."))}</p>
                         <button
                           type="button"
                           disabled={submitState.phase === "submitting"}
@@ -861,7 +861,7 @@ export function ContractorResponseForm({
                   </>
                 ) : (
                   <>
-                    <p>{t(lt("請檢查以上答案，然後複製你的回覆給 RepairScope。", "Check your answers above, then copy your response for RepairScope."))}</p>
+                    <p>{t(lt("請檢查以上答案，然後複製你的回覆給修理易。", "Check your answers above, then copy your response for SimpleFix."))}</p>
                     <button
                       type="button"
                       onClick={() => setExportedText(serializeContractorResponseExport(answers))}
@@ -873,8 +873,8 @@ export function ContractorResponseForm({
                         <p>
                           {t(
                             lt(
-                              "複製此內容給 RepairScope（例如貼回給邀請你的人）：",
-                              "Copy this and send it to RepairScope (e.g. paste it back to the person who invited you):",
+                              "複製此內容給修理易（例如貼回給邀請你的人）：",
+                              "Copy this and send it to SimpleFix (e.g. paste it back to the person who invited you):",
                             ),
                           )}
                         </p>

@@ -1,7 +1,7 @@
 function safeId(value: string) {
   const id = value.trim().toLowerCase();
   if (!/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    throw new Error("Storage keys require a stable RepairScope identifier.");
+    throw new Error("Storage keys require a stable SimpleFix identifier.");
   }
   return id;
 }

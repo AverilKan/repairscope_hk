@@ -1,8 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useLanguage } from "./LanguageContext";
+
+// SimpleFix HK brand mark (navy/teal house + wrench + checkmark, "修理易 |
+// SimpleFix" wordmark baked into one horizontal lockup) — the temporary
+// production logo asset. Sized via CSS (.wordmark__logo/.wordmark__logo--
+// footer) rather than the intrinsic 1150x406 px; width/height below only
+// describe the source aspect ratio to next/image for layout stability.
+const BRAND_NAME = "修理易 SimpleFix";
 
 type Surface = "public" | "landlord" | "contractor" | "operator";
 
@@ -40,11 +48,15 @@ export function SiteShell({
   return (
     <div className={`site-shell ${compact ? "site-shell--compact" : ""}`}>
       <header className="site-header">
-        <Link className="wordmark" href="/" aria-label="RepairScope home">
-          <span className="wordmark__mark" aria-hidden="true">
-            RS
-          </span>
-          <span>RepairScope</span>
+        <Link className="wordmark" href="/" aria-label={`${BRAND_NAME} home`}>
+          <Image
+            className="wordmark__logo"
+            src="/branding/simplefix_logo.png"
+            alt=""
+            width={1150}
+            height={406}
+            priority
+          />
         </Link>
         <div className="surface-label" aria-label={`Current area: ${surface}`}>
           <span className="surface-label__dot" aria-hidden="true" />
@@ -101,11 +113,14 @@ export function SiteShell({
       {surface !== "landlord" && (
         <footer className="site-footer">
           <div>
-            <span className="wordmark wordmark--footer">
-              <span className="wordmark__mark" aria-hidden="true">
-                RS
-              </span>
-              <span>RepairScope</span>
+            <span className="wordmark wordmark--footer" aria-label={BRAND_NAME}>
+              <Image
+                className="wordmark__logo wordmark__logo--footer"
+                src="/branding/simplefix_logo.png"
+                alt=""
+                width={1150}
+                height={406}
+              />
             </span>
             <p>{publicCopy.footer}</p>
           </div>

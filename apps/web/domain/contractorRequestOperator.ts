@@ -63,7 +63,7 @@ export abstract class ContractorRequestOperatorError extends Error {}
 
 export class ContractorRequestOperatorUnauthenticatedError extends ContractorRequestOperatorError {
   constructor() {
-    super("No authenticated RepairScope session.");
+    super("No authenticated SimpleFix session.");
     this.name = "ContractorRequestOperatorUnauthenticatedError";
   }
 }
@@ -84,14 +84,14 @@ export class ContractorRequestOperatorNotFoundError extends ContractorRequestOpe
 
 export class ContractorRequestOperatorNetworkError extends ContractorRequestOperatorError {
   constructor(cause: unknown) {
-    super("Could not reach the RepairScope API.", { cause });
+    super("Could not reach the SimpleFix API.", { cause });
     this.name = "ContractorRequestOperatorNetworkError";
   }
 }
 
 export class ContractorRequestOperatorServerError extends ContractorRequestOperatorError {
   constructor(detail: string) {
-    super(`RepairScope API returned an unexpected response: ${detail}`);
+    super(`SimpleFix API returned an unexpected response: ${detail}`);
     this.name = "ContractorRequestOperatorServerError";
   }
 }
@@ -112,7 +112,7 @@ export class ContractorRequestOperatorServerError extends ContractorRequestOpera
  */
 export function describeContractorRequestOperatorError(error: unknown, fallback: string): string {
   if (error instanceof ContractorRequestOperatorUnauthenticatedError) {
-    return "你未登入 RepairScope，請重新登入。";
+    return "你未登入修理易，請重新登入。";
   }
   if (error instanceof ContractorRequestOperatorForbiddenError) {
     return "此帳戶未有操作員權限。";

@@ -162,7 +162,7 @@ test("fields the operator never filled in show the neutral 'Not stated' conventi
   }
 });
 
-test("Key differences, Questions still unresolved, and RepairScope note are editable and persist across reload; changing Contractor A's price flows into the comparison automatically", async ({
+test("Key differences, Questions still unresolved, and SimpleFix note are editable and persist across reload; changing Contractor A's price flows into the comparison automatically", async ({
   page,
 }) => {
   await gotoCase(page);
@@ -184,7 +184,7 @@ test("Key differences, Questions still unresolved, and RepairScope note are edit
     .getByLabel("主要分別")
     .fill("A proposes immediate replacement at a fixed price; B wants to inspect first.");
   await comparison.getByLabel("仍需確認的問題").fill("Does B's range include materials?");
-  await comparison.getByLabel("RepairScope 備註").fill("Both contractors are aware of the leak location.");
+  await comparison.getByLabel("修理易備註").fill("Both contractors are aware of the leak location.");
 
   await expect(comparison.locator(".op-comparison-table")).toContainText("HK$5,000（固定價格）");
 
@@ -197,7 +197,7 @@ test("Key differences, Questions still unresolved, and RepairScope note are edit
   await expect(reloadedComparison.getByLabel("仍需確認的問題")).toHaveValue(
     "Does B's range include materials?",
   );
-  await expect(reloadedComparison.getByLabel("RepairScope 備註")).toHaveValue(
+  await expect(reloadedComparison.getByLabel("修理易備註")).toHaveValue(
     "Both contractors are aware of the leak location.",
   );
 
@@ -277,7 +277,7 @@ test("a pre-Slice-3 case with contractors but no comparison notes renders a safe
   await expect(comparison.getByText("已經記錄一個報價，需要多於一個報價才可以比較。")).toBeVisible();
   await expect(comparison.getByLabel("主要分別")).toHaveValue("");
   await expect(comparison.getByLabel("仍需確認的問題")).toHaveValue("");
-  await expect(comparison.getByLabel("RepairScope 備註")).toHaveValue("");
+  await expect(comparison.getByLabel("修理易備註")).toHaveValue("");
 });
 
 test("no mutating request is made to the backend while editing comparison fields", async ({ page }) => {
@@ -292,7 +292,7 @@ test("no mutating request is made to the backend while editing comparison fields
   const comparison = page.locator('[aria-label="報價比較"]');
   await comparison.getByLabel("主要分別").fill("Some difference.");
   await comparison.getByLabel("仍需確認的問題").fill("Some question.");
-  await comparison.getByLabel("RepairScope 備註").fill("Some note.");
+  await comparison.getByLabel("修理易備註").fill("Some note.");
 
   expect(mutatingApiRequests).toEqual([]);
 });

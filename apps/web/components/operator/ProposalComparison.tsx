@@ -218,7 +218,7 @@ export function ProposalComparison({
         />
       </label>
       <label>
-        RepairScope 備註
+        修理易備註
         <textarea
           value={repairScopeNote}
           onChange={(event) => onRepairScopeNoteChange(event.target.value)}

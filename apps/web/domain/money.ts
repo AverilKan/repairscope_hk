@@ -22,7 +22,7 @@ const assertMoney = (money: Money) => {
     throw new Error("Money must use safe integer minor units.");
   }
   if (money.currency !== "GBP") {
-    throw new Error("RepairScope currently supports GBP only.");
+    throw new Error("SimpleFix currently supports GBP only.");
   }
 };
 

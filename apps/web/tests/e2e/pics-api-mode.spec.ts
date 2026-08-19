@@ -17,7 +17,7 @@ import { fillAndSubmitContactForm, finishLeakJourneyToBrief, startLeakJourneyThr
 //
 //   NEXT_PUBLIC_REPAIRSCOPE_DATA_SOURCE=api PLAYWRIGHT_BASE_URL=http://localhost:PORT npx playwright test tests/e2e/pics-api-mode.spec.ts
 
-test("PICS is visible before the first RepairScope repair-data API submission, and no RepairScope /api/ request fires before it", async ({
+test("PICS is visible before the first SimpleFix repair-data API submission, and no SimpleFix /api/ request fires before it", async ({
   page,
 }) => {
   const repairScopeApiRequestsBeforeSubmissionScreen: string[] = [];
@@ -55,7 +55,7 @@ test("PICS is visible before the first RepairScope repair-data API submission, a
   trackUntilSubmissionScreenVisible.done = true;
   expect(
     repairScopeApiRequestsBeforeSubmissionScreen,
-    `expected zero RepairScope /api/ requests before the submission screen, found: ${repairScopeApiRequestsBeforeSubmissionScreen.join(", ")}`,
+    `expected zero SimpleFix /api/ requests before the submission screen, found: ${repairScopeApiRequestsBeforeSubmissionScreen.join(", ")}`,
   ).toEqual([]);
   await expect(page.getByText("私隱及資料收集")).toBeVisible();
   expect(submissionRequestBody, "the submission POST must not have fired yet").toBeUndefined();

@@ -5,7 +5,7 @@ import { sanitizeReturnPath } from "@/services/identity/returnPath";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to your RepairScope landlord account.",
+  description: "Sign in to your SimpleFix landlord account.",
 };
 
 export default async function SignInPage({
@@ -20,10 +20,10 @@ export default async function SignInPage({
     <SiteShell surface="landlord">
       <main className="centered-stage">
         <div className="auth-page">
-          <BackLink href="/" label="Back to RepairScope" />
+          <BackLink href="/" label="Back to SimpleFix" />
           <div className="auth-page__intro">
             <p className="eyebrow">Landlord account access</p>
-            <h1>Sign in to RepairScope</h1>
+            <h1>Sign in to SimpleFix</h1>
             <p>
               Sign in to review your repair briefs, compare contractor
               responses and track work through to completion.

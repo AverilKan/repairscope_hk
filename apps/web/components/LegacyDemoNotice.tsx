@@ -18,7 +18,7 @@ export function LegacyDemoNotice({ title }: { title: string }) {
       <PageIntro
         eyebrow="Reference prototype"
         title={title}
-        description="This screen is part of an earlier reference prototype and is not connected to real RepairScope cases. It is only shown in local/demo mode."
+        description="This screen is part of an earlier reference prototype and is not connected to real SimpleFix cases. It is only shown in local/demo mode."
         aside={<StatusPill tone="neutral">Not available</StatusPill>}
       />
     </main>

@@ -39,7 +39,7 @@ test("language preference persists between the homepage and the Privacy page", a
 
 test("the Privacy page uses the HK public shell", async ({ page }) => {
   await page.goto("/privacy");
-  await expect(page.getByRole("link", { name: "RepairScope home" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "SimpleFix home" })).toBeVisible();
   await expect(page.getByText(/創始試用 · 香港/)).toBeVisible();
 });
 
@@ -49,12 +49,12 @@ test("PDPO/Hong Kong framing appears, with access/correction rights, retention a
 
   const required = [
     "香港", // Hong Kong framing generally
-    "你有權要求查閱 RepairScope 持有關於你嘅個人資料", // access rights
+    "你有權要求查閱修理易持有關於你嘅個人資料", // access rights
     "亦有權要求更正唔準確嘅個人資料", // correction rights
     "40 日", // statutory access timeframe
     "我哋只會在處理維修個案", // retention principle
-    "RepairScope 唔會用你為維修申請而提供嘅聯絡資料嚟發送直接推廣訊息", // no direct marketing
-    "RepairScope 唔會出售客戶嘅個人資料", // no selling
+    "修理易唔會用你為維修申請而提供嘅聯絡資料嚟發送直接推廣訊息", // no direct marketing
+    "修理易唔會出售客戶嘅個人資料", // no selling
     "個人資料私隱專員公署", // PCPD
   ];
   for (const phrase of required) {

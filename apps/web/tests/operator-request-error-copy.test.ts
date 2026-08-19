@@ -26,7 +26,7 @@ const FALLBACK = "未能建立回覆連結。";
 
 test("an unauthenticated-session error gets specific, actionable Chinese copy, not the fallback", () => {
   const message = describeContractorRequestOperatorError(new ContractorRequestOperatorUnauthenticatedError(), FALLBACK);
-  assert.equal(message, "你未登入 RepairScope，請重新登入。");
+  assert.equal(message, "你未登入修理易，請重新登入。");
   assert.ok(!message.includes("session"));
 });
 

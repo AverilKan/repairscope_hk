@@ -394,7 +394,7 @@ export function parseContractorResponseExport(raw: string): ParsedContractorResp
     return { ok: false, error: "That doesn't look like a valid response export." };
   }
   if (parsed.schema !== CONTRACTOR_RESPONSE_EXPORT_SCHEMA) {
-    return { ok: false, error: "This isn't a RepairScope contractor response export." };
+    return { ok: false, error: "This isn't a SimpleFix contractor response export." };
   }
   if (parsed.version !== CONTRACTOR_RESPONSE_EXPORT_VERSION) {
     return { ok: false, error: `Unsupported export version (expected ${CONTRACTOR_RESPONSE_EXPORT_VERSION}).` };

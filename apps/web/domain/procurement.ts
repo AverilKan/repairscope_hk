@@ -117,7 +117,7 @@ export function proposalSourceLabel(
 ) {
   switch (source) {
     case "contractor_portal":
-      return "Submitted through RepairScope";
+      return "Submitted through SimpleFix";
     case "landlord_upload":
       return "Uploaded by landlord";
     case "agent_quote":

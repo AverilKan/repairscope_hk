@@ -30,7 +30,7 @@ export abstract class CurrentUserError extends Error {}
 /** No authenticated session, or the session's token was rejected (HTTP 401). */
 export class CurrentUserUnauthenticatedError extends CurrentUserError {
   constructor() {
-    super("No authenticated RepairScope session.");
+    super("No authenticated SimpleFix session.");
     this.name = "CurrentUserUnauthenticatedError";
   }
 }
@@ -38,7 +38,7 @@ export class CurrentUserUnauthenticatedError extends CurrentUserError {
 /** Authenticated, but RepairScope declined the request (HTTP 403) — e.g. a suspended account. */
 export class CurrentUserForbiddenError extends CurrentUserError {
   constructor() {
-    super("RepairScope declined this account.");
+    super("SimpleFix declined this account.");
     this.name = "CurrentUserForbiddenError";
   }
 }
@@ -46,7 +46,7 @@ export class CurrentUserForbiddenError extends CurrentUserError {
 /** The request never got a response — offline, DNS failure, CORS rejection, etc. */
 export class CurrentUserNetworkError extends CurrentUserError {
   constructor(cause: unknown) {
-    super("Could not reach the RepairScope API.", { cause });
+    super("Could not reach the SimpleFix API.", { cause });
     this.name = "CurrentUserNetworkError";
   }
 }
@@ -54,7 +54,7 @@ export class CurrentUserNetworkError extends CurrentUserError {
 /** The API responded, but not with a body CurrentUserService can parse as a user. */
 export class CurrentUserMalformedResponseError extends CurrentUserError {
   constructor(detail: string) {
-    super(`RepairScope API returned an unexpected /api/me response: ${detail}`);
+    super(`SimpleFix API returned an unexpected /api/me response: ${detail}`);
     this.name = "CurrentUserMalformedResponseError";
   }
 }

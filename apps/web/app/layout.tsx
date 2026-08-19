@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const forwardedHost =
     requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
   const configuredSiteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? "https://repairscope.example";
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://simplefixhk.com";
   const metadataBase = forwardedHost
     ? new URL(
         `${
@@ -36,22 +36,22 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase,
     title: {
-      default: "RepairScope 香港 — 幫你整理維修、搵師傅、比較報價",
-      template: "%s · RepairScope",
+      default: "修理易 | SimpleFix — 幫你整理維修、搵師傅、比較報價",
+      template: "%s · SimpleFix",
     },
     description:
-      "屋企有維修？一次過話俾 RepairScope 知。我哋幫你整理資料、搵合適師傅同清楚比較不同做法及報價。創始試用期間業主免費。",
+      "屋企有維修？一次過話俾修理易知。我哋幫你整理資料、搵合適師傅同清楚比較不同做法及報價。創始試用期間業主免費。",
     openGraph: {
       title: "屋企有維修？唔使自己逐個師傅追住問。",
       description:
-        "RepairScope 香港幫你整理維修、搵合適師傅，再將不同做法及報價整理好，等你清楚比較後自己決定。",
+        "修理易香港幫你整理維修、搵合適師傅，再將不同做法及報價整理好，等你清楚比較後自己決定。",
       type: "website",
       images: [
         {
           url: new URL("/og.png", metadataBase).toString(),
           width: 1792,
           height: 897,
-          alt: "RepairScope 香港幫物業業主整理維修及比較師傅報價",
+          alt: "修理易香港幫物業業主整理維修及比較師傅報價",
         },
       ],
     },

@@ -179,7 +179,7 @@ export function OperatorCaseWorkspace({
           setState({ phase: "not-found" });
           return;
         }
-        setState({ phase: "error", message: "未能從 RepairScope 載入此個案。" });
+        setState({ phase: "error", message: "未能從修理易載入此個案。" });
       });
     return () => {
       cancelled = true;
@@ -381,10 +381,10 @@ export function OperatorCaseWorkspace({
         <section className="op-panel" aria-label="後台提交狀態">
           <h2>後台提交狀態</h2>
           <p className="op-panel__hint">
-            已經儲存在 RepairScope，在任何檢視此個案的地方都會見到 — 與下面只在此機器才可見的本機工作流程狀態不同。
+            已經儲存在修理易，在任何檢視此個案的地方都會見到 — 與下面只在此機器才可見的本機工作流程狀態不同。
           </p>
           <label>
-            內部審閱備註（會儲存在 RepairScope）
+            內部審閱備註（會儲存在修理易）
             <textarea
               rows={4}
               value={backendNotes}
@@ -427,7 +427,7 @@ export function OperatorCaseWorkspace({
 
         <section className="op-panel" aria-label="本機工作備註">
           <h2>本機工作備註</h2>
-          <p className="op-panel__hint">只留在此機器 — 不會傳送給 RepairScope。</p>
+          <p className="op-panel__hint">只留在此機器 — 不會傳送給修理易。</p>
           <label>
             本機工作流程狀態
             <select

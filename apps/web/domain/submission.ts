@@ -81,7 +81,7 @@ export abstract class RepairSubmissionError extends Error {}
 /** The API rejected the request as malformed (HTTP 422) — e.g. missing consent. */
 export class RepairSubmissionValidationError extends RepairSubmissionError {
   constructor(public readonly detail: unknown) {
-    super("RepairScope could not accept this submission as entered.");
+    super("SimpleFix could not accept this submission as entered.");
     this.name = "RepairSubmissionValidationError";
   }
 }
@@ -89,7 +89,7 @@ export class RepairSubmissionValidationError extends RepairSubmissionError {
 /** The request never got a response — offline, DNS failure, CORS rejection, etc. */
 export class RepairSubmissionNetworkError extends RepairSubmissionError {
   constructor(cause: unknown) {
-    super("Could not reach the RepairScope API.", { cause });
+    super("Could not reach the SimpleFix API.", { cause });
     this.name = "RepairSubmissionNetworkError";
   }
 }
@@ -97,7 +97,7 @@ export class RepairSubmissionNetworkError extends RepairSubmissionError {
 /** The API responded with an unexpected status or an unparseable body. */
 export class RepairSubmissionServerError extends RepairSubmissionError {
   constructor(detail: string) {
-    super(`RepairScope API returned an unexpected response: ${detail}`);
+    super(`SimpleFix API returned an unexpected response: ${detail}`);
     this.name = "RepairSubmissionServerError";
   }
 }

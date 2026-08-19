@@ -32,7 +32,7 @@ test("the PICS appears on the submission screen, states purpose/required-optiona
   expect(picsText).toContain("如果個案需要將資料交俾師傅，我哋會先同你確認先至分享");
   expect(picsText).toContain("在法律要求的情況下，相關資料亦可能提供予法院、政府部門或其他依法有權要求資料的機構");
   // Access/correction rights.
-  expect(picsText).toContain("你可以要求查閱或更正 RepairScope 持有關於你嘅個人資料");
+  expect(picsText).toContain("你可以要求查閱或更正修理易持有關於你嘅個人資料");
 
   await expect(page.getByRole("link", { name: "私隱政策" })).toHaveAttribute("href", "/privacy");
 });

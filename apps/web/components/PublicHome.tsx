@@ -19,7 +19,7 @@ const copy = {
     title: "屋企有維修？\n唔使自己逐個師傅追住問。",
     lead: "你只需要一次過話俾我哋知發生咩事。",
     intro:
-      "RepairScope 幫你整理工程資料、搵合適師傅，再將唔同做法同報價整理好，等你清楚比較之後自己決定。",
+      "修理易幫你整理工程資料、搵合適師傅，再將唔同做法同報價整理好，等你清楚比較之後自己決定。",
     cta: "開始維修申請",
     ctaNote: "毋須先知道要搵邊一種師傅",
     deskLabel: "你的維修，由混亂變清晰",
@@ -30,10 +30,10 @@ const copy = {
     deskSteps: ["資料已整理", "合適個案搵師傅", "做法及報價並列", "由業主決定"],
     howEyebrow: "服務流程",
     howTitle: "一次講清楚，之後由我哋幫你整理。",
-    howIntro: "RepairScope 不是師傅名錄。每宗申請都會先由真人查看，再決定合適的下一步。",
+    howIntro: "修理易不是師傅名錄。每宗申請都會先由真人查看，再決定合適的下一步。",
     steps: [
       ["話俾我哋知發生咩事", "毋須自己判斷工種。答幾條簡單問題，講低你見到嘅情況。"],
-      ["RepairScope 人手整理及檢查", "我哋會查看資料、整理工程重點，有需要時再向你了解。"],
+      ["修理易人手整理及檢查", "我哋會查看資料、整理工程重點，有需要時再向你了解。"],
       ["我哋幫你搵合適師傅", "適合而獲接納的個案，我哋會按維修需要物色相關師傅。"],
       ["整理做法同報價，俾你自己決定", "將不同範圍、方法及報價重點並列，最後選擇仍然由你作主。"],
     ],
@@ -44,18 +44,18 @@ const copy = {
     repairTypes: ["滲水 / 漏水", "防水問題", "去水 / 渠務問題", "水喉問題", "浴室維修", "其他較大型住宅內部維修"],
     unsureTitle: "唔肯定係咩問題都可以提交。",
     unsureText: "你描述見到、聽到或受到影響的情況就可以，我哋會協助整理。",
-    evidence: "如果你有相片、影片、報告或現有報價，RepairScope 之後可以喺檢視過程中向你收集相關資料。",
-    whyEyebrow: "點解用 RepairScope",
+    evidence: "如果你有相片、影片、報告或現有報價，修理易之後可以喺檢視過程中向你收集相關資料。",
+    whyEyebrow: "點解用修理易",
     whyTitle: "維修最難的，往往不是找到一個價錢。",
     values: [
       ["唔使逐個師傅重新解釋", "先把問題整理成一份清楚資料，減少每次由頭講起。"],
       ["報價唔係淨係睇價錢", "不同師傅可能建議不同範圍和方法；數字未必代表同一樣工程。"],
       ["幫你整理重點", "把包括甚麼、如何處理及有甚麼差異放在一起，較容易比較。"],
-      ["最後決定仍然係你", "RepairScope 協助整理選項，不會代你委任師傅。"],
+      ["最後決定仍然係你", "修理易協助整理選項，不會代你委任師傅。"],
     ],
     pilotEyebrow: "創始試用",
     pilotTitle: "少量個案，逐宗人手跟進。",
-    pilotLead: "創始試用期間，物業業主免費使用 RepairScope 的維修整理及師傅物色服務。",
+    pilotLead: "創始試用期間，物業業主免費使用修理易的維修整理及師傅物色服務。",
     pilotPoints: [
       "每份申請均由真人查看",
       "只接納數量有限、合適的維修個案",
@@ -63,19 +63,19 @@ const copy = {
       "申請不會自動廣發給大量師傅",
     ],
     pilotNote: "提交申請不代表個案一定獲接納、一定有師傅可接、一定收到報價，亦不保證維修結果。",
-    safetyTitle: "重要：RepairScope 不是緊急維修服務",
+    safetyTitle: "重要：修理易不是緊急維修服務",
     safetyText:
-      "RepairScope 適合較大型的非緊急維修協調。如果情況有即時危險，請先使用合適的緊急服務，唔好等 RepairScope 物色報價。",
+      "修理易適合較大型的非緊急維修協調。如果情況有即時危險，請先使用合適的緊急服務，唔好等修理易物色報價。",
     faqEyebrow: "常見問題",
     faqTitle: "提交前，你可能想知道。",
     faqs: [
-      ["RepairScope 收費嗎？", "創始試用期間，物業業主免費使用服務。"],
+      ["修理易收費嗎？", "創始試用期間，物業業主免費使用服務。"],
       ["咩類型維修可以提交？", "你可以提交較大型、非緊急的住宅維修，例如滲漏、防水、去水、水喉或浴室問題。其他個案亦可先提交，由我哋逐宗查看。"],
       ["我唔知道要搵咩師傅，可以嗎？", "可以。你毋須先判斷工種，只需描述發生咗咩事同受到咩影響。"],
-      ["提交後會發生咩事？", "RepairScope 會先人手查看及整理資料。如個案可能適合，我哋會聯絡你了解下一步；有需要時，師傅亦可能先要求視察或補充資料。"],
+      ["提交後會發生咩事？", "修理易會先人手查看及整理資料。如個案可能適合，我哋會聯絡你了解下一步；有需要時，師傅亦可能先要求視察或補充資料。"],
       ["會唔會即刻將資料傳俾好多師傅？", "不會。個案會先由人手查看，不會自動廣發。只有合適而獲接納嘅個案，先會按需要物色相關師傅。"],
-      ["如果已經有報價，可以點做？", "照常提交維修並話俾我哋知你已經有報價。RepairScope 可以喺其後嘅檢視過程中向你收集相關資料。"],
-      ["RepairScope 係緊急維修服務嗎？", "唔係。如果有即時危險，請先使用合適嘅緊急服務，唔好等 RepairScope 回覆或物色報價。"],
+      ["如果已經有報價，可以點做？", "照常提交維修並話俾我哋知你已經有報價。修理易可以喺其後嘅檢視過程中向你收集相關資料。"],
+      ["修理易係緊急維修服務嗎？", "唔係。如果有即時危險，請先使用合適嘅緊急服務，唔好等修理易回覆或物色報價。"],
       ["我一定會收到報價嗎？", "唔一定。提交唔保證獲接納、師傅有空或者一定有報價。有啲情況亦可能需要先視察或調查。"],
     ],
     finalTitle: "有一宗維修，就可以開始。",
@@ -86,7 +86,7 @@ const copy = {
     title: "Got a repair?\nTell us what happened once.",
     lead: "You do not need to chase and re-explain the problem to contractors one by one.",
     intro:
-      "RepairScope helps organise the problem, find suitable contractors and structure their different approaches and quotations so you can compare them clearly before deciding.",
+      "SimpleFix helps organise the problem, find suitable contractors and structure their different approaches and quotations so you can compare them clearly before deciding.",
     cta: "Start a repair",
     ctaNote: "You do not need to know which trade you need",
     deskLabel: "From a messy repair to a clear process",
@@ -97,7 +97,7 @@ const copy = {
     deskSteps: ["Information organised", "Suitable cases sourced", "Approaches compared", "Owner decides"],
     howEyebrow: "How it works",
     howTitle: "Explain it once. We help organise what follows.",
-    howIntro: "RepairScope is not a contractor directory. Every submission is reviewed by a person before the next step is decided.",
+    howIntro: "SimpleFix is not a contractor directory. Every submission is reviewed by a person before the next step is decided.",
     steps: [
       ["Tell us what happened", "You do not need to diagnose the trade. Answer a few simple questions to describe what you can see."],
       ["We manually review and organise it", "We check the information, structure the important points and contact you if anything needs clarifying."],
@@ -111,18 +111,18 @@ const copy = {
     repairTypes: ["Leaks / water ingress", "Waterproofing", "Drainage problems", "Plumbing problems", "Bathroom repairs", "Other significant internal home repairs"],
     unsureTitle: "Not sure what the problem is? You can still submit it.",
     unsureText: "Describe what you can see, hear or what has been affected. We will help organise the information.",
-    evidence: "If you have photos, videos, reports or an existing quotation, RepairScope can collect those details during the review process.",
-    whyEyebrow: "Why RepairScope",
+    evidence: "If you have photos, videos, reports or an existing quotation, SimpleFix can collect those details during the review process.",
+    whyEyebrow: "Why SimpleFix",
     whyTitle: "The hardest part of a repair is rarely finding a number.",
     values: [
       ["Explain it once", "Start with one clear account of the problem instead of repeating it to every contractor."],
       ["A quotation is more than a price", "Contractors may propose different scopes and methods, so the numbers may not describe the same work."],
       ["See the important differences", "We structure what is included, how the work may be approached and where proposals differ."],
-      ["You remain in control", "RepairScope helps organise the options. We do not appoint a contractor for you."],
+      ["You remain in control", "SimpleFix helps organise the options. We do not appoint a contractor for you."],
     ],
     pilotEyebrow: "Founding pilot",
     pilotTitle: "A small number of cases, handled personally.",
-    pilotLead: "During the founding pilot, property owners use RepairScope's repair-organising and contractor-sourcing service free of charge.",
+    pilotLead: "During the founding pilot, property owners use SimpleFix's repair-organising and contractor-sourcing service free of charge.",
     pilotPoints: [
       "Every submission is reviewed by a person",
       "Only a limited number of suitable repairs are accepted",
@@ -130,19 +130,19 @@ const copy = {
       "Cases are not automatically broadcast to contractors",
     ],
     pilotNote: "Submitting does not guarantee acceptance, contractor availability, a quotation or a successful repair outcome.",
-    safetyTitle: "Important: RepairScope is not an emergency repair service",
+    safetyTitle: "Important: SimpleFix is not an emergency repair service",
     safetyText:
-      "RepairScope is for coordinating significant, non-emergency repairs. If there is immediate danger, use the appropriate emergency service rather than waiting for RepairScope to source quotations.",
+      "SimpleFix is for coordinating significant, non-emergency repairs. If there is immediate danger, use the appropriate emergency service rather than waiting for SimpleFix to source quotations.",
     faqEyebrow: "FAQ",
     faqTitle: "What you may want to know before submitting.",
     faqs: [
-      ["Does RepairScope charge property owners?", "No. Property owners use the service free of charge during the founding pilot."],
+      ["Does SimpleFix charge property owners?", "No. Property owners use the service free of charge during the founding pilot."],
       ["What kinds of repairs can I submit?", "You can submit significant, non-emergency home repairs such as leaks, waterproofing, drainage, plumbing or bathroom problems. You can also submit another kind of case for individual review."],
       ["What if I do not know which contractor or trade I need?", "That is fine. You do not need to diagnose the trade; describe what happened and what has been affected."],
-      ["What happens after I submit?", "RepairScope manually reviews and organises the information first. If the case may be suitable, we will contact you about the next step. A contractor may need to inspect or ask questions before quoting."],
+      ["What happens after I submit?", "SimpleFix manually reviews and organises the information first. If the case may be suitable, we will contact you about the next step. A contractor may need to inspect or ask questions before quoting."],
       ["Will my details be sent to lots of contractors immediately?", "No. Cases are reviewed manually and are not automatically broadcast. We only source relevant contractors for suitable cases accepted into the pilot."],
-      ["What if I already have a quotation?", "Submit the repair and tell us you already have one. RepairScope can collect the relevant details during the later review process."],
-      ["Is RepairScope an emergency repair service?", "No. If there is immediate danger, use the appropriate emergency service rather than waiting for RepairScope to respond or source quotations."],
+      ["What if I already have a quotation?", "Submit the repair and tell us you already have one. SimpleFix can collect the relevant details during the later review process."],
+      ["Is SimpleFix an emergency repair service?", "No. If there is immediate danger, use the appropriate emergency service rather than waiting for SimpleFix to respond or source quotations."],
       ["Am I guaranteed to receive a quotation?", "No. Submission does not guarantee acceptance, contractor availability or a quotation. Some cases may also require an inspection or investigation first."],
     ],
     finalTitle: "One repair is enough to begin.",
@@ -227,7 +227,7 @@ export function PublicHome() {
           </div>
         </section>
 
-        <section className="rs-final-cta"><div><p className="eyebrow">RepairScope</p><h2>{c.finalTitle}</h2><p>{c.finalText}</p></div><Link className="button rs-primary-cta" href="/landlord/repairs/new">{c.cta}<span aria-hidden="true">→</span></Link></section>
+        <section className="rs-final-cta"><div><p className="eyebrow">SimpleFix</p><h2>{c.finalTitle}</h2><p>{c.finalText}</p></div><Link className="button rs-primary-cta" href="/landlord/repairs/new">{c.cta}<span aria-hidden="true">→</span></Link></section>
       </main>
     </SiteShell>
   );

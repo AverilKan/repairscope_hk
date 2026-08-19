@@ -189,7 +189,7 @@ test("a failed submission keeps the current journey addressable, not silently cl
   await expect(page.getByText("我哋呢邊出咗少少問題，請稍後再試。")).toBeVisible();
   // Still on the same journey's submission screen — not bounced to a
   // fresh/cleared state, and the contact form's own values were not lost.
-  await expect(page.getByRole("button", { name: "提交俾 RepairScope 人手檢視" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "提交俾修理易人手檢視" })).toBeVisible();
   await expect(page.getByLabel("姓名")).toHaveValue("陳大文");
 
   // Codex audit: the simplified success state (owner review hidden, only

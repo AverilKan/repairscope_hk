@@ -178,6 +178,18 @@ h3 {
   clip-path: polygon(0 0, 82% 0, 100% 18%, 100% 100%, 18% 100%, 0 82%);
 }
 
+/* SimpleFix HK brand mark — sized to sit comfortably within the 68px
+   sticky header without changing its height; width is auto to preserve
+   the source image's aspect ratio. */
+.wordmark__logo {
+  width: auto;
+  height: 34px;
+}
+
+.wordmark__logo--footer {
+  height: 28px;
+}
+
 .surface-label {
   display: flex;
   align-items: center;
@@ -4020,8 +4032,8 @@ select:focus {
 }
 
 @media (max-width: 520px) {
-  .wordmark > span:last-child {
-    display: none;
+  .wordmark__logo {
+    height: 26px;
   }
 
   .site-nav .button {

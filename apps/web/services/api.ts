@@ -19,7 +19,7 @@ export type RepairScopeApiConfig = {
 export class ApiCapabilityUnavailableError extends Error {
   constructor(public readonly capability: string) {
     super(
-      `RepairScope API adapter capability "${capability}" is not implemented yet. ` +
+      `SimpleFix API adapter capability "${capability}" is not implemented yet. ` +
         "Use the mock services (services/index.ts default) until the corresponding backend endpoint exists.",
     );
     this.name = "ApiCapabilityUnavailableError";

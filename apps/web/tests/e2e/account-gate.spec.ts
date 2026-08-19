@@ -21,7 +21,7 @@ test("signed-out visit to a protected landlord route redirects to sign-in with a
   await page.goto("/landlord/repairs");
   await expect(page).toHaveURL(/\/sign-in\?redirect_url=%2Flandlord%2Frepairs$/);
   await expect(
-    page.getByRole("heading", { name: "Sign in to RepairScope", exact: true }),
+    page.getByRole("heading", { name: "Sign in to SimpleFix", exact: true }),
   ).toBeVisible();
 });
 

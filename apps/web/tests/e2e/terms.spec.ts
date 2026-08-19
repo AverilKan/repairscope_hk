@@ -17,7 +17,7 @@ test("the English toggle renders the complete English Terms", async ({ page }) =
   await page.getByRole("button", { name: "EN", exact: true }).first().click();
 
   await expect(page.getByRole("heading", { name: "Terms of Use" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "What RepairScope does" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What SimpleFix does" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Submitting a repair" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Contractors and repair work" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Quotations and comparisons" })).toBeVisible();
@@ -42,7 +42,7 @@ test("language preference persists between the homepage and the Terms page", asy
 
 test("the Terms page uses the HK public shell (wordmark, nav, footer)", async ({ page }) => {
   await page.goto("/terms");
-  await expect(page.getByRole("link", { name: "RepairScope home" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "SimpleFix home" })).toBeVisible();
   await expect(page.getByRole("link", { name: "私隱政策" }).first()).toHaveAttribute("href", "/privacy");
   await expect(page.getByText(/創始試用 · 香港/)).toBeVisible();
 });
@@ -53,11 +53,11 @@ test("Terms covers the required founding-pilot substance", async ({ page }) => {
 
   const required = [
     "創始試用", // founding pilot
-    "提交申請並不代表 RepairScope 已接受個案", // submission is not acceptance
-    "RepairScope 本身並不進行維修工程", // does not perform repair work
+    "提交申請並不代表修理易已接受個案", // submission is not acceptance
+    "修理易本身並不進行維修工程", // does not perform repair work
     "有關師傅仍然是獨立提供服務的一方", // contractors are independent
     "是否選擇任何師傅，以及是否進行工程，最終由你決定", // owner decides
-    "RepairScope 唔保證", // no guarantee wording
+    "修理易唔保證", // no guarantee wording
     "合理謹慎及技能", // reasonable care and skill
     "目前不向物業業主收取", // free for owners during the pilot
     "受香港特別行政區法律管限", // HK governing law

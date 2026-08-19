@@ -103,9 +103,9 @@ export function LandlordAccountGate({ children }: { children: React.ReactNode })
       <main className="centered-stage">
         <section className="processing-card">
           <p className="eyebrow">Landlord account access</p>
-          <h1>This account can&rsquo;t access RepairScope right now</h1>
+          <h1>This account can&rsquo;t access SimpleFix right now</h1>
           <p>
-            Your RepairScope account has been suspended or deactivated. If
+            Your SimpleFix account has been suspended or deactivated. If
             you think this is a mistake, contact support.
           </p>
         </section>
@@ -120,7 +120,7 @@ export function LandlordAccountGate({ children }: { children: React.ReactNode })
           <p className="eyebrow">Landlord account access</p>
           <h1>Couldn&rsquo;t load your account</h1>
           <p>
-            Something went wrong reaching RepairScope. Please try again in a
+            Something went wrong reaching SimpleFix. Please try again in a
             moment.
           </p>
         </section>

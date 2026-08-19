@@ -44,7 +44,7 @@ test("sign-in shell's back link navigates client-side to the home route", async 
     (window as unknown as { __navMarker: string }).__navMarker = "still-here";
   });
 
-  await page.getByRole("link", { name: "Back to RepairScope" }).click();
+  await page.getByRole("link", { name: "Back to SimpleFix" }).click();
   await expect(page).toHaveURL(/\/$/);
   // Next.js's own accessibility route-announcer also carries this text, so
   // scope to the actual page heading rather than a bare text match. The
@@ -146,7 +146,7 @@ test("questionnaire draft state survives a reload (localStorage)", async ({ page
 // resolves to a "not available" state rather than a distinct fixture UI.
 test("contractor token route resolves the demo token to the Stage-1 brief, and any other token to 'not available'", async ({ page }) => {
   await page.goto("/contractor/respond/demo-token");
-  await expect(page.getByText("請告知 RepairScope 你打算如何處理。")).toBeVisible();
+  await expect(page.getByText("請告知修理易你打算如何處理。")).toBeVisible();
 
   await page.goto("/contractor/respond/not-a-real-token");
   await expect(page.getByText("此邀請暫時未能使用。")).toBeVisible();

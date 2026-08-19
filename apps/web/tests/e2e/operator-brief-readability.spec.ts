@@ -111,7 +111,7 @@ test("operator status/note actions still work after the brief-rendering change",
   // OperatorCaseWorkspace's own "後台提交狀態" vs "Local
   // working notes" sections) — matched here by its fuller label to avoid
   // ambiguity between the two.
-  await page.getByLabel("內部審閱備註（會儲存在 RepairScope）").fill("Readability regression check.");
+  await page.getByLabel("內部審閱備註（會儲存在修理易）").fill("Readability regression check.");
   await page.getByRole("button", { name: "審閱中" }).click();
 
   await expect(page.getByText("審閱中", { exact: true }).first()).toBeVisible();

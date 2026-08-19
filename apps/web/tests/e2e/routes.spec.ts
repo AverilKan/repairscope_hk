@@ -17,9 +17,9 @@ const ROUTES: { path: string; identifyingText: string | RegExp }[] = [
   { path: "/sign-up", identifyingText: "Landlord account access" },
   { path: "/contractor", identifyingText: "CONTRACTOR RESPONSE PORTAL" },
   { path: "/contractor/quotes", identifyingText: "Account match required" },
-  { path: "/contractor/respond/demo-token", identifyingText: "請告知 RepairScope 你打算如何處理。" },
+  { path: "/contractor/respond/demo-token", identifyingText: "請告知修理易你打算如何處理。" },
   { path: "/contractor/respond/not-a-real-token", identifyingText: "此邀請暫時未能使用。" },
-  { path: "/respond/demo-token", identifyingText: "請告知 RepairScope 你打算如何處理。" },
+  { path: "/respond/demo-token", identifyingText: "請告知修理易你打算如何處理。" },
   { path: "/operator", identifyingText: "審閱已提交的維修簡報。" },
   // Traditional Chinese is the default language for the landlord surface
   // (see components/LanguageContext.tsx) — not English. Neutral

@@ -56,7 +56,7 @@ test.skip(
 
 test("an open request loads the real Stage-1 brief and shows no fixture/mock content", async ({ page }) => {
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("請告知 RepairScope 你打算如何處理。")).toBeVisible();
+  await expect(page.getByText("請告知修理易你打算如何處理。")).toBeVisible();
   const briefPanel = page.locator(".contractor-brief-panel");
   // Default UI language is Traditional Chinese (see LanguageContext) — the
   // resolved category label is bilingual, so this asserts the raw internal
@@ -216,7 +216,7 @@ test("mobile viewport: the real API-mode contractor route renders with no page-l
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/contractor/respond/${TOKEN_OPEN2}`);
-  await expect(page.getByText("請告知 RepairScope 你打算如何處理。")).toBeVisible();
+  await expect(page.getByText("請告知修理易你打算如何處理。")).toBeVisible();
   const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   expect(hasOverflow).toBe(false);
 });

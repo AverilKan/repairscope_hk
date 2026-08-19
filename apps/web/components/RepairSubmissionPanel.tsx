@@ -96,11 +96,11 @@ export function RepairSubmissionPanel({
     ? {
         heading: "私隱及資料收集",
         bullets: [
-          "你喺呢度提供嘅資料，RepairScope 會用嚟審閱同整理呢單申請、聯絡你，以及評估個案是否適合創始試用；如個案獲接納，亦會用嚟協助跟進下一步。",
+          "你喺呢度提供嘅資料，修理易會用嚟審閱同整理呢單申請、聯絡你，以及評估個案是否適合創始試用；如個案獲接納，亦會用嚟協助跟進下一步。",
           "姓名、聯絡方式同維修相關資料係處理申請所需，如果無提供，我哋可能無法處理你嘅申請；其他資料你可以選擇唔填。",
           "呢啲資料可能會由協助營運呢個服務嘅技術服務供應商處理；如果個案需要將資料交俾師傅，我哋會先同你確認先至分享。",
           "在法律要求的情況下，相關資料亦可能提供予法院、政府部門或其他依法有權要求資料的機構。",
-          "你可以要求查閱或更正 RepairScope 持有關於你嘅個人資料。",
+          "你可以要求查閱或更正修理易持有關於你嘅個人資料。",
         ],
         linkPrefix: "詳情請參閱",
         linkText: "私隱政策",
@@ -109,11 +109,11 @@ export function RepairSubmissionPanel({
     : {
         heading: "Privacy and data collection",
         bullets: [
-          "Information you provide here is used by RepairScope to review and organise this request, contact you, and assess whether the case is suitable for the founding pilot; if accepted, it also helps us coordinate next steps.",
+          "Information you provide here is used by SimpleFix to review and organise this request, contact you, and assess whether the case is suitable for the founding pilot; if accepted, it also helps us coordinate next steps.",
           "Your name, contact details and repair information are needed to process this request — if not provided, we may be unable to process it. Other information can be left blank.",
           "This information may be handled by technical service providers who help operate the service. If the case needs to be shared with a contractor, we will confirm this with you first.",
           "Where required by applicable law, relevant information may also be disclosed to courts, government bodies or other lawful authorities entitled to request it.",
-          "You may ask to access or correct the personal data RepairScope holds about you.",
+          "You may ask to access or correct the personal data SimpleFix holds about you.",
         ],
         linkPrefix: "See our",
         linkText: "Privacy Notice",
@@ -165,14 +165,14 @@ export function RepairSubmissionPanel({
       if (error instanceof RepairSubmissionValidationError) {
         setErrorMessage(
           lang === "zh"
-            ? "RepairScope 未能接受呢次提交，請檢查以上資料再試。"
-            : "RepairScope could not accept this submission — please check the details above and try again.",
+            ? "修理易未能接受呢次提交，請檢查以上資料再試。"
+            : "SimpleFix could not accept this submission — please check the details above and try again.",
         );
       } else if (error instanceof RepairSubmissionNetworkError) {
         setErrorMessage(
           lang === "zh"
-            ? "未能連接 RepairScope，請檢查網絡再試。"
-            : "Could not reach RepairScope. Check your connection and try again.",
+            ? "未能連接修理易，請檢查網絡再試。"
+            : "Could not reach SimpleFix. Check your connection and try again.",
         );
       } else if (error instanceof RepairSubmissionServerError) {
         setErrorMessage(
@@ -202,8 +202,8 @@ export function RepairSubmissionPanel({
           <div className="safety-notice__flag">{lang === "zh" ? "可能需要盡快處理" : "Urgent attendance may be needed"}</div>
           <p>
             {lang === "zh"
-              ? "呢個問題可能需要盡快處理，唔好等 RepairScope 搵師傅比較。請直接聯絡合適嘅緊急服務或師傅。你仍然可以提交呢份資料俾 RepairScope 記錄。"
-              : "This issue may require urgent attendance. Do not wait for RepairScope to source and compare contractors. Contact an appropriate emergency service or contractor now. You can still submit this brief for RepairScope’s records."}
+              ? "呢個問題可能需要盡快處理，唔好等修理易搵師傅比較。請直接聯絡合適嘅緊急服務或師傅。你仍然可以提交呢份資料俾修理易記錄。"
+              : "This issue may require urgent attendance. Do not wait for SimpleFix to source and compare contractors. Contact an appropriate emergency service or contractor now. You can still submit this brief for SimpleFix’s records."}
           </p>
         </div>
       )}
@@ -284,8 +284,8 @@ export function RepairSubmissionPanel({
             />
             <span>
               {lang === "zh"
-                ? "我同意 RepairScope 人手檢視我提交嘅資料，並就呢個個案聯絡我。未經進一步確認同同意，RepairScope 唔會將資料交俾師傅。"
-                : "I agree that RepairScope may manually review this submission and contact me about the case. RepairScope will not share it with contractors without further confirmation and consent."}
+                ? "我同意修理易人手檢視我提交嘅資料，並就呢個個案聯絡我。未經進一步確認同同意，修理易唔會將資料交俾師傅。"
+                : "I agree that SimpleFix may manually review this submission and contact me about the case. SimpleFix will not share it with contractors without further confirmation and consent."}
             </span>
           </label>
         </div>
@@ -316,7 +316,7 @@ export function RepairSubmissionPanel({
         <button className="button" type="submit" disabled={!canSubmit}>
           {status === "submitting"
             ? (lang === "zh" ? "安全提交中…" : "Submitting securely…")
-            : (lang === "zh" ? "提交俾 RepairScope 人手檢視" : "Submit for manual review")}
+            : (lang === "zh" ? "提交俾修理易人手檢視" : "Submit for manual review")}
         </button>
       </form>
     </section>
@@ -340,8 +340,8 @@ function SubmissionConfirmation({
       <h2 id="submission-confirmation-heading">{result.publicReference}</h2>
       <p>
         {lang === "zh"
-          ? "我哋已收到你嘅維修資料。RepairScope 會先人手檢查資料，再確認呢單工程適唔適合試用計劃。未確認之前，我哋唔會將資料交俾師傅。"
-          : "We’ve received your repair information. RepairScope will manually review the information and confirm whether the case is suitable for the founding pilot. We will not share it with contractors before that confirmation."}
+          ? "我哋已收到你嘅維修資料。修理易會先人手檢查資料，再確認呢單工程適唔適合試用計劃。未確認之前，我哋唔會將資料交俾師傅。"
+          : "We’ve received your repair information. SimpleFix will manually review the information and confirm whether the case is suitable for the founding pilot. We will not share it with contractors before that confirmation."}
       </p>
 
       {hasSafetyFlags && (
@@ -349,8 +349,8 @@ function SubmissionConfirmation({
           <div className="safety-notice__flag">{lang === "zh" ? "可能需要盡快處理" : "Urgent attendance may be needed"}</div>
           <p>
             {lang === "zh"
-              ? "呢個問題可能需要盡快處理，唔好等 RepairScope 搵師傅比較。請直接聯絡合適嘅緊急服務或師傅。"
-              : "This issue may require urgent attendance. Do not wait for RepairScope to source and compare contractors. Contact an appropriate emergency service or contractor now."}
+              ? "呢個問題可能需要盡快處理，唔好等修理易搵師傅比較。請直接聯絡合適嘅緊急服務或師傅。"
+              : "This issue may require urgent attendance. Do not wait for SimpleFix to source and compare contractors. Contact an appropriate emergency service or contractor now."}
           </p>
         </div>
       )}

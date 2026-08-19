@@ -119,7 +119,7 @@ function MockContractorResponseRouteContent({ token }: { token: string }) {
     <main className="content-page">
       <PageIntro
         eyebrow={t(lt("師傅回覆", "Contractor response"))}
-        title={t(lt("請告知 RepairScope 你打算如何處理。", "Tell RepairScope how you'd like to respond."))}
+        title={t(lt("請告知修理易你打算如何處理。", "Tell SimpleFix how you'd like to respond."))}
         description={t(
           lt(
             "只需要幾分鐘。其他師傅不會看到你的回覆、報價或身份。",
@@ -203,8 +203,8 @@ function RealContractorResponseRoute({ token }: { token: string }) {
           title={t(lt("此連結無效。", "This link isn't valid."))}
           description={t(
             lt(
-              "連結可能已經過期或輸入錯誤，請向 RepairScope 或發送連結的人索取新連結。",
-              "The link may be out of date or mistyped. Ask RepairScope or the person who sent it for a new one.",
+              "連結可能已經過期或輸入錯誤，請向修理易或發送連結的人索取新連結。",
+              "The link may be out of date or mistyped. Ask SimpleFix or the person who sent it for a new one.",
             ),
           )}
           aside={<StatusPill tone="neutral">{t(lt("邀請未能使用", "Invitation unavailable"))}</StatusPill>}
@@ -221,8 +221,8 @@ function RealContractorResponseRoute({ token }: { token: string }) {
           title={t(lt("未能載入此邀請。", "Couldn't load this invitation."))}
           description={t(
             lt(
-              "連接 RepairScope 時發生問題，請檢查網絡連線後再試一次。",
-              "Something went wrong reaching RepairScope. Please check your connection and try again.",
+              "連接修理易時發生問題，請檢查網絡連線後再試一次。",
+              "Something went wrong reaching SimpleFix. Please check your connection and try again.",
             ),
           )}
           aside={<StatusPill tone="neutral">{t(lt("請再試一次", "Try again"))}</StatusPill>}
@@ -243,7 +243,7 @@ function RealContractorResponseRoute({ token }: { token: string }) {
             ),
           )}
           description={t(
-            lt("請聯絡 RepairScope 或發送連結的人協助。", "Ask RepairScope or the person who sent the link for help."),
+            lt("請聯絡修理易或發送連結的人協助。", "Ask SimpleFix or the person who sent the link for help."),
           )}
           aside={<StatusPill tone="neutral">{t(lt("版本不支援", "Unsupported request version"))}</StatusPill>}
         />
@@ -257,7 +257,7 @@ function RealContractorResponseRoute({ token }: { token: string }) {
         <PageIntro
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
           title={t(lt("你已經提交過此邀請的回覆。", "You've already submitted a response for this request."))}
-          description={t(lt("多謝你 — RepairScope 已經記錄你的回覆。", "Thank you — RepairScope has recorded your response."))}
+          description={t(lt("多謝你 — 修理易已經記錄你的回覆。", "Thank you — SimpleFix has recorded your response."))}
           aside={<StatusPill tone="neutral">{t(lt("已回覆", "Already responded"))}</StatusPill>}
         />
       </main>
@@ -271,7 +271,7 @@ function RealContractorResponseRoute({ token }: { token: string }) {
           eyebrow={t(lt("師傅回覆", "Contractor response"))}
           title={t(lt("此連結已經失效。", "This link is no longer active."))}
           description={t(
-            lt("請向 RepairScope 或發送連結的人索取新連結。", "Ask RepairScope or the person who sent it for a new link."),
+            lt("請向修理易或發送連結的人索取新連結。", "Ask SimpleFix or the person who sent it for a new link."),
           )}
           aside={<StatusPill tone="neutral">{t(lt("連結已失效", "Link unavailable"))}</StatusPill>}
         />
@@ -283,7 +283,7 @@ function RealContractorResponseRoute({ token }: { token: string }) {
     <main className="content-page">
       <PageIntro
         eyebrow={t(lt("師傅回覆", "Contractor response"))}
-        title={t(lt("請告知 RepairScope 你打算如何處理。", "Tell RepairScope how you'd like to respond."))}
+        title={t(lt("請告知修理易你打算如何處理。", "Tell SimpleFix how you'd like to respond."))}
         description={t(
           lt(
             "只需要幾分鐘。其他師傅不會看到你的回覆、報價或身份。",

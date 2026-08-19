@@ -110,14 +110,14 @@ export class ContractorRequestValidationError extends ContractorRequestPublicErr
 
 export class ContractorRequestNetworkError extends ContractorRequestPublicError {
   constructor(cause: unknown) {
-    super("Could not reach RepairScope.", { cause });
+    super("Could not reach SimpleFix.", { cause });
     this.name = "ContractorRequestNetworkError";
   }
 }
 
 export class ContractorRequestServerError extends ContractorRequestPublicError {
   constructor(detail: string) {
-    super(`RepairScope returned an unexpected response: ${detail}`);
+    super(`SimpleFix returned an unexpected response: ${detail}`);
     this.name = "ContractorRequestServerError";
   }
 }
