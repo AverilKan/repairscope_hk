@@ -46,7 +46,7 @@ export function SiteShell({
         footer: "Helping Hong Kong property owners organise significant, non-emergency home repairs.",
       };
   return (
-    <div className={`site-shell ${compact ? "site-shell--compact" : ""}`}>
+    <div className={`site-shell site-shell--${surface} ${compact ? "site-shell--compact" : ""}`}>
       <header className="site-header">
         <Link className="wordmark" href="/" aria-label={`${BRAND_NAME} home`}>
           <Image
