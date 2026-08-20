@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
+import { Analytics } from "@vercel/analytics/react";
 import { LanguageProvider } from "@/components/LanguageContext";
 import "./globals.css";
 
@@ -92,6 +93,7 @@ export default function RootLayout({
             </a>
             <div id="main-content">{children}</div>
           </LanguageProvider>
+          <Analytics />
         </body>
       </html>
     </ClerkProvider>
