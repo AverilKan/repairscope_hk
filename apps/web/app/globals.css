@@ -28,7 +28,6 @@
   --text-ui: 1rem;
   --text-body: 1.125rem;
   --text-lead: 1.375rem;
-  --text-section: 2rem;
   --text-display: clamp(3rem, 4.5vw, 4.75rem);
 }
 
@@ -10950,6 +10949,8 @@ select:focus {
 .site-shell--public .site-nav .button--small { font-size: var(--text-ui); }
 .site-shell--public .surface-label { font-size: var(--text-caption); }
 .site-shell--public .eyebrow { font-size: var(--text-caption); font-weight: 700; }
+.site-shell--public .site-footer p { font-size: var(--text-caption); line-height: 1.5; }
+.site-shell--public .site-footer__links { font-size: var(--text-ui); }
 
 .rs-home { overflow: hidden; }
 .rs-home h1,
